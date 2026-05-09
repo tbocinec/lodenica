@@ -1,0 +1,50 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to deploy (e.g. latest, sha-abc1234, v1.0.0)'
+        required: true
+        default: 'latest'
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: SSH deploy to ${{ vars.DEPLOY_HOST }}
+    runs-on: ubuntu-24.04
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push compose + env to host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: 'docker-compose.prod.yml'
+          target: '/opt/lodenica/'
+          overwrite: true
+
+      - name: Pull & roll
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ vars.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/lodenica
+            export IMAGE_TAG="${{ github.event.inputs.tag }}"
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
+            docker compose -f docker-compose.prod.yml ps

@@ -1,0 +1,104 @@
+// Lodenica — boathouse management database schema.
+// Single resources table covers all reservable assets (boats, trailers, spaces).
+// Type-specific fields (seats, length, weight) are nullable; spaces and trailers
+// simply don't populate them. This keeps reservations uniformly polymorphic
+// without resorting to STI or table-per-type.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ResourceType {
+  KAYAK
+  CANOE
+  ROWING_BOAT
+  INFLATABLE_BOAT
+  TRAILER
+  BOATHOUSE_SPACE
+}
+
+enum DamageSeverity {
+  MINOR
+  MODERATE
+  CRITICAL
+}
+
+enum DamageStatus {
+  REPORTED
+  IN_REPAIR
+  FIXED
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model Resource {
+  id         String       @id @default(uuid()) @db.Uuid
+  identifier String       @unique
+  type       ResourceType
+  name       String
+  model      String?
+  color      String?
+  seats      Int?
+  lengthCm   Int?
+  weightKg   Int?
+  note       String?
+  imageUrl   String?
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  reservations Reservation[]
+  damages      Damage[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("resources")
+}
+
+model Reservation {
+  id              String            @id @default(uuid()) @db.Uuid
+  resourceId      String            @db.Uuid
+  customerName    String
+  customerContact String?
+  startsAt        DateTime          @db.Timestamp(3)
+  endsAt          DateTime          @db.Timestamp(3)
+  note            String?
+  status          ReservationStatus @default(CONFIRMED)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  @@index([resourceId])
+  @@index([startsAt, endsAt])
+  @@index([status])
+  @@map("reservations")
+}
+
+model Damage {
+  id          String         @id @default(uuid()) @db.Uuid
+  resourceId  String         @db.Uuid
+  description String
+  severity    DamageSeverity
+  status      DamageStatus   @default(REPORTED)
+  reportedAt  DateTime       @default(now())
+  fixedAt     DateTime?
+  note        String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId])
+  @@index([status])
+  @@map("damages")
+}

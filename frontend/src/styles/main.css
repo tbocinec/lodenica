@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70;
+  }
+
+  .card-padded {
+    @apply card p-5 sm:p-6;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-100;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .input {
+    @apply block w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-600;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-700;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .pill-blue { @apply pill bg-brand-100 text-brand-800; }
+  .pill-green { @apply pill bg-emerald-100 text-emerald-800; }
+  .pill-amber { @apply pill bg-amber-100 text-amber-800; }
+  .pill-red { @apply pill bg-red-100 text-red-800; }
+  .pill-slate { @apply pill bg-slate-100 text-slate-700; }
+
+  .table-clean {
+    @apply min-w-full divide-y divide-slate-200 text-sm;
+  }
+  .table-clean thead th {
+    @apply px-3 py-2.5 text-left font-semibold text-slate-700;
+  }
+  .table-clean tbody td {
+    @apply px-3 py-3 align-top text-slate-700;
+  }
+  .table-clean tbody tr:nth-child(odd) {
+    @apply bg-slate-50/40;
+  }
+}

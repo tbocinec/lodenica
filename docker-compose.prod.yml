@@ -1,0 +1,51 @@
+name: lodenica-prod
+
+# Production stack — pulls pre-built images from GHCR, no local builds.
+# Set `IMAGE_TAG=…` (e.g. `latest`, `sha-abc1234`, `v1.0.0`) and pass an
+# `.env` file with POSTGRES_*, BACKEND_LOG_LEVEL, BACKEND_CORS_ORIGINS.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lodenica-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/lodenica-backend:${IMAGE_TAG:-latest}
+    container_name: lodenica-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: ${BACKEND_LOG_LEVEL:-info}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      CORS_ORIGINS: ${BACKEND_CORS_ORIGINS}
+    command: sh -c "pnpm prisma migrate deploy && node dist/main.js"
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/lodenica-frontend:${IMAGE_TAG:-latest}
+    container_name: lodenica-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    # Frontend nginx serves the SPA on / and reverse-proxies /api → backend:3000.
+
+volumes:
+  postgres-data:
+    driver: local

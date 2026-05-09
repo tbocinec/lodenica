@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.output/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Prisma
+backend/prisma/migrations/dev.db*
+
+# Docker
+*.pid
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# Local prod env files (only the .example variant is committed)
+.env.prod
+infra/.env.prod
