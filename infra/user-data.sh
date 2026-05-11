@@ -24,6 +24,15 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 
 usermod -aG docker ubuntu
 
+# Many corporate networks block outbound SSH (port 22). Have sshd listen on
+# 443 as well so admins behind such proxies can still get in. Port 80
+# is reserved for the web app; SG opens 22 and 443 to the world.
+cat > /etc/ssh/sshd_config.d/50-extra-port.conf <<'SSHD'
+Port 22
+Port 443
+SSHD
+systemctl reload ssh || systemctl reload sshd || true
+
 # Convenient swap so a 1 GB instance survives Postgres + Node + builds.
 if [ ! -f /swapfile ]; then
   fallocate -l 1G /swapfile

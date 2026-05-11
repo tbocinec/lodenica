@@ -349,20 +349,6 @@ function blockColor(r: Reservation): string {
   return palette[idx]!;
 }
 
-function nowMarkerLeftPct(): number | null {
-  const now = new Date();
-  if (mode.value === 'day') {
-    if (toIsoDate(cursor.value) !== toIsoDate(now)) return null;
-    const span = (DAY_HOUR_END - DAY_HOUR_START) * 60;
-    const minutesFromStart = (now.getUTCHours() - DAY_HOUR_START) * 60 + now.getUTCMinutes();
-    if (minutesFromStart < 0 || minutesFromStart > span) return null;
-    return (minutesFromStart / span) * 100;
-  }
-  const win = visualWindow.value;
-  if (now < win.start || now >= win.end) return null;
-  return ((now.getTime() - win.start.getTime()) / (win.end.getTime() - win.start.getTime())) * 100;
-}
-
 function selectedResourceName(): string | undefined {
   return selected.value
     ? resources.byId.get(selected.value.resourceId)?.name
@@ -459,120 +445,112 @@ async function onReservationDeleted(): Promise<void> {
   <Spinner v-if="loading && !resources.items.length" />
 
   <div v-else class="card overflow-hidden">
-    <!-- Header row: hours / days -->
     <div
-      class="sticky top-0 z-10 grid border-b border-slate-200 bg-slate-100/90 backdrop-blur"
-      :style="{ gridTemplateColumns: `12rem 1fr` }"
+      class="max-h-[80vh] overflow-auto [--cell-min:2.5rem] [--resource-col:8rem] sm:[--cell-min:0px] sm:[--resource-col:12rem]"
     >
-      <div class="border-r border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Zdroj
-      </div>
-      <div class="grid" :style="{ gridTemplateColumns: `repeat(${cellCount}, minmax(0, 1fr))` }">
-        <template v-if="mode === 'day'">
-          <div
-            v-for="h in HOURS"
-            :key="h"
-            class="border-r border-slate-200 px-1 py-2 text-center text-[11px] font-semibold text-slate-600"
-          >
-            {{ pad2(h) }}:00
-          </div>
-        </template>
-        <template v-else>
-          <div
-            v-for="i in DAYS_IN_WEEK"
-            :key="i"
-            class="border-r border-slate-200 px-1 py-2 text-center text-[11px] font-semibold text-slate-600"
-          >
-            {{ dayLabel(addDaysUtc(visualWindow.start, i - 1)) }}
-            <span class="ml-1 text-slate-400">{{ addDaysUtc(visualWindow.start, i - 1).getUTCDate() }}.</span>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <!-- Body rows -->
-    <div v-if="!resourceRows.length" class="p-6 text-center text-sm text-slate-500">
-      Žiadne aktívne zdroje pre tento filter.
-    </div>
-
-    <div
-      v-for="r in resourceRows"
-      :key="r.id"
-      class="grid border-b border-slate-100"
-      :style="{ gridTemplateColumns: `12rem 1fr` }"
-    >
-      <!-- Resource label cell -->
-      <div class="flex flex-col gap-0.5 border-r border-slate-200 px-3 py-2">
-        <div class="flex items-center gap-2">
-          <ResourceTypeBadge :type="r.type" />
-          <span class="font-mono text-[11px] text-slate-500">{{ r.identifier }}</span>
-        </div>
-        <span class="truncate text-sm font-medium text-slate-800" :title="r.name">{{ r.name }}</span>
-      </div>
-
-      <!-- Cells area: explicit block-formatting container with fixed height
-           so that absolutely-positioned reservation blocks always render at
-           the right size. Background cells form a CSS grid in the lower
-           layer; reservation blocks and the drag overlay live on top. -->
-      <div
-        class="relative touch-pan-y select-none"
-        :class="mode === 'day' ? 'h-14' : 'h-16'"
-        @pointerdown="onCellsPointerDown(r, $event)"
-        @pointermove="onCellsPointerMove($event)"
-        @pointerup="onCellsPointerUp(r, $event)"
-        @pointercancel="onCellsPointerCancel"
-      >
-        <!-- Layer 1: background grid (cells, hover hint) -->
+      <div :style="{ minWidth: `calc(var(--resource-col) + ${cellCount} * var(--cell-min))` }">
+        <!-- Header row: hours / days -->
         <div
-          class="absolute inset-0 grid"
-          :style="{ gridTemplateColumns: `repeat(${cellCount}, minmax(0, 1fr))` }"
+          class="sticky top-0 z-20 grid border-b border-slate-200 bg-slate-100/90 backdrop-blur"
+          :style="{ gridTemplateColumns: 'var(--resource-col) 1fr' }"
         >
-          <div
-            v-for="i in cellCount"
-            :key="i"
-            class="border-r border-slate-100 hover:bg-brand-50/70"
-          ></div>
+          <div class="sticky left-0 z-30 border-r border-slate-200 bg-slate-100/95 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 backdrop-blur">
+            Zdroj
+          </div>
+          <div class="grid" :style="{ gridTemplateColumns: `repeat(${cellCount}, minmax(var(--cell-min), 1fr))` }">
+            <template v-if="mode === 'day'">
+              <div
+                v-for="h in HOURS"
+                :key="h"
+                class="border-r border-slate-200 px-1 py-2 text-center text-[11px] font-semibold text-slate-600"
+              >
+                {{ pad2(h) }}:00
+              </div>
+            </template>
+            <template v-else>
+              <div
+                v-for="i in DAYS_IN_WEEK"
+                :key="i"
+                class="border-r border-slate-200 px-1 py-2 text-center text-[11px] font-semibold text-slate-600"
+              >
+                {{ dayLabel(addDaysUtc(visualWindow.start, i - 1)) }}
+                <span class="ml-1 text-slate-400">{{ addDaysUtc(visualWindow.start, i - 1).getUTCDate() }}.</span>
+              </div>
+            </template>
+          </div>
         </div>
 
-        <!-- Layer 2: reservation blocks -->
-        <button
-          v-for="b in blocksFor(r.id)"
-          :key="b.reservation.id"
-          type="button"
-          class="absolute top-1 bottom-1 z-10 truncate rounded px-1.5 text-[11px] font-medium shadow-sm ring-1 hover:brightness-95"
-          :class="blockColor(b.reservation)"
-          :style="{ left: b.leftPct + '%', width: 'max(' + b.widthPct + '%, 1.5rem)' }"
-          :title="`${b.reservation.customerName} · ${formatTime(b.reservation.startsAt)} – ${formatTime(b.reservation.endsAt)}`"
-          @pointerdown.stop
-          @click.stop="selected = b.reservation"
-        >
-          {{ blockLabel(b.reservation) }}
-        </button>
+        <!-- Body rows -->
+        <div v-if="!resourceRows.length" class="p-6 text-center text-sm text-slate-500">
+          Žiadne aktívne zdroje pre tento filter.
+        </div>
 
-        <!-- Drag-select overlay -->
         <div
-          v-if="dragOverlayFor(r.id)"
-          class="pointer-events-none absolute top-0 bottom-0 z-20 flex items-center justify-center rounded bg-brand-400/40 text-xs font-semibold text-brand-950 ring-2 ring-brand-600"
-          :style="{ left: dragOverlayFor(r.id)!.leftPct + '%', width: dragOverlayFor(r.id)!.widthPct + '%' }"
+          v-for="r in resourceRows"
+          :key="r.id"
+          class="grid border-b border-slate-100"
+          :style="{ gridTemplateColumns: 'var(--resource-col) 1fr' }"
         >
-          {{ dragOverlayFor(r.id)!.label }}
+          <!-- Resource label cell (sticky on horizontal scroll) -->
+          <div class="sticky left-0 z-10 flex flex-col gap-0.5 border-r border-slate-200 bg-white px-3 py-2">
+            <div class="flex items-center gap-2">
+              <ResourceTypeBadge :type="r.type" />
+              <span class="font-mono text-[11px] text-slate-500">{{ r.identifier }}</span>
+            </div>
+            <span class="truncate text-sm font-medium text-slate-800" :title="r.name">{{ r.name }}</span>
+          </div>
+
+          <!-- Cells area: explicit block-formatting container with fixed height
+               so that absolutely-positioned reservation blocks always render at
+               the right size. Background cells form a CSS grid in the lower
+               layer; reservation blocks and the drag overlay live on top. -->
+          <div
+            class="relative touch-pan-y select-none"
+            :class="mode === 'day' ? 'h-14' : 'h-16'"
+            @pointerdown="onCellsPointerDown(r, $event)"
+            @pointermove="onCellsPointerMove($event)"
+            @pointerup="onCellsPointerUp(r, $event)"
+            @pointercancel="onCellsPointerCancel"
+          >
+            <!-- Layer 1: background grid (cells, hover hint) -->
+            <div
+              class="absolute inset-0 grid"
+              :style="{ gridTemplateColumns: `repeat(${cellCount}, minmax(var(--cell-min), 1fr))` }"
+            >
+              <div
+                v-for="i in cellCount"
+                :key="i"
+                class="border-r border-slate-100 hover:bg-brand-50/70"
+              ></div>
+            </div>
+
+            <!-- Layer 2: reservation blocks -->
+            <button
+              v-for="b in blocksFor(r.id)"
+              :key="b.reservation.id"
+              type="button"
+              class="absolute top-1 bottom-1 z-[5] truncate rounded px-1.5 text-[11px] font-medium shadow-sm ring-1 hover:brightness-95"
+              :class="blockColor(b.reservation)"
+              :style="{ left: b.leftPct + '%', width: 'max(' + b.widthPct + '%, 1.5rem)' }"
+              :title="`${b.reservation.customerName} · ${formatTime(b.reservation.startsAt)} – ${formatTime(b.reservation.endsAt)}`"
+              @pointerdown.stop
+              @click.stop="selected = b.reservation"
+            >
+              {{ blockLabel(b.reservation) }}
+            </button>
+
+            <!-- Drag-select overlay -->
+            <div
+              v-if="dragOverlayFor(r.id)"
+              class="pointer-events-none absolute top-0 bottom-0 z-[6] flex items-center justify-center rounded bg-brand-400/40 text-xs font-semibold text-brand-950 ring-2 ring-brand-600"
+              :style="{ left: dragOverlayFor(r.id)!.leftPct + '%', width: dragOverlayFor(r.id)!.widthPct + '%' }"
+            >
+              {{ dragOverlayFor(r.id)!.label }}
+            </div>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- Now marker (vertical red line) -->
-    <div
-      v-if="nowMarkerLeftPct() !== null"
-      class="pointer-events-none absolute z-20"
-      aria-hidden="true"
-      :style="{
-        left: `calc(12rem + (100% - 12rem) * ${nowMarkerLeftPct()! / 100})`,
-        top: 0,
-        bottom: 0,
-        width: '2px',
-        background: 'rgba(220,38,38,0.7)',
-      }"
-    />
   </div>
 
   <p class="mt-3 text-xs text-slate-500">

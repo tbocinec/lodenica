@@ -25,7 +25,7 @@ resource "aws_security_group" "this" {
   }
 
   ingress {
-    description = "HTTPS (reserved for Caddy/Let's Encrypt)"
+    description = "HTTPS (reserved for Caddy / LetsEncrypt)"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -46,9 +46,10 @@ resource "aws_security_group" "this" {
 }
 
 resource "aws_instance" "this" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = var.instance_type
-  key_name      = aws_key_pair.this.key_name
+  ami                  = data.aws_ami.ubuntu.id
+  instance_type        = var.instance_type
+  key_name             = aws_key_pair.this.key_name
+  iam_instance_profile = aws_iam_instance_profile.instance.name
 
   subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.this.id]

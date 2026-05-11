@@ -30,7 +30,7 @@ function isActive(path: string): boolean {
         <div class="flex items-center gap-3">
           <button
             type="button"
-            class="rounded-lg p-2 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 lg:hidden"
+            class="rounded-lg p-2 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 xl:hidden"
             aria-label="Otvoriť menu"
             @click="navOpen = !navOpen"
           >
@@ -62,7 +62,7 @@ function isActive(path: string): boolean {
     <div class="mx-auto flex max-w-7xl gap-6 px-4 py-6 sm:px-6">
       <aside
         :class="[
-          'fixed inset-y-0 left-0 z-40 w-64 transform border-r border-slate-200 bg-white p-4 transition-transform lg:static lg:translate-x-0 lg:border-0 lg:bg-transparent lg:p-0',
+          'fixed inset-y-0 left-0 z-40 w-64 transform border-r border-slate-200 bg-white p-4 transition-transform xl:static xl:translate-x-0 xl:border-0 xl:bg-transparent xl:p-0',
           navOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full',
         ]"
       >
@@ -95,7 +95,7 @@ function isActive(path: string): boolean {
 
     <div
       v-if="navOpen"
-      class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden"
+      class="fixed inset-0 z-30 bg-slate-900/30 xl:hidden"
       aria-hidden="true"
       @click="navOpen = false"
     />
