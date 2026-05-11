@@ -67,7 +67,9 @@ jobs:
         continue-on-error: true
 
       - name: Unit tests
-        run: pnpm test --ci
+        # Jest auto-detects CI from process.env.CI; pnpm treats `--ci` as its own flag,
+        # so we don't pass it explicitly.
+        run: pnpm test
 
       - name: Build
         run: pnpm build
