@@ -145,6 +145,9 @@ watch([search, typeFilter, onlyActive], () => {
             </td>
             <td class="text-right">
               <RouterLink :to="`/resources/${r.id}`" class="btn-secondary mr-2">
+                Detail
+              </RouterLink>
+              <RouterLink :to="`/resources/${r.id}/edit`" class="btn-secondary mr-2">
                 Upraviť
               </RouterLink>
               <button class="btn-secondary" type="button" @click="toggleActive(r)">

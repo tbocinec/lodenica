@@ -21,9 +21,16 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/resources/:id',
+    name: 'resources-detail',
+    component: () => import('@/views/ResourceDetailView.vue'),
+    meta: { title: 'Detail lode' },
+    props: true,
+  },
+  {
+    path: '/resources/:id/edit',
     name: 'resources-edit',
     component: () => import('@/views/ResourceFormView.vue'),
-    meta: { title: 'Detail lode' },
+    meta: { title: 'Upraviť loď' },
     props: true,
   },
   {
@@ -37,6 +44,32 @@ const routes: RouteRecordRaw[] = [
     name: 'reservations-create',
     component: () => import('@/views/ReservationFormView.vue'),
     meta: { title: 'Vytvoriť rezerváciu' },
+  },
+  {
+    path: '/events',
+    name: 'events',
+    component: () => import('@/views/EventsView.vue'),
+    meta: { title: 'Lodenicné udalosti' },
+  },
+  {
+    path: '/events/new',
+    name: 'events-create',
+    component: () => import('@/views/EventFormView.vue'),
+    meta: { title: 'Nová udalosť' },
+  },
+  {
+    path: '/events/:id',
+    name: 'events-detail',
+    component: () => import('@/views/EventDetailView.vue'),
+    meta: { title: 'Detail udalosti' },
+    props: true,
+  },
+  {
+    path: '/events/:id/edit',
+    name: 'events-edit',
+    component: () => import('@/views/EventFormView.vue'),
+    meta: { title: 'Upraviť udalosť' },
+    props: true,
   },
   {
     path: '/calendar',

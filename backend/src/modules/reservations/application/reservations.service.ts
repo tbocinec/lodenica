@@ -18,6 +18,7 @@ import { TimeRange } from '../domain/time-range.value';
 
 export interface CreateReservationCommand {
   resourceId: string;
+  eventId?: string | null;
   customerName: string;
   customerContact?: string | null;
   startsAt: string | Date;
@@ -28,6 +29,7 @@ export interface CreateReservationCommand {
 export interface UpdateReservationCommand {
   customerName?: string;
   customerContact?: string | null;
+  eventId?: string | null;
   startsAt?: string | Date;
   endsAt?: string | Date;
   note?: string | null;
@@ -65,6 +67,7 @@ export class ReservationsService {
 
     return this.reservations.create({
       resourceId: cmd.resourceId,
+      eventId: cmd.eventId ?? null,
       customerName: cmd.customerName,
       customerContact: cmd.customerContact ?? null,
       startsAt: range.startsAt,
@@ -92,6 +95,7 @@ export class ReservationsService {
     const update: ReservationUpdateInput = {
       customerName: cmd.customerName,
       customerContact: cmd.customerContact,
+      eventId: cmd.eventId,
       startsAt: range?.startsAt,
       endsAt: range?.endsAt,
       note: cmd.note,

@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
 
+import { eventsApi } from '@/api/events.api';
 import { reservationsApi } from '@/api/reservations.api';
-import { ResourceType } from '@/api/types';
+import { ResourceType, type Event } from '@/api/types';
 import AvailabilityHints from '@/components/ui/AvailabilityHints.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import { RESOURCE_TYPE_LABEL } from '@/i18n/labels';
 import { useResourcesStore } from '@/stores/resources.store';
-import { isoFromDateTime, toIsoDate } from '@/utils/format';
+import { formatReservationRange, isoFromDateTime, toIsoDate } from '@/utils/format';
 
 const route = useRoute();
 const router = useRouter();
@@ -17,9 +18,10 @@ const resources = useResourcesStore();
 
 const today = toIsoDate(new Date());
 
-// Pre-fill from query params (used by Timeline drag-create).
+// Pre-fill from query params (used by Timeline drag-create or Event detail).
 const q = route.query;
 const initialResourceId = typeof q.resourceId === 'string' ? q.resourceId : '';
+const initialEventId = typeof q.eventId === 'string' ? q.eventId : '';
 const initialStartDate = typeof q.startDate === 'string' ? q.startDate : today;
 const initialEndDate = typeof q.endDate === 'string' ? q.endDate : initialStartDate;
 const initialStartTime = typeof q.startTime === 'string' ? q.startTime : '09:00';
@@ -27,6 +29,7 @@ const initialEndTime = typeof q.endTime === 'string' ? q.endTime : '12:00';
 
 const form = reactive({
   resourceId: initialResourceId,
+  eventId: initialEventId,
   customerName: '',
   customerContact: '',
   startDate: initialStartDate,
@@ -117,13 +120,14 @@ async function submit(): Promise<void> {
   try {
     await reservationsApi.create({
       resourceId: form.resourceId,
+      eventId: form.eventId || undefined,
       customerName: form.customerName,
       customerContact: form.customerContact || undefined,
       startsAt: composed.value.startsAt,
       endsAt: composed.value.endsAt,
       note: form.note || undefined,
     });
-    await router.push('/reservations');
+    await router.push(form.eventId ? `/events/${form.eventId}` : '/reservations');
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -160,7 +164,19 @@ function pickHour(hour: string): void {
   form.endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 }
 
-onMounted(() => resources.fetch());
+const linkedEvent = ref<Event | null>(null);
+
+onMounted(async () => {
+  await resources.fetch();
+  if (form.eventId) {
+    try {
+      linkedEvent.value = await eventsApi.get(form.eventId);
+    } catch (e) {
+      // Non-fatal — show the form even if the event lookup fails.
+      console.warn('Failed to load linked event', e);
+    }
+  }
+});
 </script>
 
 <template>
@@ -168,6 +184,22 @@ onMounted(() => resources.fetch());
     title="Vytvoriť rezerváciu"
     subtitle="Vyber zdroj a presný termín — od dátumu+času po dátum+čas. Konflikty sú overené automaticky."
   />
+
+  <div
+    v-if="linkedEvent"
+    class="mb-3 flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-4 py-3"
+  >
+    <div>
+      <p class="text-xs uppercase tracking-wide text-brand-700">Rezervácia patrí k udalosti</p>
+      <p class="font-semibold text-brand-900">{{ linkedEvent.title }}</p>
+      <p class="text-xs text-brand-700">
+        {{ formatReservationRange(linkedEvent.startsAt, linkedEvent.endsAt) }}
+      </p>
+    </div>
+    <RouterLink :to="`/events/${linkedEvent.id}`" class="btn-secondary text-xs">
+      Otvoriť udalosť
+    </RouterLink>
+  </div>
 
   <form class="card-padded grid gap-4 sm:grid-cols-2" @submit.prevent="submit">
     <div class="sm:col-span-2">

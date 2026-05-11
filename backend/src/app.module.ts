@@ -7,6 +7,7 @@ import { validateConfig } from './config/config.validation';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { ResourcesModule } from './modules/resources/resources.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
+import { EventsModule } from './modules/events/events.module';
 import { DamagesModule } from './modules/damages/damages.module';
 import { AvailabilityModule } from './modules/availability/availability.module';
 import { HealthModule } from './modules/health/health.module';
@@ -39,6 +40,7 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
     ResourcesModule,
     ReservationsModule,
+    EventsModule,
     DamagesModule,
     AvailabilityModule,
   ],

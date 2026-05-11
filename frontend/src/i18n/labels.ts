@@ -44,6 +44,7 @@ export const NAV_LABELS = {
   reservations: 'Rezervácie',
   timeline: 'Časová os',
   calendar: 'Kalendár',
+  events: 'Udalosti',
   damages: 'Poškodenia',
   spaces: 'Priestory',
 };

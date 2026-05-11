@@ -13,6 +13,7 @@ const navItems = [
   { to: '/reservations', label: NAV_LABELS.reservations, icon: '📅' },
   { to: '/timeline', label: NAV_LABELS.timeline, icon: '⏱️' },
   { to: '/calendar', label: NAV_LABELS.calendar, icon: '🗓️' },
+  { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
   { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
   { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
 ];

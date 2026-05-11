@@ -51,6 +51,7 @@ export interface Resource {
 export interface Reservation {
   id: string;
   resourceId: string;
+  eventId: string | null;
   customerName: string;
   customerContact: string | null;
   /** ISO datetime, inclusive lower bound. */
@@ -61,6 +62,26 @@ export interface Reservation {
   status: ReservationStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  startsAt: string;
+  endsAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventParticipant {
+  id: string;
+  eventId: string;
+  name: string;
+  contact: string | null;
+  note: string | null;
+  createdAt: string;
 }
 
 export interface Damage {

@@ -6,6 +6,7 @@ import { Reservation } from '../../domain/reservation.entity';
 export class ReservationResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() resourceId!: string;
+  @ApiProperty({ nullable: true }) eventId!: string | null;
   @ApiProperty() customerName!: string;
   @ApiProperty({ nullable: true }) customerContact!: string | null;
   @ApiProperty({ type: String, format: 'date-time' }) startsAt!: Date;

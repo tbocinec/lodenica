@@ -10,6 +10,11 @@ export class ListReservationsQueryDto extends PaginationQueryDto {
   @IsUUID()
   resourceId?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by linked boathouse event.' })
+  @IsOptional()
+  @IsUUID()
+  eventId?: string;
+
   @ApiPropertyOptional({ enum: ReservationStatus })
   @IsOptional()
   @IsEnum(ReservationStatus)

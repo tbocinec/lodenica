@@ -6,6 +6,11 @@ export class CreateReservationDto {
   @IsUUID()
   resourceId!: string;
 
+  @ApiPropertyOptional({ description: 'Optional UUID of the boathouse event this reservation belongs to.' })
+  @IsOptional()
+  @IsUUID()
+  eventId?: string;
+
   @ApiProperty({ example: 'Ján Novák' })
   @IsString()
   @Length(1, 200)

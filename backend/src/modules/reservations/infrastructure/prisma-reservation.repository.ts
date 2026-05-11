@@ -39,6 +39,7 @@ export class PrismaReservationRepository extends ReservationRepository {
   async list(options: ReservationListOptions): Promise<{ items: Reservation[]; total: number }> {
     const where: Prisma.ReservationWhereInput = {};
     if (options.resourceId) where.resourceId = options.resourceId;
+    if (options.eventId) where.eventId = options.eventId;
     if (options.status) where.status = options.status;
     if (options.range) {
       // Half-open overlap: existing.startsAt < range.endsAt AND existing.endsAt > range.startsAt

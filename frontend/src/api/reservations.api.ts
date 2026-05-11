@@ -5,6 +5,7 @@ export interface ListReservationsParams {
   page?: number;
   pageSize?: number;
   resourceId?: string;
+  eventId?: string;
   status?: ReservationStatus;
   /** ISO datetime — list reservations overlapping [from, to). */
   from?: string;
@@ -13,6 +14,7 @@ export interface ListReservationsParams {
 
 export interface CreateReservationInput {
   resourceId: string;
+  eventId?: string;
   customerName: string;
   customerContact?: string;
   /** ISO 8601 datetime. */

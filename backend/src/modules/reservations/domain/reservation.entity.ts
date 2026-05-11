@@ -7,6 +7,7 @@ export { ReservationStatus };
 export interface ReservationProps {
   id: string;
   resourceId: string;
+  eventId: string | null;
   customerName: string;
   customerContact: string | null;
   startsAt: Date;

@@ -50,6 +50,7 @@ export class ReservationsController {
 
     const { items, total } = await this.reservations.list({
       resourceId: query.resourceId,
+      eventId: query.eventId,
       status: query.status,
       range,
       skip: (query.page - 1) * query.pageSize,

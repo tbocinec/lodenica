@@ -5,6 +5,7 @@ import { TimeRange } from './time-range.value';
 
 export interface ReservationFilter {
   resourceId?: string;
+  eventId?: string;
   status?: ReservationStatus;
   range?: TimeRange;
 }
@@ -16,6 +17,7 @@ export interface ReservationListOptions extends ReservationFilter {
 
 export interface ReservationCreateInput {
   resourceId: string;
+  eventId?: string | null;
   customerName: string;
   customerContact?: string | null;
   startsAt: Date;
@@ -27,6 +29,7 @@ export interface ReservationCreateInput {
 export interface ReservationUpdateInput {
   customerName?: string;
   customerContact?: string | null;
+  eventId?: string | null;
   startsAt?: Date;
   endsAt?: Date;
   note?: string | null;

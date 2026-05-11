@@ -93,6 +93,7 @@ class InMemoryReservationRepo extends ReservationRepository {
   ): Reservation {
     const now = new Date();
     const full: ReservationProps = {
+      eventId: null,
       customerName: 'Test',
       customerContact: null,
       note: null,
@@ -110,6 +111,7 @@ class InMemoryReservationRepo extends ReservationRepository {
     return this.seed({
       id: randomUUID(),
       resourceId: input.resourceId,
+      eventId: input.eventId ?? null,
       customerName: input.customerName,
       customerContact: input.customerContact ?? null,
       startsAt: input.startsAt,
