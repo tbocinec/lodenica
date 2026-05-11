@@ -67,6 +67,7 @@ model Resource {
 model Reservation {
   id              String            @id @default(uuid()) @db.Uuid
   resourceId      String            @db.Uuid
+  eventId         String?           @db.Uuid
   customerName    String
   customerContact String?
   startsAt        DateTime          @db.Timestamp(3)
@@ -77,11 +78,44 @@ model Reservation {
   updatedAt       DateTime          @updatedAt
 
   resource Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  event    Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([resourceId])
+  @@index([eventId])
   @@index([startsAt, endsAt])
   @@index([status])
   @@map("reservations")
+}
+
+model Event {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  location    String?
+  startsAt    DateTime @db.Timestamp(3)
+  endsAt      DateTime @db.Timestamp(3)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reservations Reservation[]
+  participants EventParticipant[]
+
+  @@index([startsAt, endsAt])
+  @@map("events")
+}
+
+model EventParticipant {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @db.Uuid
+  name      String
+  contact   String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_participants")
 }
 
 model Damage {

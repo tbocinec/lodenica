@@ -1,8 +1,17 @@
 name: lodenica-prod
 
-# Production stack — pulls pre-built images from GHCR, no local builds.
-# Set `IMAGE_TAG=…` (e.g. `latest`, `sha-abc1234`, `v1.0.0`) and pass an
-# `.env` file with POSTGRES_*, BACKEND_LOG_LEVEL, BACKEND_CORS_ORIGINS.
+# Production stack — pulls pre-built images from GHCR. Caddy fronts the
+# frontend container and terminates TLS using Let's Encrypt certificates
+# issued automatically via ACME HTTP-01 (requires inbound port 80 reachable
+# from the public internet).
+#
+# Provide an `.env` file with at least:
+#   GHCR_OWNER=tbocinec
+#   IMAGE_TAG=latest
+#   POSTGRES_USER=…  POSTGRES_PASSWORD=…  POSTGRES_DB=…
+#   DOMAIN=lodenica.example.com
+#   ACME_EMAIL=ops@example.com
+#   BACKEND_CORS_ORIGINS=https://lodenica.example.com
 
 services:
   postgres:
@@ -42,10 +51,31 @@ services:
     restart: always
     depends_on:
       - backend
+    # No host-port mapping — Caddy in front handles public traffic.
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: lodenica-caddy
+    restart: always
+    depends_on:
+      - frontend
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
     ports:
       - "80:80"
-    # Frontend nginx serves the SPA on / and reverse-proxies /api → backend:3000.
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data       # persisted certs & private keys
+      - caddy-config:/config
 
 volumes:
   postgres-data:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
     driver: local
