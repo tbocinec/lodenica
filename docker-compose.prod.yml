@@ -51,9 +51,10 @@ services:
     restart: always
     depends_on:
       - backend
-    # No host-port mapping — Caddy in front handles public traffic.
-    expose:
-      - "80"
+    # Only bind on the loopback so Caddy (on host network) can reach it
+    # without exposing the unencrypted frontend to the public internet.
+    ports:
+      - "127.0.0.1:8080:80"
 
   caddy:
     image: caddy:2-alpine
@@ -64,9 +65,11 @@ services:
     environment:
       DOMAIN: ${DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
-    ports:
-      - "80:80"
-      - "443:443"
+    # Host networking avoids the Docker bridge egress issues we hit on the
+    # default EC2 networking, and gives Caddy direct access to ports 80/443
+    # plus public DNS. Caddy reaches the SPA via the localhost-bound
+    # frontend container at 127.0.0.1:8080.
+    network_mode: host
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data       # persisted certs & private keys
