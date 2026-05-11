@@ -3,7 +3,7 @@ import { onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { resourcesApi } from '@/api/resources.api';
-import { ResourceType } from '@/api/types';
+import { RESOURCE_TYPE_VALUES, ResourceType } from '@/api/types';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import { RESOURCE_TYPE_LABEL } from '@/i18n/labels';
@@ -14,7 +14,7 @@ const id = (route.params.id as string | undefined) ?? null;
 
 const form = reactive({
   identifier: '',
-  type: ResourceType.KAYAK as ResourceType,
+  type: ResourceType.SEA_KAYAK as ResourceType,
   name: '',
   model: '',
   color: '',
@@ -102,7 +102,7 @@ onMounted(load);
     <div>
       <label class="label" for="type">Typ *</label>
       <select id="type" v-model="form.type" class="input mt-1" :disabled="!!id" required>
-        <option v-for="t in Object.values(ResourceType)" :key="t" :value="t">
+        <option v-for="t in RESOURCE_TYPE_VALUES" :key="t" :value="t">
           {{ RESOURCE_TYPE_LABEL[t] }}
         </option>
       </select>

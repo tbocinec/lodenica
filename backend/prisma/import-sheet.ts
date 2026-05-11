@@ -42,8 +42,8 @@ interface InventoryRow {
 }
 
 const SECTION_TO_TYPE: Record<string, { type: ResourceType; tag: string }> = {
-  'Morské kajaky': { type: ResourceType.KAYAK, tag: 'morský' },
-  'Ostatné kajaky': { type: ResourceType.KAYAK, tag: 'riečny' },
+  'Morské kajaky': { type: ResourceType.SEA_KAYAK, tag: 'morský' },
+  'Ostatné kajaky': { type: ResourceType.WW_KAYAK, tag: 'riečny' },
   'Kánoe': { type: ResourceType.CANOE, tag: 'kanoe' },
   'Nafukovačky': { type: ResourceType.INFLATABLE_BOAT, tag: 'nafukovačka' },
   'Pramice': { type: ResourceType.ROWING_BOAT, tag: 'pramica' },
@@ -121,7 +121,8 @@ function parseInventory(csv: string): InventoryRow[] {
             return 'N';
           case ResourceType.CANOE:
             return 'C-X';
-          case ResourceType.KAYAK:
+          case ResourceType.SEA_KAYAK:
+          case ResourceType.WW_KAYAK:
           default:
             return 'K-X';
         }
@@ -252,7 +253,7 @@ async function seedSampleReservations(): Promise<void> {
   });
 
   const kayaks = await prisma.resource.findMany({
-    where: { type: ResourceType.KAYAK, isActive: true },
+    where: { type: { in: [ResourceType.SEA_KAYAK, ResourceType.WW_KAYAK] }, isActive: true },
     orderBy: { identifier: 'asc' },
     take: 5,
   });

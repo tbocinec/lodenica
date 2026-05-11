@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { resourcesApi } from '@/api/resources.api';
-import { ResourceType, type Resource } from '@/api/types';
+import { RESOURCE_TYPE_VALUES, ResourceType, type Resource } from '@/api/types';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -85,7 +85,7 @@ watch([search, typeFilter, onlyActive], () => {
       <label class="label" for="type">Typ</label>
       <select id="type" v-model="typeFilter" class="input mt-1">
         <option value="">Všetky</option>
-        <option v-for="t in Object.values(ResourceType)" :key="t" :value="t">
+        <option v-for="t in RESOURCE_TYPE_VALUES" :key="t" :value="t">
           {{ RESOURCE_TYPE_LABEL_PLURAL[t] }}
         </option>
       </select>

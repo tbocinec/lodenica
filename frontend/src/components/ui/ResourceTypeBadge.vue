@@ -9,10 +9,10 @@ defineProps<{ type: ResourceType }>();
   <span
     class="pill"
     :class="{
-      'pill-blue': type === 'KAYAK',
+      'pill-blue': type === 'SEA_KAYAK',
+      'pill-amber': type === 'WW_KAYAK' || type === 'ROWING_BOAT' || type === 'INFLATABLE_BOAT',
       'pill-green': type === 'CANOE',
-      'pill-amber': type === 'ROWING_BOAT' || type === 'INFLATABLE_BOAT',
-      'pill-slate': type === 'TRAILER',
+      'pill-slate': type === 'TRAILER' || type === 'KAYAK',
       'pill-red': type === 'BOATHOUSE_SPACE',
     }"
   >

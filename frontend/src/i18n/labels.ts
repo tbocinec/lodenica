@@ -4,7 +4,9 @@
 import type { DamageSeverity, DamageStatus, ReservationStatus, ResourceType } from '@/api/types';
 
 export const RESOURCE_TYPE_LABEL: Record<ResourceType, string> = {
-  KAYAK: 'Kajak',
+  KAYAK: 'Kajak (legacy)',
+  SEA_KAYAK: 'Morský kajak',
+  WW_KAYAK: 'WW kajak',
   CANOE: 'Kanoe',
   ROWING_BOAT: 'Pramica',
   INFLATABLE_BOAT: 'Nafukovací čln',
@@ -13,7 +15,9 @@ export const RESOURCE_TYPE_LABEL: Record<ResourceType, string> = {
 };
 
 export const RESOURCE_TYPE_LABEL_PLURAL: Record<ResourceType, string> = {
-  KAYAK: 'Kajaky',
+  KAYAK: 'Kajaky (legacy)',
+  SEA_KAYAK: 'Morské kajaky',
+  WW_KAYAK: 'WW kajaky',
   CANOE: 'Kanoe',
   ROWING_BOAT: 'Pramice',
   INFLATABLE_BOAT: 'Nafukovacie člny',

@@ -2,7 +2,10 @@
 // truth for the wire contract on the frontend side.
 
 export const ResourceType = {
+  /** Legacy generic kayak — kept for historical rows only. New rows use SEA_KAYAK / WW_KAYAK. */
   KAYAK: 'KAYAK',
+  SEA_KAYAK: 'SEA_KAYAK',
+  WW_KAYAK: 'WW_KAYAK',
   CANOE: 'CANOE',
   ROWING_BOAT: 'ROWING_BOAT',
   INFLATABLE_BOAT: 'INFLATABLE_BOAT',
@@ -10,6 +13,17 @@ export const ResourceType = {
   BOATHOUSE_SPACE: 'BOATHOUSE_SPACE',
 } as const;
 export type ResourceType = (typeof ResourceType)[keyof typeof ResourceType];
+
+/** Types shown in user-facing pickers (KAYAK omitted — it's deprecated). */
+export const RESOURCE_TYPE_VALUES: ResourceType[] = [
+  ResourceType.SEA_KAYAK,
+  ResourceType.WW_KAYAK,
+  ResourceType.CANOE,
+  ResourceType.ROWING_BOAT,
+  ResourceType.INFLATABLE_BOAT,
+  ResourceType.TRAILER,
+  ResourceType.BOATHOUSE_SPACE,
+];
 
 export const DamageSeverity = {
   MINOR: 'MINOR',

@@ -45,7 +45,7 @@ const resources = useResourcesStore();
 
 const mode = ref<Mode>('day');
 const cursor = ref<Date>(todayUtc());
-const typeFilter = ref<ResourceType | ''>(ResourceType.KAYAK);
+const typeFilter = ref<ResourceType | ''>(ResourceType.SEA_KAYAK);
 const search = ref('');
 const onlyBooked = ref(false);
 const reservations = ref<Reservation[]>([]);
@@ -417,7 +417,7 @@ async function onReservationDeleted(): Promise<void> {
         <select id="type-filter" v-model="typeFilter" class="input mt-1">
           <option value="">Všetky (okrem lodeníc)</option>
           <option
-            v-for="t in [ResourceType.KAYAK, ResourceType.CANOE, ResourceType.ROWING_BOAT, ResourceType.INFLATABLE_BOAT, ResourceType.TRAILER]"
+            v-for="t in [ResourceType.SEA_KAYAK, ResourceType.WW_KAYAK, ResourceType.CANOE, ResourceType.ROWING_BOAT, ResourceType.INFLATABLE_BOAT, ResourceType.TRAILER]"
             :key="t"
             :value="t"
           >

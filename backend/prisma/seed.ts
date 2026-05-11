@@ -51,8 +51,8 @@ async function main() {
   const kayak1 = await prisma.resource.create({
     data: {
       identifier: 'K-001',
-      type: ResourceType.KAYAK,
-      name: 'Kajak Pyranha #1',
+      type: ResourceType.WW_KAYAK,
+      name: 'WW kajak Pyranha #1',
       model: 'Pyranha Burn',
       color: 'red',
       seats: 1,
@@ -63,8 +63,8 @@ async function main() {
   const kayak2 = await prisma.resource.create({
     data: {
       identifier: 'K-002',
-      type: ResourceType.KAYAK,
-      name: 'Kajak Dagger #2',
+      type: ResourceType.WW_KAYAK,
+      name: 'WW kajak Dagger #2',
       model: 'Dagger Mamba',
       color: 'yellow',
       seats: 1,
@@ -75,13 +75,13 @@ async function main() {
   await prisma.resource.create({
     data: {
       identifier: 'K-003',
-      type: ResourceType.KAYAK,
-      name: 'Kajak Prijon #3',
+      type: ResourceType.SEA_KAYAK,
+      name: 'Morský kajak Prijon #3',
       model: 'Prijon Curve',
       color: 'blue',
       seats: 1,
-      lengthCm: 290,
-      weightKg: 23,
+      lengthCm: 520,
+      weightKg: 28,
     },
   });
 

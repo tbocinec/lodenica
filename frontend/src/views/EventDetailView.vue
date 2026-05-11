@@ -43,7 +43,8 @@ const selectedResourceIds = ref<Set<string>>(new Set());
 const attaching = ref(false);
 
 const BOAT_TYPES: ResourceType[] = [
-  ResourceType.KAYAK,
+  ResourceType.SEA_KAYAK,
+  ResourceType.WW_KAYAK,
   ResourceType.CANOE,
   ResourceType.ROWING_BOAT,
   ResourceType.INFLATABLE_BOAT,

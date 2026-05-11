@@ -15,7 +15,12 @@ datasource db {
 }
 
 enum ResourceType {
+  // KAYAK is deprecated — kept for historical rows. New rows use the
+  // SEA_KAYAK / WW_KAYAK subtype. Removing an enum value in Postgres
+  // requires recreating the type, so we leave the legacy member in place.
   KAYAK
+  SEA_KAYAK
+  WW_KAYAK
   CANOE
   ROWING_BOAT
   INFLATABLE_BOAT
