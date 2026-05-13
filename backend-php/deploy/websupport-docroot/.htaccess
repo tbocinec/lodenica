@@ -1,0 +1,40 @@
+# Lodenica docroot — Apache routing for SPA + Laravel API.
+#
+# /api/v1/*, /health*, /up → Laravel (index.php)
+# Existing files (SPA assets, favicon, robots) → served directly
+# Anything else (Vue Router deep-links on refresh) → SPA shell (index.html)
+
+<IfModule mod_rewrite.c>
+    Options -MultiViews -Indexes
+
+    RewriteEngine On
+
+    # Pass Authorization header through to PHP.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect trailing slashes on non-directory URLs.
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # API + health always hit Laravel.
+    RewriteRule ^api(/.*|$) index.php [L]
+    RewriteRule ^health(/.*|$) index.php [L]
+    RewriteRule ^up$ index.php [L]
+
+    # Existing file or directory → let Apache serve it.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Fallback: SPA shell so Vue Router can take over on page refresh.
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# Defence in depth — block any dot-files just in case (.env, .git, etc.)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+DirectoryIndex index.html index.php
