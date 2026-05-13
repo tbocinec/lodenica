@@ -1,7 +1,14 @@
 // Centralized Slovak labels — single source of truth for UI copy.
 // Keep it close to translation keys so adding a second language later is easy.
 
-import type { DamageSeverity, DamageStatus, ReservationStatus, ResourceType } from '@/api/types';
+import type {
+  AuditAction,
+  AuditEntityType,
+  DamageSeverity,
+  DamageStatus,
+  ReservationStatus,
+  ResourceType,
+} from '@/api/types';
 
 export const RESOURCE_TYPE_LABEL: Record<ResourceType, string> = {
   KAYAK: 'Kajak (legacy)',
@@ -51,4 +58,25 @@ export const NAV_LABELS = {
   events: 'Udalosti',
   damages: 'Poškodenia',
   spaces: 'Priestory',
+  audit: 'História zmien',
+};
+
+export const AUDIT_ENTITY_TYPE_LABEL: Record<AuditEntityType, string> = {
+  RESOURCE: 'Loď / zdroj',
+  RESERVATION: 'Rezervácia',
+  EVENT: 'Udalosť',
+  EVENT_PARTICIPANT: 'Účastník udalosti',
+  DAMAGE: 'Poškodenie',
+};
+
+export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
+  CREATE: 'Pridanie',
+  UPDATE: 'Úprava',
+  DELETE: 'Zmazanie',
+  CANCEL: 'Zrušenie',
+  ACTIVATE: 'Aktivácia',
+  DEACTIVATE: 'Deaktivácia',
+  ATTACH_RESOURCES: 'Pripojenie zdrojov',
+  ADD_PARTICIPANT: 'Pridanie účastníka',
+  REMOVE_PARTICIPANT: 'Odobratie účastníka',
 };

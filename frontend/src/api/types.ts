@@ -148,6 +148,35 @@ export interface DashboardSnapshot {
   };
 }
 
+export type AuditEntityType =
+  | 'RESOURCE'
+  | 'RESERVATION'
+  | 'EVENT'
+  | 'EVENT_PARTICIPANT'
+  | 'DAMAGE';
+
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'CANCEL'
+  | 'ACTIVATE'
+  | 'DEACTIVATE'
+  | 'ATTACH_RESOURCES'
+  | 'ADD_PARTICIPANT'
+  | 'REMOVE_PARTICIPANT';
+
+export interface AuditLog {
+  id: string;
+  entityType: AuditEntityType;
+  entityId: string;
+  action: AuditAction;
+  summary: string;
+  changes: Record<string, unknown> | null;
+  actor: string | null;
+  createdAt: string;
+}
+
 export interface ApiErrorBody {
   statusCode: number;
   error: string;

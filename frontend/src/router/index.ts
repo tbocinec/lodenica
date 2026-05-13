@@ -96,6 +96,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Priestory' },
   },
   {
+    path: '/audit',
+    name: 'audit',
+    component: () => import('@/views/AuditView.vue'),
+    meta: { title: 'História zmien' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: () => import('@/views/NotFoundView.vue'),
     meta: { title: 'Stránka nenájdená' },

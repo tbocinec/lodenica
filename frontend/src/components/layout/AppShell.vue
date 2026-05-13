@@ -16,6 +16,7 @@ const navItems = [
   { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
   { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
   { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
+  { to: '/audit', label: NAV_LABELS.audit, icon: '📜' },
 ];
 
 function isActive(path: string): boolean {

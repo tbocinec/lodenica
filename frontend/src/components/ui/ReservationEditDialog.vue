@@ -54,6 +54,8 @@ watch(
   (r) => {
     if (!r) return;
     error.value = null;
+    submitting.value = false;
+    deleting.value = false;
     const start = new Date(r.startsAt);
     const end = new Date(r.endsAt);
     form.customerName = r.customerName;
@@ -114,6 +116,7 @@ async function remove(): Promise<void> {
     emit('deleted', id);
   } catch (e) {
     error.value = (e as Error).message;
+  } finally {
     deleting.value = false;
   }
 }
