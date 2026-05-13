@@ -22,8 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: backend
-            context: ./backend
+          - image: backend-js
+            context: ./backend-js
             target: production
           - image: frontend
             context: ./frontend

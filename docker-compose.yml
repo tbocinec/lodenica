@@ -19,9 +19,11 @@ services:
       timeout: 5s
       retries: 10
 
+  # NestJS reference backend. The PHP/Laravel port in backend-php/ runs on
+  # the production Websupport host; this stack is the canonical dev/CI target.
   backend:
     build:
-      context: ./backend
+      context: ./backend-js
       dockerfile: Dockerfile
       target: development
     container_name: lodenica-backend
@@ -38,9 +40,9 @@ services:
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:
-      - ./backend/src:/app/src
-      - ./backend/prisma:/app/prisma
-      - ./backend/test:/app/test
+      - ./backend-js/src:/app/src
+      - ./backend-js/prisma:/app/prisma
+      - ./backend-js/test:/app/test
     command: sh -c "pnpm prisma migrate deploy && pnpm prisma db seed && pnpm start:dev"
 
   frontend:

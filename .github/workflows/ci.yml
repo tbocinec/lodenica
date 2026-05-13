@@ -14,12 +14,12 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Backend (typecheck · tests · build)
+  backend-js:
+    name: Backend JS (typecheck · tests · build)
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: ./backend
+        working-directory: ./backend-js
 
     services:
       postgres:
@@ -51,7 +51,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-          cache-dependency-path: backend/pnpm-lock.yaml
+          cache-dependency-path: backend-js/pnpm-lock.yaml
 
       - name: Install
         run: pnpm install --frozen-lockfile || pnpm install

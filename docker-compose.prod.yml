@@ -31,7 +31,7 @@ services:
       retries: 10
 
   backend:
-    image: ghcr.io/${GHCR_OWNER}/lodenica-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER}/lodenica-backend-js:${IMAGE_TAG:-latest}
     container_name: lodenica-backend
     restart: always
     depends_on:
