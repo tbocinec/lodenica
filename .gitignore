@@ -31,7 +31,7 @@ coverage/
 .DS_Store
 
 # Prisma
-backend/prisma/migrations/dev.db*
+backend-js/prisma/migrations/dev.db*
 
 # Docker
 *.pid
@@ -48,3 +48,10 @@ crash.log
 # Local prod env files (only the .example variant is committed)
 .env.prod
 infra/.env.prod
+
+# Deploy secrets (SSH + DB credentials for Websupport).
+# Local-only helper for re-running deploys; never committed.
+.deploy-secrets
+.deploy-secrets.*
+!.deploy-secrets.example
+
