@@ -33,8 +33,8 @@ class ReservationsApiTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.status', 'CONFIRMED')
-            ->assertJsonPath('data.resourceId', $this->kayak->id);
+            ->assertJsonPath('status', 'CONFIRMED')
+            ->assertJsonPath('resourceId', $this->kayak->id);
     }
 
     public function test_create_returns_409_on_overlap(): void
@@ -94,11 +94,11 @@ class ReservationsApiTest extends TestCase
             'startsAt' => '2026-05-10T09:00:00Z',
             'endsAt' => '2026-05-10T12:00:00Z',
         ])->assertCreated();
-        $id = $first->json('data.id');
+        $id = $first->json('id');
 
         $this->patchJson("/api/v1/reservations/{$id}/cancel")
             ->assertOk()
-            ->assertJsonPath('data.status', 'CANCELLED');
+            ->assertJsonPath('status', 'CANCELLED');
 
         $this->postJson('/api/v1/reservations', [
             'resourceId' => $this->kayak->id,

@@ -25,14 +25,14 @@ class EventsApiTest extends TestCase
             'endsAt' => '2026-06-15T18:00:00Z',
         ])->assertCreated();
 
-        $eventId = $eventResp->json('data.id');
+        $eventId = $eventResp->json('id');
 
         $this->postJson("/api/v1/events/{$eventId}/reservations", [
             'resourceIds' => [$kayak->id],
         ])
             ->assertCreated()
-            ->assertJsonPath('data.0.eventId', $eventId)
-            ->assertJsonPath('data.0.resourceId', $kayak->id);
+            ->assertJsonPath('0.eventId', $eventId)
+            ->assertJsonPath('0.resourceId', $kayak->id);
     }
 
     public function test_add_and_list_participants(): void
@@ -41,18 +41,18 @@ class EventsApiTest extends TestCase
             'title' => 'Tréning',
             'startsAt' => '2026-06-15T08:00:00Z',
             'endsAt' => '2026-06-15T10:00:00Z',
-        ])->assertCreated()->json('data');
+        ])->assertCreated()->json();
 
         $this->postJson("/api/v1/events/{$event['id']}/participants", [
             'name' => 'Ján Novák',
             'contact' => 'jan@example.com',
         ])
             ->assertCreated()
-            ->assertJsonPath('data.name', 'Ján Novák');
+            ->assertJsonPath('name', 'Ján Novák');
 
         $this->getJson("/api/v1/events/{$event['id']}/participants")
             ->assertOk()
-            ->assertJsonPath('data.0.name', 'Ján Novák');
+            ->assertJsonPath('0.name', 'Ján Novák');
     }
 
     public function test_update_event_time_window(): void
@@ -61,12 +61,12 @@ class EventsApiTest extends TestCase
             'title' => 'X',
             'startsAt' => '2026-06-15T08:00:00Z',
             'endsAt' => '2026-06-15T10:00:00Z',
-        ])->assertCreated()->json('data');
+        ])->assertCreated()->json();
 
         $this->patchJson("/api/v1/events/{$event['id']}", [
             'endsAt' => '2026-06-15T11:00:00Z',
         ])
             ->assertOk()
-            ->assertJsonPath('data.endsAt', '2026-06-15T11:00:00+00:00');
+            ->assertJsonPath('endsAt', '2026-06-15T11:00:00+00:00');
     }
 }

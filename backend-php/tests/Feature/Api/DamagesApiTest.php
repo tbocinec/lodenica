@@ -23,18 +23,18 @@ class DamagesApiTest extends TestCase
             'severity' => 'MODERATE',
         ])
             ->assertCreated()
-            ->assertJsonPath('data.status', 'REPORTED')
-            ->assertJsonPath('data.fixedAt', null);
+            ->assertJsonPath('status', 'REPORTED')
+            ->assertJsonPath('fixedAt', null);
 
-        $damageId = $createResp->json('data.id');
+        $damageId = $createResp->json('id');
 
         $this->patchJson("/api/v1/damages/{$damageId}", ['status' => 'FIXED'])
             ->assertOk()
-            ->assertJsonPath('data.status', 'FIXED');
+            ->assertJsonPath('status', 'FIXED');
 
         $reloaded = $this->getJson("/api/v1/damages/{$damageId}")
             ->assertOk();
-        $this->assertNotNull($reloaded->json('data.fixedAt'));
+        $this->assertNotNull($reloaded->json('fixedAt'));
     }
 
     public function test_create_damage_returns_404_on_missing_resource(): void

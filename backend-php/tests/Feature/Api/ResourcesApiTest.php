@@ -21,11 +21,11 @@ class ResourcesApiTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonStructure(['data' => [
+            ->assertJsonStructure([
                 'id', 'identifier', 'type', 'name', 'isActive', 'createdAt',
-            ]])
-            ->assertJsonPath('data.identifier', 'K-001')
-            ->assertJsonPath('data.type', 'WW_KAYAK');
+            ])
+            ->assertJsonPath('identifier', 'K-001')
+            ->assertJsonPath('type', 'WW_KAYAK');
     }
 
     public function test_create_rejects_invalid_identifier(): void
@@ -67,7 +67,7 @@ class ResourcesApiTest extends TestCase
         ]);
         $this->patchJson("/api/v1/resources/{$r->id}", ['name' => 'New'])
             ->assertOk()
-            ->assertJsonPath('data.name', 'New');
+            ->assertJsonPath('name', 'New');
     }
 
     public function test_deactivate_and_activate(): void
@@ -77,10 +77,10 @@ class ResourcesApiTest extends TestCase
         ]);
         $this->patchJson("/api/v1/resources/{$r->id}/deactivate")
             ->assertOk()
-            ->assertJsonPath('data.isActive', false);
+            ->assertJsonPath('isActive', false);
         $this->patchJson("/api/v1/resources/{$r->id}/activate")
             ->assertOk()
-            ->assertJsonPath('data.isActive', true);
+            ->assertJsonPath('isActive', true);
     }
 
     public function test_delete_returns_204(): void
