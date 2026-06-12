@@ -61,10 +61,12 @@ jobs:
     # Secrets + variables live under the `rezervace.kvs` GitHub Environment
     # (Settings → Environments → rezervace.kvs). Declaring it here gives this
     # job access to the environment-scoped vault and shows the deployment in
-    # the repo's Deployments tab. The deploy URL is the live site.
+    # the repo's Deployments tab.
+    # NOTE: `environment.url` cannot reference the `secrets` context (GitHub
+    # restricts it to vars/inputs/github/etc.), so the domain is hardcoded.
     environment:
       name: rezervace.kvs
-      url: https://${{ vars.REZERVACIE_DOMAIN || secrets.REZERVACIE_DOMAIN }}
+      url: https://rezervacie.lodenicakvs.sk
 
     steps:
       - name: Checkout ${{ inputs.ref }}
