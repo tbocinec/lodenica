@@ -58,6 +58,13 @@ jobs:
     name: Build & deploy to rezervacie.lodenicakvs.sk
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    # Secrets + variables live under the `rezervace.kvs` GitHub Environment
+    # (Settings → Environments → rezervace.kvs). Declaring it here gives this
+    # job access to the environment-scoped vault and shows the deployment in
+    # the repo's Deployments tab. The deploy URL is the live site.
+    environment:
+      name: rezervace.kvs
+      url: https://${{ vars.REZERVACIE_DOMAIN || secrets.REZERVACIE_DOMAIN }}
 
     steps:
       - name: Checkout ${{ inputs.ref }}
