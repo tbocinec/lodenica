@@ -102,42 +102,47 @@ jobs:
         working-directory: ./frontend
         run: pnpm install --frozen-lockfile
 
+      # Each value is read from BOTH the Variables tab AND the Secrets tab —
+      # whichever is populated wins (vars first, secrets as fallback). Keeps
+      # us tolerant of how the operator chose to organise the GitHub vault.
       - name: Validate required secrets/variables
         env:
-          SFTP_HOST: ${{ vars.REZERVACIE_SFTP_HOST }}
-          SFTP_USER: ${{ secrets.REZERVACIE_SFTP_USER }}
-          SFTP_PASSWORD: ${{ secrets.REZERVACIE_SFTP_PASSWORD }}
-          DB_NAME: ${{ vars.REZERVACIE_DB_NAME }}
-          DB_USER: ${{ secrets.REZERVACIE_DB_USER }}
-          DB_PASSWORD: ${{ secrets.REZERVACIE_DB_PASSWORD }}
-          APP_KEY: ${{ secrets.REZERVACIE_APP_KEY }}
-          DOMAIN: ${{ vars.REZERVACIE_DOMAIN }}
+          SFTP_HOST:     ${{ vars.REZERVACIE_SFTP_HOST     || secrets.REZERVACIE_SFTP_HOST }}
+          SFTP_USER:     ${{ vars.REZERVACIE_SFTP_USER     || secrets.REZERVACIE_SFTP_USER }}
+          SFTP_PASSWORD: ${{ vars.REZERVACIE_SFTP_PASSWORD || secrets.REZERVACIE_SFTP_PASSWORD }}
+          DB_NAME:       ${{ vars.REZERVACIE_DB_NAME       || secrets.REZERVACIE_DB_NAME }}
+          DB_USER:       ${{ vars.REZERVACIE_DB_USER       || secrets.REZERVACIE_DB_USER }}
+          DB_PASSWORD:   ${{ vars.REZERVACIE_DB_PASSWORD   || secrets.REZERVACIE_DB_PASSWORD }}
+          APP_KEY:       ${{ vars.REZERVACIE_APP_KEY       || secrets.REZERVACIE_APP_KEY }}
+          DOMAIN:        ${{ vars.REZERVACIE_DOMAIN        || secrets.REZERVACIE_DOMAIN }}
         run: |
           missing=()
           for v in SFTP_HOST SFTP_USER SFTP_PASSWORD DB_NAME DB_USER DB_PASSWORD APP_KEY DOMAIN; do
             if [ -z "${!v:-}" ]; then missing+=("$v"); fi
           done
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing required secrets/variables: ${missing[*]}"
-            echo "::error::See the comment block at the top of this workflow for the full list."
+            echo "::error::Missing required values: ${missing[*]}"
+            echo "::error::Add each as REZERVACIE_<NAME> under repo Settings → Secrets and variables → Actions"
+            echo "::error::(either the Secrets tab or the Variables tab is fine — the workflow reads both)."
             exit 1
           fi
+          echo "All required values present."
 
       - name: Write .deploy-secrets from GitHub vault
         env:
-          SFTP_HOST: ${{ vars.REZERVACIE_SFTP_HOST }}
-          SFTP_PORT: ${{ vars.REZERVACIE_SFTP_PORT }}
-          SFTP_USER: ${{ secrets.REZERVACIE_SFTP_USER }}
-          SFTP_PASSWORD: ${{ secrets.REZERVACIE_SFTP_PASSWORD }}
-          DB_HOST: ${{ vars.REZERVACIE_DB_HOST }}
-          DB_PORT: ${{ vars.REZERVACIE_DB_PORT }}
-          DB_NAME: ${{ vars.REZERVACIE_DB_NAME }}
-          DB_USER: ${{ secrets.REZERVACIE_DB_USER }}
-          DB_PASSWORD: ${{ secrets.REZERVACIE_DB_PASSWORD }}
-          APP_KEY: ${{ secrets.REZERVACIE_APP_KEY }}
-          DOMAIN: ${{ vars.REZERVACIE_DOMAIN }}
-          LARAVEL_REMOTE: ${{ vars.REZERVACIE_LARAVEL_REMOTE }}
-          DOCROOT_REMOTE: ${{ vars.REZERVACIE_DOCROOT_REMOTE }}
+          SFTP_HOST:      ${{ vars.REZERVACIE_SFTP_HOST      || secrets.REZERVACIE_SFTP_HOST }}
+          SFTP_PORT:      ${{ vars.REZERVACIE_SFTP_PORT      || secrets.REZERVACIE_SFTP_PORT }}
+          SFTP_USER:      ${{ vars.REZERVACIE_SFTP_USER      || secrets.REZERVACIE_SFTP_USER }}
+          SFTP_PASSWORD:  ${{ vars.REZERVACIE_SFTP_PASSWORD  || secrets.REZERVACIE_SFTP_PASSWORD }}
+          DB_HOST:        ${{ vars.REZERVACIE_DB_HOST        || secrets.REZERVACIE_DB_HOST }}
+          DB_PORT:        ${{ vars.REZERVACIE_DB_PORT        || secrets.REZERVACIE_DB_PORT }}
+          DB_NAME:        ${{ vars.REZERVACIE_DB_NAME        || secrets.REZERVACIE_DB_NAME }}
+          DB_USER:        ${{ vars.REZERVACIE_DB_USER        || secrets.REZERVACIE_DB_USER }}
+          DB_PASSWORD:    ${{ vars.REZERVACIE_DB_PASSWORD    || secrets.REZERVACIE_DB_PASSWORD }}
+          APP_KEY:        ${{ vars.REZERVACIE_APP_KEY        || secrets.REZERVACIE_APP_KEY }}
+          DOMAIN:         ${{ vars.REZERVACIE_DOMAIN         || secrets.REZERVACIE_DOMAIN }}
+          LARAVEL_REMOTE: ${{ vars.REZERVACIE_LARAVEL_REMOTE || secrets.REZERVACIE_LARAVEL_REMOTE }}
+          DOCROOT_REMOTE: ${{ vars.REZERVACIE_DOCROOT_REMOTE || secrets.REZERVACIE_DOCROOT_REMOTE }}
         run: |
           # printf prints each value literally, so passwords with `$`,
           # backticks, brackets etc. survive unescaped (mirror what the
