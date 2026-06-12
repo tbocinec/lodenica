@@ -31,14 +31,19 @@ root.
    # Disable VPN first.
    scripts/deploy-rezervacie.sh --explore
    ```
-   The script logs into SFTP, prints the root + any nested `sub/` listings,
-   and tells you what to put into `.deploy-secrets`:
+
+   For this hosting the SFTP root **is** the subdomain docroot — there's
+   no level above it. The deploy uses an "all-in-docroot" layout:
    ```
-   DEPLOY_LARAVEL_APP_REMOTE='<...>/lodenica-app'
-   DEPLOY_DOCROOT_REMOTE='<...>/sub/rezervacie'
+   DEPLOY_DOCROOT_REMOTE='/'         # SFTP root = web docroot
+   DEPLOY_LARAVEL_APP_REMOTE='/laravel'  # Laravel inside, web-denied
    ```
-   A typical Websupport layout has `~/lodenicakvs.sk/sub/rezervacie/` as the
-   subdomain docroot and `~/lodenica-app/` (created during deploy) outside.
+
+   The Laravel app at `/laravel/` is denied two ways:
+   - the root `.htaccess` has `RewriteRule ^laravel(/|$) - [F,L]`
+   - the `/laravel/.htaccess` file has `Require all denied`
+
+   Both `.env`, `vendor/`, `storage/` and the rest never reach a client.
 
 4. **Webserver routing on nginx (OpenResty)** — Websupport sub-hostings
    actually serve PHP via Apache underneath (the openresty header you see

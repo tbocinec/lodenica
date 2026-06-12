@@ -133,18 +133,25 @@ fi
 if (( DO_EXPLORE )); then
     log "Listing remote SFTP root for $DEPLOY_SFTP_USER@$DEPLOY_SFTP_HOST:$DEPLOY_SFTP_PORT…"
     lftp -u "$DEPLOY_SFTP_USER,$DEPLOY_SFTP_PASSWORD" -p "$DEPLOY_SFTP_PORT" \
-        -e "set sftp:auto-confirm yes; cls -l; cls -l sub 2>/dev/null; cls -l lodenicakvs.sk 2>/dev/null; bye" \
-        "sftp://$DEPLOY_SFTP_HOST"
+        "sftp://$DEPLOY_SFTP_HOST" <<'LFTP'
+set sftp:auto-confirm yes
+pwd
+cls -la
+bye
+LFTP
     cat <<EXPLAIN
 
-Update .deploy-secrets with the two remote paths you see above:
-  DEPLOY_LARAVEL_APP_REMOTE='<full-path-to>/lodenica-app'
-  DEPLOY_DOCROOT_REMOTE='<full-path-to-the-subdomain-docroot>'
+The Lodenica hosting at $DEPLOY_SFTP_HOST puts the SFTP root *inside* the
+subdomain docroot (everything you see above is web-accessible). Use the
+all-in-docroot layout:
 
-A typical Websupport layout looks like:
-  ~/                                <- SFTP root
-  ~/lodenica-app/                   <- Laravel app, NOT web-accessible
-  ~/lodenicakvs.sk/sub/rezervacie/  <- docroot for rezervacie.lodenicakvs.sk
+  DEPLOY_DOCROOT_REMOTE='/'         # SFTP root = web docroot
+  DEPLOY_LARAVEL_APP_REMOTE='/laravel'  # Laravel app at /laravel — denied by .htaccess
+
+For hostings that expose a higher SFTP root (Laravel app can live in a
+sibling directory like ~/lodenica-app/ outside the subdomain docroot),
+set DEPLOY_LARAVEL_APP_REMOTE to that absolute path and adjust
+DEPLOY_DOCROOT_TEMPLATE in this script.
 EXPLAIN
     exit 0
 fi
@@ -238,14 +245,25 @@ if (( DO_BUILD )); then
 
     log "Staging docroot (SPA + Laravel bootstrap + install.php)…"
     cp -r "$REPO_ROOT/frontend/dist/." "$DOCROOT_STAGE/"
-    cp "$REPO_ROOT/backend-php/deploy/websupport-docroot/index.php" "$DOCROOT_STAGE/"
-    cp "$REPO_ROOT/backend-php/deploy/websupport-docroot/.htaccess" "$DOCROOT_STAGE/"
+    # All-in-docroot layout: Laravel app lives at ./laravel (inside the
+    # docroot, web-denied via .htaccess). For SSH deploys with Laravel in
+    # a sibling directory, use deploy/websupport-docroot/ instead.
+    cp "$REPO_ROOT/backend-php/deploy/rezervacie-docroot/index.php"  "$DOCROOT_STAGE/"
+    cp "$REPO_ROOT/backend-php/deploy/rezervacie-docroot/.htaccess"  "$DOCROOT_STAGE/"
+    # Second-line-of-defence .htaccess inside the Laravel app — uploaded
+    # as part of the LARAVEL_STAGE so `mirror -R` puts it at /laravel/.htaccess.
+    cp "$REPO_ROOT/backend-php/deploy/rezervacie-docroot/laravel-deny.htaccess" \
+       "$LARAVEL_STAGE/.htaccess"
 
     # Generate a fresh install token each deploy. Persisted to the stage so
     # both the install.php and the curl trigger see the same value.
     INSTALL_TOKEN="$(php -r 'echo bin2hex(random_bytes(16));')"
     echo "$INSTALL_TOKEN" > "$STAGE/.install-token"
-    sed "s|__TOKEN__|$INSTALL_TOKEN|g" \
+    # Substitute the install-token AND the relative path the Laravel app
+    # lives at (relative to the docroot where install.php is uploaded).
+    # All-in-docroot layout puts Laravel at ./laravel.
+    sed -e "s|__TOKEN__|$INSTALL_TOKEN|g" \
+        -e "s|__LARAVEL_PATH__|/laravel|g" \
         "$REPO_ROOT/backend-php/deploy/install.php.template" \
         > "$DOCROOT_STAGE/install.php"
 
@@ -281,7 +299,8 @@ set net:reconnect-interval-base 5
 set xfer:clobber yes
 set mirror:parallel-transfer-count 4
 
-# 1. Laravel app — keep server-side .env and storage/logs untouched.
+# 1. Laravel app — uploaded to /laravel/ (inside docroot, denied via .htaccess).
+# Protects server-side .env, storage/* and bootstrap cache from --delete.
 mkdir -fp $DEPLOY_LARAVEL_APP_REMOTE
 mirror -R --delete --verbose=1 \
     --exclude-glob '.env' \
@@ -292,13 +311,21 @@ mirror -R --delete --verbose=1 \
     --exclude-glob 'bootstrap/cache/*.php' \
     $LARAVEL_STAGE/ $DEPLOY_LARAVEL_APP_REMOTE/
 
-# Then upload .env separately (mirror's --exclude protects the live one).
+# Upload .env separately (mirror's --exclude protects the live one from --delete
+# AND from being overwritten, so we explicitly push the regenerated one here).
 put -O $DEPLOY_LARAVEL_APP_REMOTE/ $LARAVEL_STAGE/.env
 
-# 2. Docroot — frontend dist + Laravel bootstrap + install.php
+# 2. Docroot — frontend dist + Laravel bootstrap + install.php.
+# --delete cleans stale Vue chunks but we explicitly preserve:
+#   • the Laravel app dir (already uploaded under /laravel/)
+#   • install.php (token gets a fresh value each deploy; pushed below)
+#   • logo.jpg or any other static files the hosting put there manually
 mkdir -fp $DEPLOY_DOCROOT_REMOTE
 mirror -R --delete --verbose=1 \
+    --exclude-glob 'laravel' \
+    --exclude-glob 'laravel/*' \
     --exclude-glob 'install.php' \
+    --exclude-glob 'logo.jpg' \
     $DOCROOT_STAGE/ $DEPLOY_DOCROOT_REMOTE/
 put -O $DEPLOY_DOCROOT_REMOTE/ $DOCROOT_STAGE/install.php
 

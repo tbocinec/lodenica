@@ -47,12 +47,14 @@ if (!hash_equals($expectedToken, $givenToken)) {
     bail(401, 'Bad or missing token.');
 }
 
-// Locate the Laravel app: same `../../../lodenica-app` layout as index.php
-// uses. If your hosting puts the docroot at a different depth, adjust this
-// path before uploading.
-$laravelRoot = realpath(__DIR__ . '/../../../lodenica-app');
+// Locate the Laravel app. The deploy script substitutes the right path
+// (relative to this file) into the placeholder, so this installer can
+// serve both layouts:
+//   • SSH-enabled Websupport, Laravel outside docroot: '/../../../lodenica-app'
+//   • SFTP-only Websupport, Laravel inside docroot:    '/laravel'
+$laravelRoot = realpath(__DIR__ . '__LARAVEL_PATH__');
 if ($laravelRoot === false || !is_dir($laravelRoot)) {
-    bail(500, 'Laravel app directory not found at ../../../lodenica-app — check the layout.');
+    bail(500, 'Laravel app directory not found at __LARAVEL_PATH__ — check the layout.');
 }
 
 require $laravelRoot . '/vendor/autoload.php';

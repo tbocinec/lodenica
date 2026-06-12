@@ -1,0 +1,13 @@
+# Second line of defence — uploaded to the Laravel app root as `.htaccess`.
+# If the docroot rewrite ever gets bypassed (e.g. mod_rewrite disabled, an
+# admin panel toggling routing), this still denies every request hitting
+# the application directory.
+#
+# Apache 2.4+ syntax. The deny rule is unconditional — no client should
+# ever fetch files from this directory.
+
+Require all denied
+
+<FilesMatch ".*">
+    Require all denied
+</FilesMatch>
