@@ -165,5 +165,15 @@ onMounted(load);
         </ul>
       </div>
     </section>
+
+    <footer
+      class="mt-10 rounded-2xl bg-slate-50 px-6 py-5 text-center text-sm text-slate-600 ring-1 ring-slate-200"
+    >
+      Ak niečo nefunguje alebo máte návrh na zlepšenie, napíšte na
+      <a
+        class="font-medium text-brand-700 hover:underline"
+        href="mailto:t.bocinec@gmail.com?subject=Lodenica%20KVS%20%E2%80%94%20feedback"
+      >t.bocinec@gmail.com</a>.
+    </footer>
   </template>
 </template>
