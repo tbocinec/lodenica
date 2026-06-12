@@ -79,11 +79,13 @@ async function logout(): Promise<void> {
             </svg>
           </button>
           <RouterLink to="/" class="flex items-center gap-2">
-            <span
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white"
-              >L</span
-            >
-            <span class="text-lg font-semibold tracking-tight text-slate-900">Lodenica</span>
+            <img
+              src="/favicon-192.png"
+              alt=""
+              aria-hidden="true"
+              class="h-8 w-8 rounded-lg object-contain"
+            />
+            <span class="text-lg font-semibold tracking-tight text-slate-900">Lodenica KVS</span>
           </RouterLink>
         </div>
         <div class="hidden items-center gap-3 sm:flex">

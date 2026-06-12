@@ -34,7 +34,7 @@ async function submit(): Promise<void> {
   <div class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
     <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div class="mb-6 text-center">
-        <h1 class="text-2xl font-semibold text-slate-900">Lodenica</h1>
+        <h1 class="text-2xl font-semibold text-slate-900">Lodenica KVS</h1>
         <p class="mt-1 text-sm text-slate-500">Prihlásenie do admin zóny</p>
       </div>
 
