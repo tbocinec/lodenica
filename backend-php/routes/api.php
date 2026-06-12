@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\DamagesController;
 use App\Http\Controllers\Api\EventsController;
+use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
 use App\Http\Controllers\Api\ResourcesController;
 use App\Http\Controllers\Api\UsersController;
@@ -41,6 +42,10 @@ Route::post('events/{id}/reservations', [EventsController::class, 'attachResourc
 Route::apiResource('damages', DamagesController::class)
     ->parameters(['damages' => 'id']);
 
+// Reservation rules — public read so anonymous bookers can see them;
+// PATCH is in the admin group below.
+Route::get('reservation-rules', [ReservationRulesController::class, 'show']);
+
 /*
 |--------------------------------------------------------------------------
 | Auth required (MEMBER or ADMIN)
@@ -71,4 +76,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::apiResource('users', UsersController::class)
         ->parameters(['users' => 'id']);
+
+    Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
 });

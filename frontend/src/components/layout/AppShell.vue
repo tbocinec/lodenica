@@ -30,6 +30,7 @@ const navItems = computed<NavItem[]>(() => {
     { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
     { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
     { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
+    { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
     { to: '/audit', label: NAV_LABELS.audit, icon: '📜', requires: 'member' },
     { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },
     {

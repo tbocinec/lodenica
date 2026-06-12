@@ -127,6 +127,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Používatelia', auth: 'admin' },
   },
   {
+    path: '/rules',
+    name: 'reservation-rules',
+    component: () => import('@/views/ReservationRulesView.vue'),
+    meta: { title: 'Pravidlá rezervácie' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: () => import('@/views/NotFoundView.vue'),
     meta: { title: 'Stránka nenájdená' },
