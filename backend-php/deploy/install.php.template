@@ -1,0 +1,111 @@
+<?php
+
+/**
+ * One-shot Laravel installer for the SFTP-only Websupport deploy.
+ *
+ * The deploy script uploads this file into the docroot with a fresh
+ * random token substituted in. Hitting it once runs every step that
+ * would normally happen via `php artisan` over SSH:
+ *
+ *   1. migrate --force        (creates schema + EXCLUDE constraint)
+ *   2. lodenica:import-sheet  (boats from the Google Sheet — optional)
+ *   3. config:cache + route:cache + event:cache
+ *
+ * After a successful run the script deletes itself so a leaked token
+ * can't be replayed. Failures abort early and leave the file in place
+ * so the operator can re-trigger after fixing the issue.
+ *
+ * Usage:
+ *   https://<domain>/install.php?token=<32-hex>&import=1
+ *
+ * Query params:
+ *   token   — REQUIRED, must equal __TOKEN__ (substituted at deploy time)
+ *   import  — 1 to also run the sheet importer, 0 to skip
+ *   step    — optional: only run a single phase ("migrate", "import",
+ *             "cache"); omit to run all.
+ */
+
+declare(strict_types=1);
+
+$expectedToken = '__TOKEN__';
+$givenToken    = (string) ($_GET['token'] ?? '');
+$runImport     = (string) ($_GET['import'] ?? '1') === '1';
+$singleStep    = isset($_GET['step']) ? (string) $_GET['step'] : null;
+
+header('Content-Type: text/plain; charset=utf-8');
+header('X-Robots-Tag: noindex, nofollow');
+
+function bail(int $code, string $msg): void
+{
+    http_response_code($code);
+    echo "[FAIL] $msg\n";
+    exit($code);
+}
+
+// Constant-time token compare so a 401 doesn't leak timing info.
+if (!hash_equals($expectedToken, $givenToken)) {
+    bail(401, 'Bad or missing token.');
+}
+
+// Locate the Laravel app: same `../../../lodenica-app` layout as index.php
+// uses. If your hosting puts the docroot at a different depth, adjust this
+// path before uploading.
+$laravelRoot = realpath(__DIR__ . '/../../../lodenica-app');
+if ($laravelRoot === false || !is_dir($laravelRoot)) {
+    bail(500, 'Laravel app directory not found at ../../../lodenica-app — check the layout.');
+}
+
+require $laravelRoot . '/vendor/autoload.php';
+
+/** @var \Illuminate\Foundation\Application $app */
+$app = require $laravelRoot . '/bootstrap/app.php';
+$kernel = $app->make(\Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
+
+function run(\Illuminate\Contracts\Console\Kernel $kernel, string $command, array $args = []): void
+{
+    echo "[run]  artisan {$command} " . implode(' ', array_map(
+        fn ($k, $v) => is_int($k) ? (string) $v : "$k=$v",
+        array_keys($args),
+        $args,
+    )) . "\n";
+    $exit = $kernel->call($command, $args);
+    echo $kernel->output();
+    if ($exit !== 0) {
+        bail(500, "artisan {$command} returned exit code {$exit}");
+    }
+}
+
+echo "[ok]   token accepted, laravel root = {$laravelRoot}\n\n";
+
+if ($singleStep === null || $singleStep === 'migrate') {
+    run($kernel, 'migrate', ['--force' => true]);
+    echo "\n";
+}
+
+if ($runImport && ($singleStep === null || $singleStep === 'import')) {
+    // --force skips the destructive-action confirmation prompt.
+    run($kernel, 'lodenica:import-sheet', ['--force' => true]);
+    echo "\n";
+}
+
+if ($singleStep === null || $singleStep === 'cache') {
+    // Wipe stale caches first (matters on re-deploys) and re-build them.
+    run($kernel, 'config:clear');
+    run($kernel, 'route:clear');
+    run($kernel, 'event:clear');
+    run($kernel, 'config:cache');
+    run($kernel, 'route:cache');
+    run($kernel, 'event:cache');
+    echo "\n";
+}
+
+// Self-delete so a leaked token can't be replayed.
+if ($singleStep === null) {
+    @unlink(__FILE__);
+    echo "[ok]   install.php self-deleted; re-upload via the deploy script if you need to re-run.\n";
+} else {
+    echo "[ok]   single step '{$singleStep}' completed; install.php retained for further steps.\n";
+}
+
+echo "\n[done] all phases finished.\n";
