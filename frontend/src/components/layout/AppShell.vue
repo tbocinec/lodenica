@@ -16,6 +16,8 @@ interface NavItem {
   icon: string;
   /** Visibility gate. `undefined` = always visible. */
   requires?: 'member' | 'admin';
+  /** External URL — rendered as a regular <a target="_blank"> instead of a RouterLink. */
+  external?: boolean;
 }
 
 const navItems = computed<NavItem[]>(() => {
@@ -30,6 +32,12 @@ const navItems = computed<NavItem[]>(() => {
     { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
     { to: '/audit', label: NAV_LABELS.audit, icon: '📜', requires: 'member' },
     { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },
+    {
+      to: 'https://www.lodenicakvs.sk/?page_id=4578',
+      label: 'Lodeničný poriadok',
+      icon: '📘',
+      external: true,
+    },
   ];
   return items.filter((item) => {
     if (!item.requires) return true;
@@ -110,19 +118,32 @@ async function logout(): Promise<void> {
         ]"
       >
         <nav class="space-y-1">
-          <RouterLink
-            v-for="item in navItems"
-            :key="item.to"
-            :to="item.to"
-            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            :class="
-              isActive(item.to) ? 'bg-brand-50 text-brand-800 ring-1 ring-brand-100' : ''
-            "
-            @click="navOpen = false"
-          >
-            <span aria-hidden="true">{{ item.icon }}</span>
-            <span>{{ item.label }}</span>
-          </RouterLink>
+          <template v-for="item in navItems" :key="item.to">
+            <a
+              v-if="item.external"
+              :href="item.to"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              @click="navOpen = false"
+            >
+              <span aria-hidden="true">{{ item.icon }}</span>
+              <span>{{ item.label }}</span>
+              <span aria-hidden="true" class="ml-auto text-xs text-slate-400">↗</span>
+            </a>
+            <RouterLink
+              v-else
+              :to="item.to"
+              class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              :class="
+                isActive(item.to) ? 'bg-brand-50 text-brand-800 ring-1 ring-brand-100' : ''
+              "
+              @click="navOpen = false"
+            >
+              <span aria-hidden="true">{{ item.icon }}</span>
+              <span>{{ item.label }}</span>
+            </RouterLink>
+          </template>
         </nav>
         <div class="mt-6 sm:hidden space-y-2">
           <RouterLink to="/reservations/new" class="btn-primary w-full">
