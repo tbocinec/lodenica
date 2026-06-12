@@ -2,300 +2,249 @@
 
 Production-grade web application for managing a kayak/canoe club boathouse —
 inventory of boats, trailers and boathouse spaces, reservations with conflict
-detection, damage tracking, an audit log, and a live availability dashboard.
+detection, damage tracking, event scheduling, an audit log of every change,
+and a live availability dashboard.
 
-Replaces the existing Google Sheet workflow. Code is in English; the UI is in
-Slovak. **Live at https://tomas.gart.sk** (Websupport shared hosting,
-PHP/Laravel backend).
+Replaces the existing Google Sheet workflow. Code is in English; the UI is
+in Slovak.
 
-## Two backends, one API
+**Live deployments**
 
-The same REST contract under `/api/v1/*` is implemented twice:
+| Site | URL | Layout |
+| --- | --- | --- |
+| Internal test | https://tomas.gart.sk | SSH Websupport, Laravel outside docroot |
+| Public club site | https://rezervacie.lodenicakvs.sk | SFTP-only Websupport, all-in-docroot |
 
-| Folder | Stack | Used by | Why |
-| --- | --- | --- | --- |
-| `backend-js/` | NestJS 10 + Prisma 5 + TypeScript | Local Docker stack, CI, AWS EC2 layout | Original reference implementation. Cleanest seam for a Node/serverless future. |
-| `backend-php/` | Laravel 13 + Eloquent + PHP 8.3+ | **Production at tomas.gart.sk** | Hosting budget was constrained to PHP shared hosting. Same DB schema, same Postgres `EXCLUDE USING gist` overlap guarantee, same JSON error shape. |
-
-The Vue frontend in `frontend/` is contract-driven and works against either
-backend unchanged. Pick whichever one fits your hosting environment; both
-are first-class citizens, both are kept in sync feature-by-feature.
+Both are PHP/Laravel + Vue SPA on the same domain; the Laravel API serves
+`/api/v1/*` and the SPA's static assets live in the docroot.
 
 ## Stack
 
-| Layer          | Technology                                                                       |
-| -------------- | -------------------------------------------------------------------------------- |
-| Frontend       | Vue 3, Vite, TypeScript, Pinia, Vue Router, Tailwind CSS, Vitest                 |
-| Backend (JS)   | NestJS 10, Prisma 5, class-validator, Zod, Pino, Swagger / OpenAPI               |
-| Backend (PHP)  | Laravel 13, Eloquent, FormRequest validation, PHPUnit 12                         |
-| Database       | PostgreSQL 14+ (with `btree_gist` + `pgcrypto` extensions)                       |
-| Infra          | Docker, Docker Compose (dev / NestJS path) · Websupport shared hosting (PHP path)|
-| Tests          | Jest (backend-js), PHPUnit (backend-php), Vitest (frontend)                      |
-
-## Architecture
-
-Both backends follow the same logical layering:
-
-- **Domain** — entities, value objects (e.g. half-open `TimeRange`), enums.
-- **Application / Services** — use cases that orchestrate persistence and
-  enforce invariants (`ReservationsService`, `ResourcesService`, …).
-- **Infrastructure** — Prisma adapters (JS) or Eloquent models (PHP).
-- **Presentation** — controllers + DTOs / FormRequests + JSON resources.
-
-```
-backend-js/src/modules/<feature>/   # NestJS layering
-├── domain/         # entities, value objects, repository ports
-├── application/    # framework-free use cases
-├── infrastructure/ # Prisma adapters
-└── presentation/   # controllers + DTOs
-
-backend-php/app/                    # Laravel layering
-├── Domain/{Enums,ValueObjects}/
-├── Services/                       # ResourcesService, ReservationsService, AuditLogger, …
-├── Models/                         # Eloquent
-├── Http/{Controllers/Api,Requests,Resources}/
-├── Exceptions/                     # DomainException + ApiExceptionRenderer
-└── Console/Commands/               # lodenica:import-sheet
-```
-
-The frontend uses a feature-by-view structure:
-
-```
-frontend/src/
-├── api/         # typed axios clients + DTO types
-├── components/  # reusable UI (layout/, ui/)
-├── stores/      # Pinia stores
-├── views/       # route components (incl. AuditView)
-├── router/      # vue-router config
-├── i18n/        # Slovak labels (single source of truth for copy)
-└── utils/       # date helpers, formatters
-```
-
-### Reservation overlap detection
-
-Two layers protect against overlapping reservations on the same resource:
-
-1. **Application layer** — `ReservationsService.assertNoOverlap()` runs an
-   inclusive overlap query and raises a domain error with a clear Slovak
-   message before persisting. Identical logic on both backends, tested in
-   [backend-js/src/modules/reservations/application/reservations.service.spec.ts](backend-js/src/modules/reservations/application/reservations.service.spec.ts)
-   and [backend-php/tests/Feature/ReservationsServiceTest.php](backend-php/tests/Feature/ReservationsServiceTest.php).
-2. **Database layer** — a Postgres `EXCLUDE USING gist` constraint on
-   `(resourceId WITH =, tsrange(startsAt, endsAt, '[)') WITH &&)` filtered to
-   `status = 'CONFIRMED'`. Provides a hard guarantee against races and is
-   translated back to a 409 conflict by both backends. Verified in
-   [backend-php/tests/Feature/PostgresExcludeConstraintTest.php](backend-php/tests/Feature/PostgresExcludeConstraintTest.php).
-
-### Audit log
-
-Every mutating action (`create`, `update`, `delete`, `cancel`, `activate`,
-`deactivate`, `attach_resources`, `add_participant`, `remove_participant`)
-writes an append-only row to `audit_logs` with a Slovak `summary` plus a
-`{ before, after }` JSON snapshot. Surfaced via `GET /api/v1/audit-logs`
-and the `AuditView` page in the SPA.
-
-## Running locally
-
-Pick **one** of the two backends.
-
-### Option A: NestJS backend (Docker stack)
-
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-Once the containers are healthy:
-
-| Service          | URL                                                |
-| ---------------- | -------------------------------------------------- |
-| Frontend         | http://localhost:5173                              |
-| Backend API      | http://localhost:3000/api/v1                       |
-| Swagger UI       | http://localhost:3000/docs                         |
-| OpenAPI JSON     | http://localhost:3000/docs-json                    |
-| Health check     | http://localhost:3000/health                       |
-| PostgreSQL       | `postgres://lodenica:lodenica@localhost:5432/lodenica` |
-
-The backend container automatically runs `prisma migrate deploy`, seeds demo
-data and starts NestJS in watch mode.
-
-### Option B: PHP/Laravel backend
-
-```bash
-docker compose up -d postgres            # reuse the Postgres container
-docker exec lodenica-postgres psql -U lodenica -d postgres \
-  -c "CREATE DATABASE lodenica_php;"     # dedicated DB to avoid clashing
-
-cd backend-php
-cp .env.example .env && php artisan key:generate
-php artisan migrate --seed
-php artisan serve                         # http://127.0.0.1:8000
-
-# in another terminal
-cd frontend
-VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1 pnpm dev
-```
-
-## Testing
-
-```bash
-# backend-js
-cd backend-js
-pnpm test            # Jest
-pnpm test:cov
-
-# backend-php
-cd backend-php
-vendor/bin/phpunit   # 75+ tests, includes Postgres EXCLUDE constraint suite
-
-# frontend
-cd frontend
-pnpm test            # vitest run
-```
-
-## API surface
-
-All endpoints versioned under `/api/v1`. Identical contract on both backends.
-
-| Method | Path                                          | Description                       |
-| ------ | --------------------------------------------- | --------------------------------- |
-| GET    | `/health`                                     | Liveness + DB ping                |
-| GET    | `/api/v1/availability/dashboard`              | Aggregated dashboard snapshot     |
-| GET    | `/api/v1/resources`                           | List (filter + search + pagination) |
-| POST   | `/api/v1/resources`                           | Create                            |
-| PATCH  | `/api/v1/resources/:id`                       | Update mutable fields             |
-| PATCH  | `/api/v1/resources/:id/deactivate`            | Soft-retire                       |
-| PATCH  | `/api/v1/resources/:id/activate`              | Reactivate                        |
-| DELETE | `/api/v1/resources/:id`                       | Hard delete                       |
-| GET/POST/PATCH/DELETE | `/api/v1/reservations[/…]`     | CRUD + `/cancel`                  |
-| GET/POST/PATCH/DELETE | `/api/v1/events[/…]`           | CRUD + participants + bulk attach |
-| GET/POST/PATCH/DELETE | `/api/v1/damages[/…]`          | CRUD                              |
-| GET    | `/api/v1/audit-logs`                          | Append-only audit log             |
-
-Swagger UI is available at `/docs` on the NestJS backend.
-
-## Database schema
-
-All reservable assets — kayaks, canoes, rowing boats, inflatable boats,
-trailers, boathouse spaces — share a single `resources` table discriminated by
-`type`. Type-specific fields (`seats`, `lengthCm`, `weightKg`) are nullable.
-This keeps reservations uniformly polymorphic without STI or table-per-type.
-
-Migrations:
-
-- `backend-js/prisma/migrations/` (Prisma format) — canonical for the NestJS path
-- `backend-php/database/migrations/` (Laravel migrations) — Postgres path
-  uses raw SQL for enums + EXCLUDE constraint, with a `upPortable()` fallback
-  for sqlite tests
-
-The two migration sets are kept in lockstep; whenever you touch one, mirror
-the change in the other.
-
-## Importing the club inventory
-
-The original boat / canoe / trailer inventory lives in a Google Sheet that
-both backends can ingest.
-
-```bash
-# NestJS backend
-cd backend-js
-pnpm tsx prisma/import-sheet.ts
-
-# PHP backend (local or via SSH on Websupport)
-cd backend-php
-php artisan lodenica:import-sheet --force
-```
-
-Both importers fetch the same CSV, parse section headers into `ResourceType`,
-handle quirks (K78 has its model in the `cm` column, K91 appears twice and
-gets a `-2` suffix), recreate the two boathouse spaces, and optionally insert
-sample reservations. They are **destructive** — they wipe damages, events and
-reservations first — so they are safe for a fresh load but call them with
-care on a populated DB.
-
-## Configuration
-
-Both backends are env-driven and validated on boot:
-
-- NestJS: Zod-validated, see [backend-js/src/config/config.validation.ts](backend-js/src/config/config.validation.ts)
-- Laravel: standard Laravel config + `config/cors.php` reads
-  `CORS_ALLOWED_ORIGINS` (comma-separated list)
-
-See each backend's `.env.example` for the full list.
-
-## Logging & errors
-
-Domain errors are translated into a stable JSON envelope on both backends:
-
-```json
-{
-  "statusCode": 409,
-  "error": "Conflict",
-  "code": "RESERVATION_OVERLAP",
-  "message": "Vybraný zdroj je v zadanom termíne už rezervovaný.",
-  "details": { "resourceId": "…", "conflictingReservationIds": ["…"] },
-  "path": "/api/v1/reservations",
-  "timestamp": "2026-05-13T12:00:00+00:00"
-}
-```
-
-Postgres `EXCLUDE USING gist` violations (SQLSTATE `23P01`) are mapped to
-`RESERVATION_OVERLAP` on both sides. Unique-constraint violations become
-`UNIQUE_CONSTRAINT`. Authorization headers are redacted from logs.
-
-## CI / CD
-
-GitHub Actions in [.github/workflows](.github/workflows):
-
-| Workflow      | Trigger                       | Does                                                     |
-| ------------- | ----------------------------- | -------------------------------------------------------- |
-| `ci.yml`      | every push + PR to `main`     | typecheck + tests for the NestJS backend (against ephemeral PG) and the Vue frontend, plus a clean build |
-| `release.yml` | push to `main`, tag `v*`      | builds multi-arch (amd64+arm64) Docker images and pushes to **GHCR** as `ghcr.io/<owner>/lodenica-{backend-js,frontend}` |
-| `deploy.yml`  | manual (workflow_dispatch)    | SCPs the latest `docker-compose.prod.yml` to the production host and rolls the stack via SSH |
-
-The PHP backend is deployed manually to Websupport via rsync + SSH —
-see [backend-php/DEPLOY-WEBSUPPORT.md](backend-php/DEPLOY-WEBSUPPORT.md).
-
-## Production deployment
-
-### Current: PHP/Laravel on Websupport (https://tomas.gart.sk)
-
-- Laravel app outside the docroot at `$HOME/lodenica-app/`
-- Built Vue SPA + thin Laravel bootstrap `index.php` in the docroot at
-  `$HOME/gart.sk/sub/tomas/`
-- Managed Postgres at `db.r2.websupport.sk` (firewalled to hosting IPs)
-- `php artisan lodenica:import-sheet --force` populates the inventory
-
-Full runbook: [backend-php/DEPLOY-WEBSUPPORT.md](backend-php/DEPLOY-WEBSUPPORT.md).
-
-### Alternative: NestJS on a single EC2 (Docker Compose)
-
-Terraform under [infra/](infra/) provisions a `t4g.small` running the full
-Docker Compose stack. See [infra/README.md](infra/README.md) for the runbook.
+| Layer    | Technology                                                              |
+| -------- | ----------------------------------------------------------------------- |
+| Frontend | Vue 3, Vite, TypeScript, Pinia, Vue Router, Tailwind CSS, Vitest        |
+| Backend  | Laravel 13, Eloquent, FormRequest validation, Sanctum bearer tokens     |
+| Database | PostgreSQL 14+ (with `btree_gist` + `pgcrypto` extensions)              |
+| Local dev | Docker Compose stack (postgres + backend + vite) — see below          |
+| Hosting  | Websupport shared hosting (managed Postgres + PHP 8.3+)                 |
+| Tests    | PHPUnit 12 (backend), Vitest (frontend)                                 |
 
 ## Repository layout
 
 ```
 .
-├── docker-compose.yml          # dev stack: Postgres + NestJS backend + Vite frontend
-├── docker-compose.prod.yml     # EC2 stack: pulls images from GHCR
-├── .github/workflows/          # CI + Release + Deploy
-├── README.md
-├── backend-js/                 # NestJS reference backend
-│   ├── Dockerfile
-│   ├── prisma/                 # schema + migrations + seed + sheet importer
-│   └── src/{modules,common,config,infrastructure}/
-├── backend-php/                # Laravel production backend (Websupport)
-│   ├── DEPLOY-WEBSUPPORT.md
-│   ├── deploy/websupport-docroot/   # index.php + .htaccess for the SPA host
-│   ├── app/{Domain,Services,Models,Http,Exceptions,Console}/
-│   ├── database/migrations/
-│   └── tests/{Unit,Feature}/
-└── frontend/                   # Vue 3 SPA, talks to either backend
-    ├── Dockerfile
-    ├── nginx.conf
-    └── src/{api,components,stores,views,router,i18n,utils,styles}/
+├── README.md                          # this file
+├── backend-php/                       # Laravel app — production source of truth
+│   ├── app/
+│   │   ├── Domain/{Enums,ValueObjects}/
+│   │   ├── Services/                  # business logic (one per module)
+│   │   ├── Http/{Controllers,Requests,Resources,Middleware}/
+│   │   ├── Models/                    # Eloquent (UUID PKs, camelCase columns)
+│   │   └── Exceptions/                # domain errors + JSON error renderer
+│   ├── database/{migrations,seeders}/
+│   ├── routes/api.php                 # /api/v1/* + auth gates
+│   ├── tests/{Unit,Feature}/          # 96 tests, all green
+│   ├── deploy/                        # docroot bootstrap + install.php template
+│   └── DEPLOY-WEBSUPPORT.md           # manual deploy runbook (SSH layout)
+├── frontend/                          # Vue 3 SPA — same UI for both deployments
+│   └── src/{api,components,stores,views,router,i18n,utils}/
+├── docker/
+│   └── backend/                       # Dockerfile + entrypoint for local dev
+├── docker-compose.yml                 # local dev stack (postgres + backend + vite)
+├── scripts/
+│   └── deploy-rezervacie.sh           # one-shot deploy for the SFTP layout
+├── .deploy-secrets.example            # template — copy to .deploy-secrets (gitignored)
+└── .github/workflows/
+    └── deploy-rezervacie.yml          # GitHub-Actions wrapper around the deploy script
 ```
+
+## Architecture
+
+Per-module folders inside `backend-php/app/`:
+
+- **Domain** — enums (`ResourceType`, `ReservationStatus`, `UserRole`, …)
+  and value objects (`TimeRange` for half-open `[startsAt, endsAt)`
+  intervals).
+- **Services** — application use cases that orchestrate persistence and
+  enforce invariants. `ReservationsService::assertNoOverlap()` is the
+  canonical example.
+- **Models** — Eloquent with UUID primary keys, camelCase columns
+  (`createdAt`, `updatedAt`, `resourceId`), and enum casts.
+- **Http** — thin controllers (FormRequest validation → service →
+  JsonResource), per-domain exceptions translated to the stable
+  `{statusCode, error, code, message, details}` envelope by
+  `ApiExceptionRenderer`.
+
+The Vue frontend uses a feature-by-view structure under `frontend/src/`:
+`api/` (typed Axios clients), `stores/` (Pinia), `views/` (route
+components), `router/` (with role-based guards), `i18n/` (Slovak labels).
+
+### Reservation overlap — defence in depth
+
+1. **Application layer** — `ReservationsService::assertNoOverlap()` runs
+   an inclusive overlap query and raises `ReservationOverlapException`
+   with conflicting reservation IDs. Tested at
+   `backend-php/tests/Feature/ReservationsServiceTest.php`.
+2. **Database layer** — a Postgres `EXCLUDE USING gist` constraint on
+   `(resourceId WITH =, tsrange(startsAt, endsAt, '[)') WITH &&)` filtered
+   to `status = 'CONFIRMED'` makes overlap physically impossible at the
+   DB level. The exclusion violation is mapped back to a 409 by
+   `ApiExceptionRenderer::handleQueryException`.
+
+### Auth + RBAC
+
+- Sanctum **bearer tokens** (sessionStorage in the SPA, `Authorization:
+  Bearer …` header for API calls). No cookies, no CSRF gymnastics.
+- Two roles: **ADMIN** and **MEMBER (Člen)**.
+- Anonymous visitors can browse the inventory, make reservations, run
+  events and report damages — the club wants a low-friction booking flow.
+- Login is required for the **audit log** (`/api/v1/audit-logs`).
+- The **ADMIN role** is required for resource CRUD (boat inventory) and
+  user management.
+- First admin is seeded on first deploy:
+  `admin@lodenica.sk` / `Lodenica2026!` — **change it after first
+  login**. `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars override the
+  defaults.
+
+### Audit log
+
+Every business change (CREATE / UPDATE / DELETE / CANCEL / activate /
+deactivate / attach resources / participants) is recorded in
+`audit_logs` with a Slovak `summary`, JSONB `changes` (before/after
+diff), the acting user's email as `actor`, and a timestamp. Filter and
+browse in the UI at `/audit` (login required).
+
+## API surface
+
+All endpoints under `/api/v1`.
+
+| Group        | Endpoint                                          | Access     |
+| ------------ | ------------------------------------------------- | ---------- |
+| Auth         | `POST /auth/login`                                | public     |
+|              | `GET /auth/me`, `POST /auth/logout`               | logged-in  |
+| Resources    | `GET /resources`, `GET /resources/{id}`           | public     |
+|              | `POST/PATCH/DELETE /resources`, activate/deactivate | admin     |
+| Reservations | `GET/POST/PATCH/DELETE /reservations`, cancel     | public     |
+| Events       | `GET/POST/PATCH/DELETE /events`, participants, attach | public  |
+| Damages      | `GET/POST/PATCH/DELETE /damages`                  | public     |
+| Availability | `GET /availability/dashboard`                     | public     |
+| Audit        | `GET /audit-logs`                                 | logged-in  |
+| Users        | `GET/POST/PATCH/DELETE /users`                    | admin      |
+
+## Local development
+
+Two equally supported workflows. Pick whichever you prefer; both result
+in the same app reachable at http://localhost:5173 talking to
+http://localhost:8000/api/v1.
+
+### Option A — Docker Compose (fastest start)
+
+Three containers: Postgres 14, the Laravel backend (`php artisan serve`),
+and the Vite dev server.
+
+```bash
+docker compose up --build           # first run: builds + migrates + seeds admin
+docker compose up                   # subsequent runs
+docker compose down                 # stop, keep DB volume
+docker compose down -v              # stop + nuke DB volume + admin
+```
+
+Log in at http://localhost:5173/login with `admin@lodenica.sk` /
+`Lodenica2026!`. The `.env` file inside the backend container is
+regenerated from `docker-compose.yml` on every boot, so the developer's
+host-side `backend-php/.env` is never touched.
+
+### Option B — Bare metal (host PHP + Node + Postgres)
+
+```bash
+# Postgres (any local instance with btree_gist + pgcrypto extensions)
+createdb lodenica_php
+psql lodenica_php -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
+psql lodenica_php -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
+# Backend
+cd backend-php
+cp .env.example .env                       # adjust DB credentials
+composer install
+php artisan key:generate
+php artisan migrate:fresh --seed           # creates schema + bootstraps admin
+php artisan serve                           # http://localhost:8000
+
+# Frontend (new terminal)
+cd ../frontend
+pnpm install
+pnpm dev                                    # http://localhost:5173
+```
+
+Same admin credentials apply.
+
+## Tests
+
+```bash
+# Backend (PHPUnit, runs against SQLite :memory:)
+cd backend-php
+vendor/bin/phpunit                          # 96 tests, all green
+
+# Frontend (Vitest)
+cd frontend
+pnpm test                                   # 11 tests
+pnpm typecheck                              # vue-tsc strict
+```
+
+Key suites:
+
+- `backend-php/tests/Unit/TimeRangeTest.php` — half-open interval semantics
+- `backend-php/tests/Feature/ReservationsServiceTest.php` — overlap rules,
+  cancellation, status transitions
+- `backend-php/tests/Feature/AuditIntegrationTest.php` — audit log fires
+  for every service mutation
+- `backend-php/tests/Feature/Api/AuthApiTest.php` — login flow, inactive
+  users, wrong password
+- `backend-php/tests/Feature/Api/UsersApiTest.php` — admin/member RBAC,
+  self-protection rules
+
+## Database schema
+
+A single `resources` table discriminated by `type` covers kayaks
+(several sub-types), canoes, rowing boats, inflatables, trailers and
+boathouse spaces. Type-specific fields (`seats`, `lengthCm`, `weightKg`)
+are nullable.
+
+The full schema lives in one consolidated migration:
+`backend-php/database/migrations/2026_01_01_000000_create_lodenica_schema.php`.
+Additional migrations layer in `audit_logs`, `users` (with a `UserRole`
+enum), and Sanctum's `personal_access_tokens` (UUID `tokenable_id`).
+
+## Deployment
+
+### Production: SFTP-only Websupport (rezervacie.lodenicakvs.sk)
+
+One command, end-to-end:
+
+```bash
+cp .deploy-secrets.example .deploy-secrets    # fill in real values
+chmod 600 .deploy-secrets
+scripts/deploy-rezervacie.sh                   # NB: VPN OFF — port 22 needs out
+```
+
+The script: composer install (no-dev) → pnpm build → writes `.env` from
+secrets → uploads via SFTP (lftp) → triggers `install.php` over HTTPS
+which runs `migrate --force`, `db:seed --force` (bootstraps admin if
+missing), and rebuilds the artisan caches → self-deletes `install.php` →
+smoke-tests the live endpoints.
+
+Re-runnable any time. The destructive sheet importer is only triggered
+with the explicit `--import-sheet` flag.
+
+A GitHub Actions wrapper at `.github/workflows/deploy-rezervacie.yml`
+runs the same script from a GitHub runner — useful when a corporate VPN
+blocks outbound SFTP from the developer laptop.
+
+### Alternative: SSH-enabled Websupport (tomas.gart.sk)
+
+For the older internal-test deployment with SSH + Composer on the box,
+see [`backend-php/DEPLOY-WEBSUPPORT.md`](backend-php/DEPLOY-WEBSUPPORT.md)
+for the manual runbook.
 
 ## License
 
