@@ -158,6 +158,12 @@ if ($singleStep === null || $singleStep === 'cache') {
     run($kernel, 'config:clear');
     run($kernel, 'route:clear');
     run($kernel, 'event:clear');
+    // Regenerate bootstrap/cache/packages.php from vendor/composer/installed.json.
+    // The deploy script runs `composer install` LOCALLY and ships vendor/
+    // via SFTP, but excludes bootstrap/cache/ from rsync — without this
+    // step, server-side service providers added since the last deploy
+    // (e.g. Sanctum on the auth rollout) wouldn't be registered.
+    run($kernel, 'package:discover', ['--ansi' => true]);
     run($kernel, 'config:cache');
     run($kernel, 'route:cache');
     run($kernel, 'event:cache');

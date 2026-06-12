@@ -42,6 +42,15 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        // Explicit Sanctum guard so the `auth:sanctum` middleware works
+        // even when `config:cache` runs BEFORE Sanctum's service provider
+        // boots — which happens on deploys where bootstrap/cache/packages.php
+        // isn't regenerated (the SFTP deploy ships vendor/ but skips the
+        // bootstrap cache, so Sanctum's runtime guard injection misses).
+        'sanctum' => [
+            'driver' => 'sanctum',
+            'provider' => 'users',
+        ],
     ],
 
     /*
