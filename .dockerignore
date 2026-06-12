@@ -1,0 +1,43 @@
+# Trim the Docker build context. We bind-mount source code at runtime,
+# so the image only needs the Dockerfile + entrypoint — everything heavy
+# is excluded.
+
+# VCS
+.git/
+.gitignore
+.gitattributes
+
+# Node / vendor — re-installed inside the container via named volumes.
+**/node_modules/
+**/vendor/
+
+# Build outputs
+**/dist/
+**/build/
+
+# Logs + caches
+**/storage/logs/
+**/storage/framework/cache/data/
+**/storage/framework/sessions/
+**/storage/framework/views/
+**/bootstrap/cache/*.php
+
+# Secrets — never inside an image, never inside the build context.
+.deploy-secrets
+.deploy-secrets.*
+!.deploy-secrets.example
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+!**/.env.production.example
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Coverage / tests output
+**/coverage/
+**/.nyc_output/

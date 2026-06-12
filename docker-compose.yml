@@ -1,69 +1,128 @@
-name: lodenica
+# Local development stack for Lodenica.
+#
+# Three services:
+#   - postgres: Postgres 14 with btree_gist + pgcrypto extensions
+#     created by Laravel's migration on first boot.
+#   - backend:  Laravel app served by `php artisan serve` on :8000.
+#                Source code is bind-mounted per subdirectory (NOT the
+#                whole backend-php/ dir) so the developer's host-side
+#                .env stays untouched and the container manages its own.
+#   - frontend: Vite dev server on :5173, talking to the backend at
+#                http://localhost:8000/api/v1.
+#
+# Usage:
+#   docker compose up --build              # first run (initial DB + admin seed)
+#   docker compose up                      # subsequent runs
+#   docker compose down                    # stop, preserve DB
+#   docker compose down -v                 # nuke DB + caches + admin
+#
+# Default admin (seeded on first migration):
+#   admin@lodenica.sk / Lodenica2026!
+#
+# All credentials below are dev-only defaults and safe to commit.
+# Production credentials live in `.deploy-secrets` (gitignored) and are
+# consumed by `scripts/deploy-rezervacie.sh` — not by this file.
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:14-alpine
     container_name: lodenica-postgres
-    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-lodenica}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lodenica}
-      POSTGRES_DB: ${POSTGRES_DB:-lodenica}
+      POSTGRES_USER: lodenica
+      POSTGRES_PASSWORD: lodenica
+      POSTGRES_DB: lodenica_php
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lodenica} -d ${POSTGRES_DB:-lodenica}"]
+      test: ["CMD-SHELL", "pg_isready -U lodenica -d lodenica_php"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 12
 
-  # NestJS reference backend. The PHP/Laravel port in backend-php/ runs on
-  # the production Websupport host; this stack is the canonical dev/CI target.
   backend:
     build:
-      context: ./backend-js
-      dockerfile: Dockerfile
-      target: development
+      context: .
+      dockerfile: docker/backend/Dockerfile
     container_name: lodenica-backend
-    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # These DB vars are CANONICAL for docker dev — the entrypoint writes
+      # them into /app/.env on every boot so PHP's built-in server
+      # (which reloads .env per request) sees the right values.
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      LOG_CHANNEL: stack
+      LOG_STACK: single
+      LOG_LEVEL: debug
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: lodenica_php
+      DB_USERNAME: lodenica
+      DB_PASSWORD: lodenica
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:4173"
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: array
+    volumes:
+      # Bind-mount specific subdirs for hot edits. We deliberately AVOID
+      # bind-mounting the whole ./backend-php so the developer's host
+      # .env (which probably has DB_HOST=127.0.0.1 for running Laravel
+      # directly on the host) is NOT visible inside the container.
+      - ./backend-php/app:/app/app
+      - ./backend-php/bootstrap:/app/bootstrap
+      - ./backend-php/config:/app/config
+      - ./backend-php/database:/app/database
+      - ./backend-php/public:/app/public
+      - ./backend-php/resources:/app/resources
+      - ./backend-php/routes:/app/routes
+      - ./backend-php/tests:/app/tests
+      - ./backend-php/composer.json:/app/composer.json
+      - ./backend-php/composer.lock:/app/composer.lock
+      - ./backend-php/artisan:/app/artisan
+      - ./backend-php/phpunit.xml:/app/phpunit.xml
+      - ./backend-php/.env.example:/app/.env.example:ro
+      # Named volumes keep vendor/ and bootstrap/cache/ inside the
+      # container so host artefacts (e.g. macOS-built composer files)
+      # can't pollute the Linux runtime.
+      - backend_vendor:/app/vendor
+      - backend_bootstrap_cache:/app/bootstrap/cache
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      NODE_ENV: ${BACKEND_NODE_ENV:-development}
-      PORT: 3000
-      LOG_LEVEL: ${BACKEND_LOG_LEVEL:-debug}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-lodenica}:${POSTGRES_PASSWORD:-lodenica}@postgres:5432/${POSTGRES_DB:-lodenica}?schema=public
-      CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:5173,http://localhost:4173}
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
-    volumes:
-      - ./backend-js/src:/app/src
-      - ./backend-js/prisma:/app/prisma
-      - ./backend-js/test:/app/test
-    command: sh -c "pnpm prisma migrate deploy && pnpm prisma db seed && pnpm start:dev"
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: development
+    image: node:24-alpine
     container_name: lodenica-frontend
-    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    environment:
+      # Point the Vue SPA at the backend container as seen FROM the
+      # browser (i.e. localhost:8000, not http://backend:8000).
+      VITE_API_BASE_URL: http://localhost:8000/api/v1
+      # WSL2 + Docker exhausts inotify watches against bind-mounted
+      # node_modules; chokidar polling sidesteps the kernel limit at
+      # the cost of slightly higher CPU usage.
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      # Same isolation trick as backend_vendor.
+      - frontend_node_modules:/app/node_modules
+    command: >
+      sh -c "npm install -g pnpm@10 >/dev/null &&
+             pnpm install --prefer-offline &&
+             pnpm dev --host 0.0.0.0"
     depends_on:
       - backend
-    environment:
-      VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://localhost:3000/api/v1}
-    ports:
-      - "${FRONTEND_PORT:-5173}:5173"
-    volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/index.html:/app/index.html
-      - ./frontend/vite.config.ts:/app/vite.config.ts
-    command: pnpm dev --host 0.0.0.0
 
 volumes:
-  postgres-data:
-    driver: local
+  postgres_data:
+  backend_vendor:
+  backend_bootstrap_cache:
+  frontend_node_modules:
