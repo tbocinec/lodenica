@@ -67,6 +67,7 @@ export const AUDIT_ENTITY_TYPE_LABEL: Record<AuditEntityType, string> = {
   EVENT: 'Udalosť',
   EVENT_PARTICIPANT: 'Účastník udalosti',
   DAMAGE: 'Poškodenie',
+  USER: 'Používateľ',
 };
 
 export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {

@@ -9,4 +9,5 @@ enum AuditEntityType: string
     case EVENT = 'EVENT';
     case EVENT_PARTICIPANT = 'EVENT_PARTICIPANT';
     case DAMAGE = 'DAMAGE';
+    case USER = 'USER';
 }

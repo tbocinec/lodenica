@@ -6,9 +6,11 @@ use App\Domain\Enums\DamageSeverity;
 use App\Domain\Enums\DamageStatus;
 use App\Domain\Enums\ReservationStatus;
 use App\Domain\Enums\ResourceType;
+use App\Domain\Enums\UserRole;
 use App\Models\Damage;
 use App\Models\Reservation;
 use App\Models\Resource;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 
@@ -21,8 +23,13 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Bootstrap a default admin if one is missing. Runs INDEPENDENTLY
+        // of the resource seed so re-running on an already-populated DB
+        // still recreates the admin (idempotent via firstOrCreate).
+        $this->seedDefaultAdmin();
+
         if (Resource::query()->count() > 0) {
-            $this->command?->info('Skipping seed — DB already has resources.');
+            $this->command?->info('Skipping resource seed — DB already has resources.');
 
             return;
         }
@@ -172,5 +179,45 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->command?->info('Seed complete.');
+    }
+
+    /**
+     * Ensures the system has at least one admin to log in with after a
+     * fresh deploy. Credentials are intentionally trivial — they MUST be
+     * changed immediately after first login (the admin panel offers a
+     * password change). Honors ADMIN_EMAIL / ADMIN_PASSWORD env vars when
+     * present so production deploys can pin custom seed credentials.
+     */
+    private function seedDefaultAdmin(): void
+    {
+        $email = env('ADMIN_EMAIL', 'admin@lodenica.sk');
+        $password = env('ADMIN_PASSWORD', 'Lodenica2026!');
+        $name = env('ADMIN_NAME', 'Administrátor');
+
+        $admin = User::query()->where('email', $email)->first();
+        if ($admin !== null) {
+            // Re-enable existing admin if it was deactivated. Don't reset
+            // the password — the operator may have already changed it.
+            if (!$admin->isActive || $admin->role !== UserRole::ADMIN) {
+                $admin->isActive = true;
+                $admin->role = UserRole::ADMIN;
+                $admin->save();
+                $this->command?->info("Re-enabled existing admin: {$email}");
+            } else {
+                $this->command?->info("Admin already present: {$email}");
+            }
+
+            return;
+        }
+
+        User::create([
+            'name' => $name,
+            'email' => $email,
+            'password' => $password,
+            'role' => UserRole::ADMIN,
+            'isActive' => true,
+        ]);
+
+        $this->command?->warn("Created default admin {$email} with password '{$password}' — change it immediately.");
     }
 }

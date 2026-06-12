@@ -1,6 +1,25 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
+import { useAuthStore } from '@/stores/auth.store';
+
+/**
+ * Route `meta.auth` controls access:
+ *   - undefined / 'public': anonymous OK
+ *   - 'member': any logged-in user (MEMBER or ADMIN)
+ *   - 'admin': ADMIN role only
+ *
+ * The global beforeEach guard redirects to /login when meta gates fail,
+ * preserving the original target in `?redirect=…` so login can bounce
+ * back. The auth store is bootstrapped from main.ts before mount so we
+ * can read auth state synchronously here.
+ */
 const routes: RouteRecordRaw[] = [
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/views/LoginView.vue'),
+    meta: { title: 'Prihlásenie', auth: 'public', layout: 'blank' },
+  },
   {
     path: '/',
     name: 'dashboard',
@@ -17,7 +36,7 @@ const routes: RouteRecordRaw[] = [
     path: '/resources/new',
     name: 'resources-create',
     component: () => import('@/views/ResourceFormView.vue'),
-    meta: { title: 'Pridať loď' },
+    meta: { title: 'Pridať loď', auth: 'admin' },
   },
   {
     path: '/resources/:id',
@@ -30,7 +49,7 @@ const routes: RouteRecordRaw[] = [
     path: '/resources/:id/edit',
     name: 'resources-edit',
     component: () => import('@/views/ResourceFormView.vue'),
-    meta: { title: 'Upraviť loď' },
+    meta: { title: 'Upraviť loď', auth: 'admin' },
     props: true,
   },
   {
@@ -99,7 +118,13 @@ const routes: RouteRecordRaw[] = [
     path: '/audit',
     name: 'audit',
     component: () => import('@/views/AuditView.vue'),
-    meta: { title: 'História zmien' },
+    meta: { title: 'História zmien', auth: 'member' },
+  },
+  {
+    path: '/admin/users',
+    name: 'admin-users',
+    component: () => import('@/views/AdminUsersView.vue'),
+    meta: { title: 'Používatelia', auth: 'admin' },
   },
   {
     path: '/:pathMatch(.*)*',
@@ -112,6 +137,27 @@ export const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior: () => ({ top: 0 }),
+});
+
+router.beforeEach((to) => {
+  const required = to.meta?.auth as 'public' | 'member' | 'admin' | undefined;
+  if (!required || required === 'public') return true;
+
+  const auth = useAuthStore();
+
+  if (!auth.isAuthenticated) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    };
+  }
+
+  if (required === 'admin' && !auth.isAdmin) {
+    // Logged in but not admin — bounce to dashboard.
+    return { name: 'dashboard' };
+  }
+
+  return true;
 });
 
 router.afterEach((to) => {

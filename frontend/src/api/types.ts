@@ -148,12 +148,30 @@ export interface DashboardSnapshot {
   };
 }
 
+export type UserRole = 'ADMIN' | 'MEMBER';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
 export type AuditEntityType =
   | 'RESOURCE'
   | 'RESERVATION'
   | 'EVENT'
   | 'EVENT_PARTICIPANT'
-  | 'DAMAGE';
+  | 'DAMAGE'
+  | 'USER';
 
 export type AuditAction =
   | 'CREATE'

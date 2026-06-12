@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -85,6 +86,17 @@ final class ApiExceptionRenderer
                 'statusCode' => Response::HTTP_METHOD_NOT_ALLOWED,
                 'error' => 'Method Not Allowed',
                 'message' => 'HTTP metóda nie je povolená pre túto cestu.',
+                'path' => '/'.$path,
+                'timestamp' => $timestamp,
+            ];
+        }
+
+        if ($e instanceof AuthenticationException) {
+            return [
+                'statusCode' => Response::HTTP_UNAUTHORIZED,
+                'error' => 'Unauthorized',
+                'code' => 'UNAUTHENTICATED',
+                'message' => 'Pre túto operáciu sa musíte prihlásiť.',
                 'path' => '/'.$path,
                 'timestamp' => $timestamp,
             ];

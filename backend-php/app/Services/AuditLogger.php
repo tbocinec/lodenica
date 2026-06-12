@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Domain\Enums\AuditAction;
 use App\Domain\Enums\AuditEntityType;
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -111,6 +113,23 @@ class AuditLogger
         return [$beforeDiff, $afterDiff];
     }
 
+    /**
+     * Display name for the actor of the current change. Pulls the auth'd
+     * user's email if there is one; falls back to a literal "anonymous"
+     * marker so anonymous writes are still visible in the audit log
+     * (we intentionally let many endpoints work without login).
+     */
+    private function currentActor(): string
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if ($user instanceof User && !empty($user->email)) {
+            return $user->email;
+        }
+
+        return 'anonymous';
+    }
+
     private function looselyEquals(mixed $a, mixed $b): bool
     {
         // DateTime-like objects compare by ISO string so casts don't trip diff.
@@ -144,6 +163,7 @@ class AuditLogger
                 'action' => $action,
                 'summary' => $summary,
                 'changes' => $changes,
+                'actor' => $this->currentActor(),
             ]);
         } catch (Throwable $e) {
             Log::warning('Audit write failed', [

@@ -1,27 +1,53 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { computed, ref } from 'vue';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 
 import { NAV_LABELS } from '@/i18n/labels';
+import { useAuthStore } from '@/stores/auth.store';
 
 const route = useRoute();
+const router = useRouter();
+const auth = useAuthStore();
 const navOpen = ref(false);
 
-const navItems = [
-  { to: '/', label: NAV_LABELS.dashboard, icon: '📊' },
-  { to: '/resources', label: NAV_LABELS.resources, icon: '🛶' },
-  { to: '/reservations', label: NAV_LABELS.reservations, icon: '📅' },
-  { to: '/timeline', label: NAV_LABELS.timeline, icon: '⏱️' },
-  { to: '/calendar', label: NAV_LABELS.calendar, icon: '🗓️' },
-  { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
-  { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
-  { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
-  { to: '/audit', label: NAV_LABELS.audit, icon: '📜' },
-];
+interface NavItem {
+  to: string;
+  label: string;
+  icon: string;
+  /** Visibility gate. `undefined` = always visible. */
+  requires?: 'member' | 'admin';
+}
+
+const navItems = computed<NavItem[]>(() => {
+  const items: NavItem[] = [
+    { to: '/', label: NAV_LABELS.dashboard, icon: '📊' },
+    { to: '/resources', label: NAV_LABELS.resources, icon: '🛶' },
+    { to: '/reservations', label: NAV_LABELS.reservations, icon: '📅' },
+    { to: '/timeline', label: NAV_LABELS.timeline, icon: '⏱️' },
+    { to: '/calendar', label: NAV_LABELS.calendar, icon: '🗓️' },
+    { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
+    { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
+    { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
+    { to: '/audit', label: NAV_LABELS.audit, icon: '📜', requires: 'member' },
+    { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },
+  ];
+  return items.filter((item) => {
+    if (!item.requires) return true;
+    if (item.requires === 'member') return auth.isAuthenticated;
+    if (item.requires === 'admin') return auth.isAdmin;
+    return true;
+  });
+});
 
 function isActive(path: string): boolean {
   if (path === '/') return route.path === '/';
   return route.path.startsWith(path);
+}
+
+async function logout(): Promise<void> {
+  await auth.logout();
+  navOpen.value = false;
+  await router.push('/login');
 }
 </script>
 
@@ -52,11 +78,26 @@ function isActive(path: string): boolean {
             <span class="text-lg font-semibold tracking-tight text-slate-900">Lodenica</span>
           </RouterLink>
         </div>
-        <div class="hidden items-center gap-2 sm:flex">
+        <div class="hidden items-center gap-3 sm:flex">
           <RouterLink to="/reservations/new" class="btn-primary">
             <span aria-hidden="true">＋</span>
             Vytvoriť rezerváciu
           </RouterLink>
+          <template v-if="auth.isAuthenticated">
+            <span class="text-sm text-slate-600">
+              {{ auth.user?.email }}
+              <span
+                v-if="auth.isAdmin"
+                class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200"
+              >
+                admin
+              </span>
+            </span>
+            <button type="button" class="btn-secondary" @click="logout">Odhlásiť</button>
+          </template>
+          <template v-else>
+            <RouterLink to="/login" class="btn-secondary">Prihlásiť sa</RouterLink>
+          </template>
         </div>
       </div>
     </header>
@@ -83,10 +124,18 @@ function isActive(path: string): boolean {
             <span>{{ item.label }}</span>
           </RouterLink>
         </nav>
-        <div class="mt-6 sm:hidden">
+        <div class="mt-6 sm:hidden space-y-2">
           <RouterLink to="/reservations/new" class="btn-primary w-full">
             ＋ Vytvoriť rezerváciu
           </RouterLink>
+          <template v-if="auth.isAuthenticated">
+            <div class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200">
+              {{ auth.user?.email }}
+              <span v-if="auth.isAdmin" class="ml-1 font-semibold text-amber-700">(admin)</span>
+            </div>
+            <button type="button" class="btn-secondary w-full" @click="logout">Odhlásiť</button>
+          </template>
+          <RouterLink v-else to="/login" class="btn-secondary w-full">Prihlásiť sa</RouterLink>
         </div>
       </aside>
 

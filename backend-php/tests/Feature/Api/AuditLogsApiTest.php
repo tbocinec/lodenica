@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Domain\Enums\AuditAction;
 use App\Domain\Enums\AuditEntityType;
-use App\Domain\Enums\ResourceType;
 use App\Models\AuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -14,9 +13,23 @@ class AuditLogsApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_anonymous_cannot_read_audit_log(): void
+    {
+        $this->getJson('/api/v1/audit-logs')
+            ->assertStatus(401)
+            ->assertJsonPath('code', 'UNAUTHENTICATED');
+    }
+
+    public function test_member_can_read_audit_log(): void
+    {
+        $this->actingAsMember();
+        $this->getJson('/api/v1/audit-logs')->assertOk();
+    }
+
     public function test_index_returns_paginated_audit_logs_most_recent_first(): void
     {
-        // Create some entries via the API so we exercise the full stack.
+        // Admin so resource creates succeed.
+        $this->actingAsAdmin();
         $this->postJson('/api/v1/resources', [
             'identifier' => 'K-A', 'type' => 'WW_KAYAK', 'name' => 'A',
         ])->assertCreated();
@@ -27,17 +40,30 @@ class AuditLogsApiTest extends TestCase
         $response = $this->getJson('/api/v1/audit-logs');
         $response->assertOk()
             ->assertJsonStructure([
-                'items' => [['id', 'entityType', 'entityId', 'action', 'summary', 'changes', 'createdAt']],
+                'items' => [['id', 'entityType', 'entityId', 'action', 'summary', 'changes', 'actor', 'createdAt']],
                 'total', 'page', 'pageSize',
             ])
             ->assertJsonPath('total', 2)
             ->assertJsonPath('items.0.action', 'CREATE');
     }
 
+    public function test_audit_records_the_logged_in_actor(): void
+    {
+        $admin = $this->actingAsAdmin(['email' => 'admin@example.test']);
+        $this->postJson('/api/v1/resources', [
+            'identifier' => 'K-AUDIT', 'type' => 'WW_KAYAK', 'name' => 'A',
+        ])->assertCreated();
+
+        $row = AuditLog::query()
+            ->where('entityType', AuditEntityType::RESOURCE->value)
+            ->first();
+        $this->assertNotNull($row);
+        $this->assertSame('admin@example.test', $row->actor);
+    }
+
     public function test_index_filters_by_entityType(): void
     {
-        // Seed two different entity types directly via the model so the test
-        // is deterministic regardless of service wiring.
+        $this->actingAsMember();
         AuditLog::create([
             'entityType' => AuditEntityType::RESOURCE,
             'entityId' => (string) Str::uuid(),
@@ -59,6 +85,7 @@ class AuditLogsApiTest extends TestCase
 
     public function test_index_filters_by_entityId(): void
     {
+        $this->actingAsMember();
         $targetId = (string) Str::uuid();
         $otherId = (string) Str::uuid();
 
@@ -83,7 +110,7 @@ class AuditLogsApiTest extends TestCase
 
     public function test_index_rejects_unknown_entityType(): void
     {
-        // The Lodenica error envelope flattens validation errors to 400.
+        $this->actingAsMember();
         $this->getJson('/api/v1/audit-logs?entityType=BOGUS')
             ->assertStatus(400)
             ->assertJsonPath('code', 'VALIDATION_ERROR');
@@ -91,6 +118,7 @@ class AuditLogsApiTest extends TestCase
 
     public function test_index_supports_pagination(): void
     {
+        $this->actingAsMember();
         for ($i = 0; $i < 5; $i++) {
             AuditLog::create([
                 'entityType' => AuditEntityType::RESOURCE,

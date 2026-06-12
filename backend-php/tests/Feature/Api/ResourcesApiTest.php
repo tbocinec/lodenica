@@ -13,6 +13,7 @@ class ResourcesApiTest extends TestCase
 
     public function test_create_resource_returns_201_and_body(): void
     {
+        $this->actingAsAdmin();
         $response = $this->postJson('/api/v1/resources', [
             'identifier' => 'K-001',
             'type' => 'WW_KAYAK',
@@ -30,6 +31,7 @@ class ResourcesApiTest extends TestCase
 
     public function test_create_rejects_invalid_identifier(): void
     {
+        $this->actingAsAdmin();
         $this->postJson('/api/v1/resources', [
             'identifier' => 'has space',
             'type' => 'WW_KAYAK',
@@ -37,6 +39,20 @@ class ResourcesApiTest extends TestCase
         ])
             ->assertStatus(400)
             ->assertJsonPath('code', 'VALIDATION_ERROR');
+    }
+
+    public function test_create_requires_admin(): void
+    {
+        // Anonymous → 401
+        $this->postJson('/api/v1/resources', [
+            'identifier' => 'K-A', 'type' => 'WW_KAYAK', 'name' => 'X',
+        ])->assertStatus(401);
+
+        // Member → 403
+        $this->actingAsMember();
+        $this->postJson('/api/v1/resources', [
+            'identifier' => 'K-B', 'type' => 'WW_KAYAK', 'name' => 'X',
+        ])->assertStatus(403);
     }
 
     public function test_list_with_filter_and_pagination(): void
@@ -62,6 +78,7 @@ class ResourcesApiTest extends TestCase
 
     public function test_update_changes_name(): void
     {
+        $this->actingAsAdmin();
         $r = Resource::create([
             'identifier' => 'K-9', 'type' => ResourceType::WW_KAYAK, 'name' => 'Old',
         ]);
@@ -72,6 +89,7 @@ class ResourcesApiTest extends TestCase
 
     public function test_deactivate_and_activate(): void
     {
+        $this->actingAsAdmin();
         $r = Resource::create([
             'identifier' => 'K-X', 'type' => ResourceType::WW_KAYAK, 'name' => 'X',
         ]);
@@ -85,6 +103,7 @@ class ResourcesApiTest extends TestCase
 
     public function test_delete_returns_204(): void
     {
+        $this->actingAsAdmin();
         $r = Resource::create([
             'identifier' => 'K-Y', 'type' => ResourceType::WW_KAYAK, 'name' => 'Y',
         ]);
