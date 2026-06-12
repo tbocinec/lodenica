@@ -1,0 +1,191 @@
+# Deploy the PHP backend + Vue SPA to rezervacie.lodenicakvs.sk.
+#
+# Manual only (workflow_dispatch). GitHub runners have unrestricted port 22
+# outbound, so this gets around the corporate-VPN block that prevents the
+# local `scripts/deploy-rezervacie.sh` from being run from a developer
+# laptop while VPN is active.
+#
+# How it works — the runner does exactly what the local script does:
+#   1. composer install --no-dev + pnpm build (with prod API base URL)
+#   2. writes .deploy-secrets from the GitHub secrets/variables below
+#   3. invokes scripts/deploy-rezervacie.sh (single source of truth)
+#   4. cleans the secrets file off the runner workspace
+#
+# ── Required GitHub Actions repo configuration ────────────────────────────
+# Secrets (Settings → Secrets and variables → Actions → New secret):
+#   REZERVACIE_SFTP_USER         e.g. rezervacie.lodenicakvs.sk
+#   REZERVACIE_SFTP_PASSWORD     SFTP login password
+#   REZERVACIE_DB_USER           e.g. pgrez
+#   REZERVACIE_DB_PASSWORD       DB password
+#   REZERVACIE_APP_KEY           `base64:` value persisted across deploys
+#                                Generate once locally:
+#                                  php -r "echo 'base64:' . base64_encode(random_bytes(32));"
+#
+# Variables (Settings → Secrets and variables → Actions → Variables tab):
+#   REZERVACIE_SFTP_HOST         e.g. lodenicakvs.sk
+#   REZERVACIE_SFTP_PORT         usually 22
+#   REZERVACIE_DB_HOST           e.g. lodenicakvs.sk
+#   REZERVACIE_DB_PORT           usually 5432
+#   REZERVACIE_DB_NAME           e.g. kvsrez
+#   REZERVACIE_DOMAIN            e.g. rezervacie.lodenicakvs.sk
+#   REZERVACIE_LARAVEL_REMOTE    /laravel
+#   REZERVACIE_DOCROOT_REMOTE    /
+
+name: Deploy rezervacie.lodenicakvs.sk
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch / tag / commit to deploy (default: main)'
+        type: string
+        default: main
+      import_sheet:
+        description: 'WIPE the live DB and re-import from the Google Sheet (DESTRUCTIVE)'
+        type: boolean
+        default: false
+
+concurrency:
+  # Block parallel deploys — they'd race over .env / install.php.
+  group: deploy-rezervacie
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & deploy to rezervacie.lodenicakvs.sk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout ${{ inputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, pgsql, mbstring, openssl, tokenizer, ctype, fileinfo, curl, xml, dom, simplexml
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install lftp + sshpass
+        # lftp drives the SFTP mirror; sshpass isn't strictly needed
+        # (lftp does its own auth) but is harmless and matches the
+        # local deploy environment.
+        run: sudo apt-get update && sudo apt-get install -y lftp sshpass
+
+      - name: Cache composer vendor (backend-php)
+        uses: actions/cache@v4
+        with:
+          path: backend-php/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('backend-php/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Frontend install
+        working-directory: ./frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate required secrets/variables
+        env:
+          SFTP_HOST: ${{ vars.REZERVACIE_SFTP_HOST }}
+          SFTP_USER: ${{ secrets.REZERVACIE_SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.REZERVACIE_SFTP_PASSWORD }}
+          DB_NAME: ${{ vars.REZERVACIE_DB_NAME }}
+          DB_USER: ${{ secrets.REZERVACIE_DB_USER }}
+          DB_PASSWORD: ${{ secrets.REZERVACIE_DB_PASSWORD }}
+          APP_KEY: ${{ secrets.REZERVACIE_APP_KEY }}
+          DOMAIN: ${{ vars.REZERVACIE_DOMAIN }}
+        run: |
+          missing=()
+          for v in SFTP_HOST SFTP_USER SFTP_PASSWORD DB_NAME DB_USER DB_PASSWORD APP_KEY DOMAIN; do
+            if [ -z "${!v:-}" ]; then missing+=("$v"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required secrets/variables: ${missing[*]}"
+            echo "::error::See the comment block at the top of this workflow for the full list."
+            exit 1
+          fi
+
+      - name: Write .deploy-secrets from GitHub vault
+        env:
+          SFTP_HOST: ${{ vars.REZERVACIE_SFTP_HOST }}
+          SFTP_PORT: ${{ vars.REZERVACIE_SFTP_PORT }}
+          SFTP_USER: ${{ secrets.REZERVACIE_SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.REZERVACIE_SFTP_PASSWORD }}
+          DB_HOST: ${{ vars.REZERVACIE_DB_HOST }}
+          DB_PORT: ${{ vars.REZERVACIE_DB_PORT }}
+          DB_NAME: ${{ vars.REZERVACIE_DB_NAME }}
+          DB_USER: ${{ secrets.REZERVACIE_DB_USER }}
+          DB_PASSWORD: ${{ secrets.REZERVACIE_DB_PASSWORD }}
+          APP_KEY: ${{ secrets.REZERVACIE_APP_KEY }}
+          DOMAIN: ${{ vars.REZERVACIE_DOMAIN }}
+          LARAVEL_REMOTE: ${{ vars.REZERVACIE_LARAVEL_REMOTE }}
+          DOCROOT_REMOTE: ${{ vars.REZERVACIE_DOCROOT_REMOTE }}
+        run: |
+          # printf prints each value literally, so passwords with `$`,
+          # backticks, brackets etc. survive unescaped (mirror what the
+          # local script does).
+          {
+            printf 'DEPLOY_SFTP_HOST=%s\n'         "$SFTP_HOST"
+            printf 'DEPLOY_SFTP_PORT=%s\n'         "${SFTP_PORT:-22}"
+            printf 'DEPLOY_SFTP_USER=%s\n'         "$SFTP_USER"
+            printf 'DEPLOY_SFTP_PASSWORD=%s\n'     "$SFTP_PASSWORD"
+            printf 'DEPLOY_LARAVEL_APP_REMOTE=%s\n' "${LARAVEL_REMOTE:-/laravel}"
+            printf 'DEPLOY_DOCROOT_REMOTE=%s\n'    "${DOCROOT_REMOTE:-/}"
+            printf 'DEPLOY_APP_KEY=%s\n'           "$APP_KEY"
+            printf 'PROD_DB_HOST=%s\n'             "$DB_HOST"
+            printf 'PROD_DB_PORT=%s\n'             "${DB_PORT:-5432}"
+            printf 'PROD_DB_NAME=%s\n'             "$DB_NAME"
+            printf 'PROD_DB_USER=%s\n'             "$DB_USER"
+            printf 'PROD_DB_PASSWORD=%s\n'         "$DB_PASSWORD"
+            printf 'PROD_DOMAIN=%s\n'              "$DOMAIN"
+            printf 'PROD_BASE_URL=https://%s\n'    "$DOMAIN"
+          } > .deploy-secrets
+          chmod 600 .deploy-secrets
+
+      - name: Deploy ${{ inputs.import_sheet && '(WITH sheet re-import — destructive)' || '(code-only update)' }}
+        env:
+          IMPORT_SHEET: ${{ inputs.import_sheet }}
+        run: |
+          if [ "$IMPORT_SHEET" = "true" ]; then
+            ./scripts/deploy-rezervacie.sh --import-sheet
+          else
+            ./scripts/deploy-rezervacie.sh
+          fi
+
+      - name: Remove .deploy-secrets from the runner
+        if: always()
+        run: rm -f .deploy-secrets
+
+      - name: Summary
+        if: always()
+        env:
+          DOMAIN: ${{ vars.REZERVACIE_DOMAIN }}
+        run: |
+          {
+            echo "### Deploy status — ${{ job.status }}"
+            echo ""
+            echo "- **Ref deployed:** \`${{ inputs.ref }}\`"
+            echo "- **Sheet re-imported:** ${{ inputs.import_sheet }}"
+            echo "- **Live URL:** https://$DOMAIN/"
+            echo "- **Health:** https://$DOMAIN/health"
+            echo ""
+            echo "Runbook: \`backend-php/deploy/REZERVACIE-LODENICAKVS.md\`"
+          } >> "$GITHUB_STEP_SUMMARY"

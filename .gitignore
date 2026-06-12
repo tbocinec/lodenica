@@ -55,3 +55,17 @@ infra/.env.prod
 .deploy-secrets.*
 !.deploy-secrets.example
 
+# Stray composer installs at the repo root. The PHP backend lives in
+# backend-php/ — `composer install` should NEVER run from the repo root
+# (that's a misfire, e.g. running it before `cd backend-php`). The
+# leading slash anchors these patterns to the repo root only; the real
+# backend-php/vendor/ is still tracked by its own .gitignore rules.
+/composer.json
+/composer.lock
+/vendor/
+
+# Empty bind-mount target dirs Docker creates on the host when restarting
+# a stale container that referenced the pre-rename `./backend/` paths.
+# The real source lives in backend-js/.
+/backend/
+

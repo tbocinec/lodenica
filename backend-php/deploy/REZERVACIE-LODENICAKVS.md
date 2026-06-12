@@ -62,10 +62,36 @@ root.
 
 ## Deploying
 
+Pick whichever path is more convenient.
+
+### Option A — GitHub Actions (recommended for updates)
+
+Manual-only workflow that runs the exact same script on a GitHub-hosted
+runner (no VPN headaches):
+
+1. **Settings → Actions → Deploy rezervacie.lodenicakvs.sk → Run workflow**
+2. Pick the branch and tick `import_sheet` only if you want the destructive
+   re-import.
+3. Watch the live logs in the Actions tab.
+
+One-time setup (see comments at the top of
+[.github/workflows/deploy-rezervacie.yml](../../.github/workflows/deploy-rezervacie.yml)):
+add the listed `REZERVACIE_*` secrets and variables to the repo. The
+APP_KEY is generated once locally and stored as a secret so signed
+cookies survive every deploy.
+
+### Option B — Local script (when GitHub Actions is unavailable)
+
 ```bash
 # 1. Disable VPN (port 22 outbound is usually blocked by corp VPNs).
 # 2. From the repo root:
+
+# First install — populates the DB from the Google Sheet:
+scripts/deploy-rezervacie.sh --import-sheet
+
+# Every subsequent update (code-only, KEEPS the live data):
 scripts/deploy-rezervacie.sh
+
 # 3. Re-enable VPN when the script reports "Deploy finished".
 ```
 
@@ -76,17 +102,42 @@ What it runs, in order:
 | Build | `composer install --no-dev --optimize-autoloader` in a clean stage |
 |       | `pnpm build` with `VITE_API_BASE_URL=https://rezervacie.lodenicakvs.sk/api/v1` |
 |       | Generates `.env` from `.deploy-secrets` (re-uses `DEPLOY_APP_KEY`) |
-|       | Substitutes a fresh random token into `install.php` |
+|       | Substitutes a fresh random token + the `__LARAVEL_PATH__` into `install.php` |
 | Upload | `lftp mirror -R` Laravel app → `$DEPLOY_LARAVEL_APP_REMOTE` |
-|        | `lftp mirror -R` docroot (SPA + `index.php` + `.htaccess` + `install.php`) → `$DEPLOY_DOCROOT_REMOTE` |
-| Install | `curl` hits `https://$PROD_DOMAIN/install.php?token=...` |
-|         | install.php runs `migrate --force`, `lodenica:import-sheet --force`, then `config:cache + route:cache + event:cache` |
+|        | `lftp mirror -R` docroot → `$DEPLOY_DOCROOT_REMOTE`, protecting `laravel/`, `install.php`, `logo.jpg` from `--delete` |
+| Install | `curl` hits `https://$PROD_DOMAIN/install.php?token=...&import=0|1` |
+|         | install.php runs `migrate --force` (additive — only new migrations) |
+|         | if `--import-sheet`: also runs `lodenica:import-sheet --force` (DESTRUCTIVE) |
+|         | then `config:cache + route:cache + event:cache` |
 |         | install.php self-deletes after success so a leaked token can't be replayed |
 | Smoke | `curl /health`, `curl /api/v1/resources`, `curl /` |
 
-Re-running the script after a code change just repeats every stage; the
-Laravel app's `.env` and `storage/logs/` on the server are protected from
-`mirror --delete` so locally-generated state survives.
+### What's safe to repeat on a live deployment
+
+| Action | Update-safe? | Why |
+| --- | --- | --- |
+| Composer / vendor re-upload | ✓ | `lftp mirror --delete` overwrites changed files; PHP-FPM picks up new code on the next request. |
+| `.env` overwrite | ✓ (intentional) | The script regenerates `.env` from `.deploy-secrets` every time. `DEPLOY_APP_KEY` is persisted there so session cookies survive. If you want server-side `.env` edits to persist, put them in `.deploy-secrets` instead. |
+| Frontend re-upload | ✓ | Vite produces hashed filenames; orphans get cleaned by `--delete`. `logo.jpg` and `laravel/` are explicitly protected. |
+| `php artisan migrate --force` | ✓ | Laravel only runs migrations whose name isn't already in the `migrations` table. |
+| `config:cache` rebuild | ✓ | Old cache is cleared first; new one is written atomically. |
+| `lodenica:import-sheet --force` | ✗ | **DESTRUCTIVE** — wipes damages, reservations, events and resources before re-importing. Off by default; requires `--import-sheet`. |
+| install token rotation | ✓ | Each deploy generates a new token; the previous deploy's token is invalidated by the upload overwriting `install.php`. |
+| storage/logs preservation | ✓ | `--exclude-glob 'storage/logs/*'` on the Laravel mirror keeps server-side log history. |
+
+### Disaster recovery — re-importing the inventory deliberately
+
+If the production DB ever gets out of sync with the master Google Sheet
+and you actually *do* want to reset the inventory:
+
+```bash
+scripts/deploy-rezervacie.sh --import-sheet
+```
+
+The script prints a 5-second `Ctrl-C` window before triggering the
+destructive importer. After import, the boathouse spaces and 7 sample
+reservations are recreated; existing user-entered reservations are
+**lost**.
 
 ## Useful flags
 
@@ -97,11 +148,8 @@ scripts/deploy-rezervacie.sh --no-upload --no-install --no-smoke
 # Upload a previously-built stage (skip composer + pnpm).
 scripts/deploy-rezervacie.sh --no-build
 
-# Deploy code only, don't re-run migrations / re-import the sheet.
+# Push static assets only; don't run migrations or rebuild caches.
 scripts/deploy-rezervacie.sh --no-install
-
-# Code + cache rebuild + verify, but skip the destructive sheet importer.
-scripts/deploy-rezervacie.sh --no-import
 ```
 
 If `install.php` fails partway through (say, the sheet import errors out

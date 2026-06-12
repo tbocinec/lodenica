@@ -85,6 +85,13 @@ if ($singleStep === null || $singleStep === 'migrate') {
     echo "\n";
 }
 
+if ($singleStep === null || $singleStep === 'seed') {
+    // Idempotent: only inserts the admin if missing, only inserts demo
+    // resources if the inventory is empty. Safe on every deploy.
+    run($kernel, 'db:seed', ['--force' => true]);
+    echo "\n";
+}
+
 if ($runImport && ($singleStep === null || $singleStep === 'import')) {
     // --force skips the destructive-action confirmation prompt.
     run($kernel, 'lodenica:import-sheet', ['--force' => true]);

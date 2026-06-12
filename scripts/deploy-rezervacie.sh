@@ -31,27 +31,34 @@ DO_EXPLORE=0
 DO_BUILD=1
 DO_UPLOAD=1
 DO_INSTALL=1
-DO_IMPORT=1
+DO_IMPORT=0        # default OFF — destructive; only opt-in for first install / refresh
 DO_SMOKE=1
 
 usage() {
     cat <<'USAGE'
 Usage: scripts/deploy-rezervacie.sh [options]
 
+Safe for both first install AND repeated code updates by default:
+  - migrations run (only NEW ones — additive)
+  - artisan config:cache, route:cache, event:cache are rebuilt
+  - the Google Sheet importer DOES NOT run unless --import-sheet is passed
+    (it wipes damages, reservations and events — destructive on a live DB)
+
   --explore             SFTP-login, print the remote directory layout and exit.
-                        Run this once before the first real deploy and update
-                        DEPLOY_*_REMOTE in .deploy-secrets accordingly.
+  --import-sheet        Run `lodenica:import-sheet --force` inside install.php.
+                        DESTRUCTIVE — wipes the live DB of resources,
+                        reservations, events and damages. Use ONLY for the
+                        first install or a deliberate inventory refresh.
   --no-build            Skip composer install + pnpm build (reuse last stage).
   --no-upload           Skip the SFTP upload (build only).
-  --no-install          Skip the HTTPS install.php trigger.
-  --no-import           Skip the Google Sheet importer step inside install.php.
+  --no-install          Skip the HTTPS install.php trigger (no migrate / no cache).
   --no-smoke            Skip the post-deploy curl smoke tests.
   -h, --help
 
 Required env in .deploy-secrets:
   DEPLOY_SFTP_HOST DEPLOY_SFTP_PORT DEPLOY_SFTP_USER DEPLOY_SFTP_PASSWORD
-  DEPLOY_LARAVEL_APP_REMOTE   (e.g. /lodenica-app)
-  DEPLOY_DOCROOT_REMOTE       (e.g. /sub/rezervacie  or  /web)
+  DEPLOY_LARAVEL_APP_REMOTE   (e.g. /laravel)
+  DEPLOY_DOCROOT_REMOTE       (e.g. /  or  /sub/rezervacie)
   PROD_DB_HOST PROD_DB_PORT PROD_DB_NAME PROD_DB_USER PROD_DB_PASSWORD
   PROD_DOMAIN                 (e.g. rezervacie.lodenicakvs.sk)
 
@@ -62,13 +69,13 @@ USAGE
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --explore)       DO_EXPLORE=1 ;;
-        --no-build)      DO_BUILD=0 ;;
-        --no-upload)     DO_UPLOAD=0 ;;
-        --no-install)    DO_INSTALL=0 ;;
-        --no-import)     DO_IMPORT=0 ;;
-        --no-smoke)      DO_SMOKE=0 ;;
-        -h|--help)       usage; exit 0 ;;
+        --explore)         DO_EXPLORE=1 ;;
+        --import-sheet|--import) DO_IMPORT=1 ;;
+        --no-build)        DO_BUILD=0 ;;
+        --no-upload)       DO_UPLOAD=0 ;;
+        --no-install)      DO_INSTALL=0 ;;
+        --no-smoke)        DO_SMOKE=0 ;;
+        -h|--help)         usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage; exit 2 ;;
     esac
     shift
@@ -341,8 +348,13 @@ fi
 #────────────────────────────────────────────────────────────────────────────
 if (( DO_INSTALL )); then
     [[ -n "$INSTALL_TOKEN" ]] || die "No install token recorded; run with --no-upload and at least --no-build off."
-    URL="https://$PROD_DOMAIN/install.php?token=$INSTALL_TOKEN"
-    if (( ! DO_IMPORT )); then URL="$URL&import=0"; fi
+    URL="https://$PROD_DOMAIN/install.php?token=$INSTALL_TOKEN&import=$DO_IMPORT"
+    if (( DO_IMPORT )); then
+        warn "--import-sheet is set. This will WIPE damages, reservations, events"
+        warn "and resources on the live DB, then re-import from the Google Sheet."
+        warn "Ctrl-C in the next 5 seconds to abort."
+        sleep 5
+    fi
     log "Triggering installer: $URL"
     # 90s budget: lodenica:import-sheet fetches the sheet + inserts ~76 rows.
     if ! curl -sk --max-time 120 --fail-with-body "$URL"; then

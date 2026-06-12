@@ -39,6 +39,12 @@
     RewriteRule ^ index.html [L]
 </IfModule>
 
+# Private club tool — keep search engines out of every response,
+# including API JSON and SPA assets (robots.txt + meta tag cover only HTML).
+<IfModule mod_headers.c>
+    Header set X-Robots-Tag "noindex, nofollow"
+</IfModule>
+
 # Block any dot-files (.env, .git, .htpasswd, etc.) just in case the
 # rewrite engine is ever disabled.
 <FilesMatch "^\.">
