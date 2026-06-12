@@ -21,8 +21,14 @@
  * Query params:
  *   token   — REQUIRED, must equal __TOKEN__ (substituted at deploy time)
  *   import  — 1 to also run the sheet importer, 0 to skip
- *   step    — optional: only run a single phase ("migrate", "import",
- *             "cache"); omit to run all.
+ *   step    — optional: only run a single phase. Valid values:
+ *               "migrate"   — apply pending migrations
+ *               "seed"      — bootstrap admin / demo data
+ *               "import"    — fetch + apply the Google Sheet inventory
+ *               "cache"     — refresh artisan config/route/event caches
+ *               "tail-log"  — print last 60 lines of storage/logs/laravel.log
+ *                             (diagnostic only; install.php is retained)
+ *   lines   — only for step=tail-log; how many lines to return (default 60).
  */
 
 declare(strict_types=1);
@@ -79,6 +85,55 @@ function run(\Illuminate\Contracts\Console\Kernel $kernel, string $command, arra
 }
 
 echo "[ok]   token accepted, laravel root = {$laravelRoot}\n\n";
+
+// Diagnostic-only step: show migration status + env hints. Useful when
+// /api/v1/* is 500ing and we need to know if a migration is pending or
+// APP_DEBUG is masking the real error.
+if ($singleStep === 'diagnose') {
+    echo "[diag] APP_ENV = " . config('app.env') . "\n";
+    echo "[diag] APP_DEBUG = " . (config('app.debug') ? 'true' : 'false') . "\n";
+    echo "[diag] PHP_VERSION = " . PHP_VERSION . "\n";
+    echo "[diag] DB connection = " . config('database.default') . "\n";
+    echo "\n";
+    run($kernel, 'migrate:status');
+    echo "\n[ok]   single step 'diagnose' completed; install.php retained.\n";
+    exit;
+}
+
+// Diagnostic-only step: dump the tail of Laravel's log. Skips command
+// execution so we don't accidentally rerun migrations etc. while
+// debugging.
+if ($singleStep === 'tail-log') {
+    $logFile = $laravelRoot . '/storage/logs/laravel.log';
+    $linesWanted = (int) ($_GET['lines'] ?? 60);
+    $linesWanted = max(1, min(500, $linesWanted));
+    if (!is_readable($logFile)) {
+        bail(404, "laravel.log not found or unreadable at {$logFile}");
+    }
+    echo "[log]  {$logFile} (last {$linesWanted} lines)\n";
+    echo str_repeat('─', 78) . "\n";
+    // Read the file backwards to avoid loading huge logs into memory.
+    $fp = fopen($logFile, 'r');
+    fseek($fp, 0, SEEK_END);
+    $size = ftell($fp);
+    $buf = '';
+    $linesCount = 0;
+    $chunk = 4096;
+    while ($size > 0 && $linesCount <= $linesWanted) {
+        $read = min($chunk, $size);
+        $size -= $read;
+        fseek($fp, $size);
+        $buf = fread($fp, $read) . $buf;
+        $linesCount = substr_count($buf, "\n");
+    }
+    fclose($fp);
+    $lines = explode("\n", $buf);
+    $tail = array_slice($lines, -$linesWanted - 1);
+    echo implode("\n", $tail) . "\n";
+    echo str_repeat('─', 78) . "\n";
+    echo "[ok]   single step 'tail-log' completed; install.php retained for further steps.\n";
+    exit;
+}
 
 if ($singleStep === null || $singleStep === 'migrate') {
     run($kernel, 'migrate', ['--force' => true]);
