@@ -8,7 +8,7 @@ import { ResourceType, type Event } from '@/api/types';
 import AvailabilityHints from '@/components/ui/AvailabilityHints.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
-import { RESOURCE_TYPE_LABEL } from '@/i18n/labels';
+import { RESOURCE_TYPE_LABEL, RESOURCE_TYPE_LABEL_PLURAL } from '@/i18n/labels';
 import { useResourcesStore } from '@/stores/resources.store';
 import { formatReservationRange, isoFromDateTime, toIsoDate } from '@/utils/format';
 
@@ -42,6 +42,36 @@ const form = reactive({
 const error = ref<string | null>(null);
 const submitting = ref(false);
 
+/**
+ * Two-step resource picker — first the user picks a TYPE (kajak, kanoe,
+ * pramica, …) from visual tiles, then the concrete boat/space inside
+ * that type. The legacy `KAYAK` enum value is hidden because the club
+ * has migrated all kayaks to SEA_KAYAK / WW_KAYAK.
+ */
+const pickedType = ref<ResourceType | null>(null);
+
+/** Display order of the tiles — most-used types first. */
+const TYPE_ORDER: readonly ResourceType[] = [
+  ResourceType.SEA_KAYAK,
+  ResourceType.WW_KAYAK,
+  ResourceType.CANOE,
+  ResourceType.ROWING_BOAT,
+  ResourceType.INFLATABLE_BOAT,
+  ResourceType.TRAILER,
+  ResourceType.BOATHOUSE_SPACE,
+];
+
+const TYPE_ICON: Record<ResourceType, string> = {
+  KAYAK: '🛶',
+  SEA_KAYAK: '🌊',
+  WW_KAYAK: '💧',
+  CANOE: '🛶',
+  ROWING_BOAT: '🚣',
+  INFLATABLE_BOAT: '🛟',
+  TRAILER: '🚐',
+  BOATHOUSE_SPACE: '🏠',
+};
+
 const grouped = computed(() => {
   const groups = new Map<ResourceType, typeof resources.items>();
   for (const r of resources.items) {
@@ -50,12 +80,52 @@ const grouped = computed(() => {
     list.push(r);
     groups.set(r.type, list);
   }
-  return [...groups.entries()];
+  return groups;
+});
+
+/** Type tiles in the picker — only types that actually have stock. */
+const typeTiles = computed(() =>
+  TYPE_ORDER
+    .filter((t) => (grouped.value.get(t)?.length ?? 0) > 0)
+    .map((t) => ({
+      type: t,
+      label: RESOURCE_TYPE_LABEL_PLURAL[t] ?? RESOURCE_TYPE_LABEL[t],
+      icon: TYPE_ICON[t] ?? '📦',
+      count: grouped.value.get(t)?.length ?? 0,
+    })),
+);
+
+/** Resources within the currently-picked type, ordered by identifier. */
+const resourcesInPickedType = computed(() => {
+  if (!pickedType.value) return [];
+  const list = grouped.value.get(pickedType.value) ?? [];
+  return [...list].sort((a, b) => a.identifier.localeCompare(b.identifier));
 });
 
 const selectedResource = computed(() =>
   resources.items.find((r) => r.id === form.resourceId),
 );
+
+function pickType(t: ResourceType): void {
+  pickedType.value = t;
+  // Clear any previously-picked resource so the user has to make a fresh
+  // choice; the resource grid handles selection below.
+  form.resourceId = '';
+}
+
+function pickResource(id: string): void {
+  form.resourceId = id;
+}
+
+function changeType(): void {
+  pickedType.value = null;
+  form.resourceId = '';
+}
+
+function changeResource(): void {
+  // Keep the picked type so the user just sees the same grid again.
+  form.resourceId = '';
+}
 
 /**
  * ISO `startsAt` + `endsAt` composed from form fields. Used both for
@@ -111,6 +181,10 @@ function applyPreset(preset: 'oneHour' | 'morning' | 'afternoon' | 'fullDay'): v
 }
 
 async function submit(): Promise<void> {
+  if (!form.resourceId) {
+    error.value = 'Vyber zdroj (typ a konkrétny kus).';
+    return;
+  }
   if (!rangeIsValid.value) {
     error.value = 'Koniec rezervácie musí byť po jej začiatku.';
     return;
@@ -168,6 +242,12 @@ const linkedEvent = ref<Event | null>(null);
 
 onMounted(async () => {
   await resources.fetch();
+  // Pre-fill from ?resourceId=… (timeline drag-create, event detail).
+  // Surface the type tile so "Iný kus" returns to the right grid.
+  if (form.resourceId) {
+    const pre = resources.items.find((r) => r.id === form.resourceId);
+    if (pre) pickedType.value = pre.type;
+  }
   if (form.eventId) {
     try {
       linkedEvent.value = await eventsApi.get(form.eventId);
@@ -202,20 +282,92 @@ onMounted(async () => {
   </div>
 
   <form class="card-padded grid gap-4 sm:grid-cols-2" @submit.prevent="submit">
+    <!-- ────────────────────────────────────────────────────────────
+         Step 1: pick a TYPE (tiles).
+         Step 2: pick a concrete resource of that type (grid).
+         When a resource is selected, show a compact summary + "Zmeniť".
+         ──────────────────────────────────────────────────────────── -->
     <div class="sm:col-span-2">
-      <label class="label" for="resource">Zdroj *</label>
-      <select id="resource" v-model="form.resourceId" class="input mt-1" required>
-        <option value="" disabled>Vyber zdroj…</option>
-        <optgroup
-          v-for="[type, list] in grouped"
-          :key="type"
-          :label="RESOURCE_TYPE_LABEL[type]"
+      <p class="label mb-2">Zdroj *</p>
+
+      <!-- Picked state — compact summary + change buttons. -->
+      <div
+        v-if="selectedResource"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3"
+      >
+        <div class="flex items-center gap-3">
+          <span class="text-2xl" aria-hidden="true">{{ TYPE_ICON[selectedResource.type] ?? '📦' }}</span>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-emerald-700">
+              {{ RESOURCE_TYPE_LABEL[selectedResource.type] }}
+            </p>
+            <p class="font-semibold text-emerald-900">
+              {{ selectedResource.identifier }} · {{ selectedResource.name }}
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" class="btn-secondary text-xs" @click="changeResource">
+            Iný kus
+          </button>
+          <button type="button" class="btn-secondary text-xs" @click="changeType">
+            Iný typ
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 1: pick TYPE. -->
+      <div v-else-if="!pickedType" class="grid gap-3 sm:grid-cols-3">
+        <button
+          v-for="tile in typeTiles"
+          :key="tile.type"
+          type="button"
+          class="flex flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-5 text-center transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
+          @click="pickType(tile.type)"
         >
-          <option v-for="r in list" :key="r.id" :value="r.id">
-            {{ r.identifier }} · {{ r.name }}
-          </option>
-        </optgroup>
-      </select>
+          <span class="text-3xl" aria-hidden="true">{{ tile.icon }}</span>
+          <span class="text-sm font-medium text-slate-900">{{ tile.label }}</span>
+          <span class="text-xs text-slate-500">{{ tile.count }} k dispozícii</span>
+        </button>
+      </div>
+
+      <!-- Step 2: pick CONCRETE resource. -->
+      <div v-else class="space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-slate-700">
+            <span aria-hidden="true">{{ TYPE_ICON[pickedType] ?? '📦' }}</span>
+            <strong class="ml-1">{{ RESOURCE_TYPE_LABEL_PLURAL[pickedType] }}</strong>
+            <span class="text-slate-500"> — vyber konkrétny kus:</span>
+          </p>
+          <button type="button" class="btn-secondary text-xs" @click="changeType">
+            ← Zmeniť typ
+          </button>
+        </div>
+        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <button
+            v-for="r in resourcesInPickedType"
+            :key="r.id"
+            type="button"
+            class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
+            @click="pickResource(r.id)"
+          >
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium text-slate-900">{{ r.identifier }}</p>
+              <p class="truncate text-xs text-slate-500">{{ r.name }}</p>
+              <p v-if="r.seats || r.color" class="truncate text-xs text-slate-400">
+                <span v-if="r.seats">{{ r.seats }}-miestny</span>
+                <span v-if="r.seats && r.color"> · </span>
+                <span v-if="r.color">{{ r.color }}</span>
+              </p>
+            </div>
+            <span aria-hidden="true" class="text-slate-300">›</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hidden mirror so HTML5 form validation still considers the
+           field required even though we render no <select>. -->
+      <input type="hidden" :value="form.resourceId" required />
     </div>
 
     <div>
@@ -331,7 +483,11 @@ onMounted(async () => {
         <strong>{{ selectedResource.identifier }} · {{ selectedResource.name }}</strong>
       </span>
       <button type="button" class="btn-secondary" @click="$router.back()">Zrušiť</button>
-      <button type="submit" class="btn-primary" :disabled="submitting || !rangeIsValid">
+      <button
+        type="submit"
+        class="btn-primary"
+        :disabled="submitting || !rangeIsValid || !form.resourceId"
+      >
         {{ submitting ? 'Ukladám…' : 'Vytvoriť rezerváciu' }}
       </button>
     </div>
