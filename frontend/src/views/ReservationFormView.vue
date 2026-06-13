@@ -358,7 +358,7 @@ onMounted(async () => {
       </p>
       <p class="mt-1 text-xs text-emerald-700">
         Pridá sa do TVOJHO mobilného / desktop kalendára (nie do klubového rozvrhu).
-        Miesto: <strong>Klub vodných športov Karlova Ves</strong>.
+        Miesto: <strong>Klub vodných športov Karlova Ves</strong>, Botanická 20/59, 841 04 Bratislava-Karlova Ves.
       </p>
       <div class="mt-3 flex flex-wrap gap-2">
         <a
@@ -476,7 +476,7 @@ onMounted(async () => {
     </div>
 
     <fieldset class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
-      <legend class="px-1 text-sm font-semibold text-slate-700">Zákazník</legend>
+      <legend class="px-1 text-sm font-semibold text-slate-700">Rezervácia pre</legend>
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label class="label" for="name">Meno *</label>

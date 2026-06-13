@@ -23,7 +23,8 @@ export function reservationIcsUrl(id: string): string {
  *
  * `dates` requires the compact ICS-style UTC format with no separators.
  */
-const KVS_LOCATION = 'Klub vodných športov Karlova Ves';
+const KVS_LOCATION =
+  'Klub vodných športov Karlova Ves, Botanická 20/59, 841 04 Bratislava-Karlova Ves, Slovakia';
 const KVS_MAPS_URL = 'https://maps.app.goo.gl/zZwKA168QCeugSxA8';
 
 export function reservationGoogleCalendarUrl(opts: {
@@ -44,7 +45,7 @@ export function reservationGoogleCalendarUrl(opts: {
   // reservation details. \n becomes a soft line break in the GCal UI.
   const description = [
     KVS_MAPS_URL,
-    `Zákazník: ${opts.customerName}`,
+    `Rezervácia pre: ${opts.customerName}`,
     opts.resourceLabel ? `Zdroj: ${opts.resourceLabel}` : null,
     opts.note ? `Poznámka: ${opts.note}` : null,
   ]

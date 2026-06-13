@@ -114,7 +114,7 @@ class ReservationsController extends Controller
         // event view straight to the boathouse.
         $description = trim(implode("\\n", array_filter([
             'https://maps.app.goo.gl/zZwKA168QCeugSxA8',
-            'Zákazník: '.$reservation->customerName,
+            'Rezervácia pre: '.$reservation->customerName,
             $reservation->customerContact ? 'Kontakt: '.$reservation->customerContact : null,
             $resource ? 'Zdroj: '.$resource->identifier.' '.$resource->name : null,
             $reservation->note ? 'Poznámka: '.$reservation->note : null,
@@ -133,7 +133,7 @@ class ReservationsController extends Controller
             'DTEND:'.$fmt($end),
             'SUMMARY:'.$this->icalEscape($summary),
             'DESCRIPTION:'.$this->icalEscape($description),
-            'LOCATION:'.$this->icalEscape('Klub vodných športov Karlova Ves'),
+            'LOCATION:'.$this->icalEscape('Klub vodných športov Karlova Ves, Botanická 20/59, 841 04 Bratislava-Karlova Ves, Slovakia'),
             'STATUS:'.($reservation->status->value === 'CONFIRMED' ? 'CONFIRMED' : 'CANCELLED'),
             'END:VEVENT',
             'END:VCALENDAR',
