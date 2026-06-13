@@ -33,6 +33,7 @@ const navItems = computed<NavItem[]>(() => {
     { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
     { to: '/audit', label: NAV_LABELS.audit, icon: '📜', requires: 'member' },
     { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },
+    { to: '/admin/usage', label: 'Štatistiky', icon: '📈', requires: 'admin' },
     {
       to: 'https://www.lodenicakvs.sk/?page_id=4578',
       label: 'Lodeničný poriadok',
