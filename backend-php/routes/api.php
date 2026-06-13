@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminDataController;
 use App\Http\Controllers\Api\AuditLogsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AvailabilityController;
@@ -85,4 +86,10 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
 
     Route::get('admin/usage-stats', [UsageStatsController::class, 'show']);
+
+    Route::get('admin/export/database.json', [AdminDataController::class, 'exportDatabase']);
+    Route::get('admin/export/reservations.csv', [AdminDataController::class, 'exportReservationsCsv']);
+    Route::get('admin/export/resources.csv', [AdminDataController::class, 'exportResourcesCsv']);
+    Route::post('admin/import/database', [AdminDataController::class, 'importDatabase']);
+    Route::post('admin/reservations/purge', [AdminDataController::class, 'purgeReservations']);
 });

@@ -133,6 +133,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Štatistiky používania', auth: 'admin' },
   },
   {
+    path: '/admin/data',
+    name: 'admin-data',
+    component: () => import('@/views/AdminDataView.vue'),
+    meta: { title: 'Správa dát', auth: 'admin' },
+  },
+  {
     path: '/rules',
     name: 'reservation-rules',
     component: () => import('@/views/ReservationRulesView.vue'),
