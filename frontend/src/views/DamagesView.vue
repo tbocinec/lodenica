@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue';
 
 import { damagesApi } from '@/api/damages.api';
 import { DamageSeverity, DamageStatus, type Damage } from '@/api/types';
+import DamageEditDialog from '@/components/ui/DamageEditDialog.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -33,6 +34,35 @@ const photoFile = ref<File | null>(null);
 const photoPreview = ref<string | null>(null);
 /** Lightbox open for a particular damage's photo (full-size view). */
 const lightboxUrl = ref<string | null>(null);
+/** Damage currently open in the edit dialog (null = closed). */
+const editing = ref<Damage | null>(null);
+
+function editingResourceLabel(): string | undefined {
+  if (!editing.value) return undefined;
+  const r = resources.byId.get(editing.value.resourceId);
+  if (!r) return undefined;
+  return `${r.identifier} · ${r.name}`;
+}
+
+async function deleteDamage(d: Damage): Promise<void> {
+  if (!window.confirm('Naozaj vymazať toto poškodenie? Akcia sa nedá vrátiť.')) return;
+  try {
+    await damagesApi.remove(d.id);
+    await load();
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+}
+
+async function onDialogSaved(): Promise<void> {
+  editing.value = null;
+  await load();
+}
+
+async function onDialogDeleted(): Promise<void> {
+  editing.value = null;
+  await load();
+}
 
 function onPhotoChange(event: Event): void {
   const input = event.target as HTMLInputElement;
@@ -252,7 +282,7 @@ onMounted(load);
                 {{ DAMAGE_STATUS_LABEL[d.status] }}
               </span>
             </td>
-            <td class="space-x-2 text-right">
+            <td class="space-x-2 whitespace-nowrap text-right">
               <button
                 v-if="d.status !== 'IN_REPAIR'"
                 class="btn-secondary"
@@ -276,6 +306,22 @@ onMounted(load);
                 @click="deletePhoto(d)"
               >
                 Zmazať fotku
+              </button>
+              <button
+                class="btn-secondary"
+                type="button"
+                title="Upraviť poškodenie"
+                @click="editing = d"
+              >
+                ✏️ Upraviť
+              </button>
+              <button
+                class="btn-danger"
+                type="button"
+                title="Vymazať poškodenie"
+                @click="deleteDamage(d)"
+              >
+                🗑 Vymazať
               </button>
             </td>
           </tr>
@@ -301,4 +347,12 @@ onMounted(load);
     </button>
     <img :src="lightboxUrl" alt="" class="max-h-full max-w-full rounded-lg object-contain" />
   </div>
+
+  <DamageEditDialog
+    :damage="editing"
+    :resource-label="editingResourceLabel()"
+    @close="editing = null"
+    @saved="onDialogSaved"
+    @deleted="onDialogDeleted"
+  />
 </template>
