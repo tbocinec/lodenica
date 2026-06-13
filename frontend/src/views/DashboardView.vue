@@ -50,7 +50,7 @@ onMounted(load);
         label="Nadchádzajúcich rezervácií"
         :value="snapshot.totals.upcomingReservations"
       />
-      <StatCard label="Otvorené poškodenia" :value="snapshot.totals.openDamages" tone="red" />
+      <StatCard label="Aktuálne poškodenia" :value="snapshot.totals.openDamages" tone="red" />
     </section>
 
     <section class="mt-6 grid gap-6 lg:grid-cols-2">
@@ -151,8 +151,8 @@ onMounted(load);
       </div>
 
       <div class="card-padded lg:col-span-2">
-        <h2 class="mb-3 text-lg font-semibold">Poškodenia v stave nahlásené / v oprave</h2>
-        <EmptyState v-if="snapshot.damaged.length === 0" title="Žiadne otvorené poškodenia" />
+        <h2 class="mb-3 text-lg font-semibold">Aktuálne poškodenia</h2>
+        <EmptyState v-if="snapshot.damaged.length === 0" title="Žiadne aktuálne poškodenia" />
         <ul v-else class="divide-y divide-slate-100">
           <li
             v-for="d in snapshot.damaged"
