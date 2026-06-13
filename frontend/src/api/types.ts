@@ -107,6 +107,8 @@ export interface Damage {
   reportedAt: string;
   fixedAt: string | null;
   note: string | null;
+  /** Backend-served URL of the attached photo, or null. */
+  photoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

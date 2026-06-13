@@ -315,6 +315,8 @@ mirror -R --delete --verbose=1 \
     --exclude-glob 'storage/framework/cache/data/*' \
     --exclude-glob 'storage/framework/sessions/*' \
     --exclude-glob 'storage/framework/views/*' \
+    --exclude-glob 'storage/app/damages/*' \
+    --exclude-glob 'storage/app/public/*' \
     --exclude-glob 'bootstrap/cache/*.php' \
     $LARAVEL_STAGE/ $DEPLOY_LARAVEL_APP_REMOTE/
 

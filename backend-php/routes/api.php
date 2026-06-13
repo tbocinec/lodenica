@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\EventsController;
 use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
 use App\Http\Controllers\Api\ResourcesController;
+use App\Http\Controllers\Api\UsageStatsController;
 use App\Http\Controllers\Api\UsersController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,7 @@ Route::get('resources/{id}', [ResourcesController::class, 'show']);
 Route::apiResource('reservations', ReservationsController::class)
     ->parameters(['reservations' => 'id']);
 Route::patch('reservations/{id}/cancel', [ReservationsController::class, 'cancel']);
+Route::get('reservations/{id}/ics', [ReservationsController::class, 'ics']);
 
 Route::apiResource('events', EventsController::class)
     ->parameters(['events' => 'id']);
@@ -41,6 +43,9 @@ Route::post('events/{id}/reservations', [EventsController::class, 'attachResourc
 
 Route::apiResource('damages', DamagesController::class)
     ->parameters(['damages' => 'id']);
+Route::get('damages/{id}/photo', [DamagesController::class, 'showPhoto']);
+Route::post('damages/{id}/photo', [DamagesController::class, 'addPhoto']);
+Route::delete('damages/{id}/photo', [DamagesController::class, 'removePhoto']);
 
 // Reservation rules — public read so anonymous bookers can see them;
 // PATCH is in the admin group below.
@@ -78,4 +83,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         ->parameters(['users' => 'id']);
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
+
+    Route::get('admin/usage-stats', [UsageStatsController::class, 'show']);
 });

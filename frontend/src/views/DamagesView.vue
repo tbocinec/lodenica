@@ -28,6 +28,27 @@ const form = reactive({
   note: '',
 });
 
+/** File picked in the "Pridať fotku" input; uploaded after the damage row is created. */
+const photoFile = ref<File | null>(null);
+const photoPreview = ref<string | null>(null);
+/** Lightbox open for a particular damage's photo (full-size view). */
+const lightboxUrl = ref<string | null>(null);
+
+function onPhotoChange(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0] ?? null;
+  // Revoke the previous preview to avoid leaking blob URLs on rapid re-pick.
+  if (photoPreview.value) URL.revokeObjectURL(photoPreview.value);
+  photoFile.value = file;
+  photoPreview.value = file ? URL.createObjectURL(file) : null;
+}
+
+function clearPhoto(): void {
+  if (photoPreview.value) URL.revokeObjectURL(photoPreview.value);
+  photoFile.value = null;
+  photoPreview.value = null;
+}
+
 async function load() {
   loading.value = true;
   error.value = null;
@@ -53,12 +74,23 @@ async function changeStatus(d: Damage, status: DamageStatus) {
 async function create() {
   error.value = null;
   try {
-    await damagesApi.create({
+    const created = await damagesApi.create({
       resourceId: form.resourceId,
       description: form.description,
       severity: form.severity,
       note: form.note || undefined,
     });
+    // Optional photo upload — runs only if the user picked a file.
+    // We swallow upload errors with a warning so the damage row itself
+    // is still considered "reported"; the user can re-attach later.
+    if (photoFile.value) {
+      try {
+        await damagesApi.uploadPhoto(created.id, photoFile.value);
+      } catch (e) {
+        error.value =
+          'Poškodenie nahlásené, ale fotku sa nepodarilo nahrať: ' + (e as Error).message;
+      }
+    }
     showCreate.value = false;
     Object.assign(form, {
       resourceId: '',
@@ -66,6 +98,17 @@ async function create() {
       severity: DamageSeverity.MINOR,
       note: '',
     });
+    clearPhoto();
+    await load();
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+}
+
+async function deletePhoto(d: Damage): Promise<void> {
+  if (!window.confirm('Naozaj odstrániť fotku?')) return;
+  try {
+    await damagesApi.removePhoto(d.id);
     await load();
   } catch (e) {
     error.value = (e as Error).message;
@@ -125,6 +168,24 @@ onMounted(load);
           maxlength="1000"
         ></textarea>
       </div>
+      <div class="sm:col-span-2">
+        <label class="label" for="dphoto">
+          Fotka <span class="text-xs font-normal text-slate-500">(nepovinné, max 5 MB)</span>
+        </label>
+        <input
+          id="dphoto"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          class="mt-1 block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-800 hover:file:bg-brand-100"
+          @change="onPhotoChange"
+        />
+        <div v-if="photoPreview" class="mt-2 flex items-center gap-3">
+          <img :src="photoPreview" alt="" class="h-24 w-24 rounded-lg object-cover ring-1 ring-slate-200" />
+          <button type="button" class="text-xs text-rose-700 hover:underline" @click="clearPhoto">
+            Odstrániť výber
+          </button>
+        </div>
+      </div>
       <div class="sm:col-span-2 flex justify-end gap-2">
         <button type="button" class="btn-secondary" @click="showCreate = false">Zrušiť</button>
         <button type="submit" class="btn-primary">Uložiť</button>
@@ -143,6 +204,7 @@ onMounted(load);
           <tr>
             <th>Nahlásené</th>
             <th>Zdroj</th>
+            <th>Foto</th>
             <th>Popis</th>
             <th>Závažnosť</th>
             <th>Stav</th>
@@ -154,6 +216,18 @@ onMounted(load);
             <td class="text-slate-500">{{ formatDate(d.reportedAt) }}</td>
             <td class="font-medium">
               {{ resources.byId.get(d.resourceId)?.name ?? '—' }}
+            </td>
+            <td>
+              <button
+                v-if="d.photoUrl"
+                type="button"
+                :title="'Otvoriť fotku · ' + d.description.slice(0, 80)"
+                class="block h-14 w-14 overflow-hidden rounded-md ring-1 ring-slate-200 hover:ring-brand-400"
+                @click="lightboxUrl = d.photoUrl"
+              >
+                <img :src="d.photoUrl" alt="" class="h-full w-full object-cover" />
+              </button>
+              <span v-else class="text-xs text-slate-300">—</span>
             </td>
             <td class="max-w-md whitespace-pre-wrap text-slate-700">{{ d.description }}</td>
             <td>
@@ -195,10 +269,36 @@ onMounted(load);
               >
                 Opravené
               </button>
+              <button
+                v-if="d.photoUrl"
+                class="btn-secondary"
+                type="button"
+                @click="deletePhoto(d)"
+              >
+                Zmazať fotku
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+  </div>
+
+  <!-- Photo lightbox — click overlay or ✕ to close. -->
+  <div
+    v-if="lightboxUrl"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-4"
+    role="dialog"
+    aria-modal="true"
+    @click.self="lightboxUrl = null"
+  >
+    <button
+      type="button"
+      class="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-900 hover:bg-white"
+      @click="lightboxUrl = null"
+    >
+      ✕ Zavrieť
+    </button>
+    <img :src="lightboxUrl" alt="" class="max-h-full max-w-full rounded-lg object-contain" />
   </div>
 </template>
