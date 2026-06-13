@@ -263,6 +263,15 @@ function pickDay(iso: string): void {
   form.endDate = toIsoDate(newEnd);
 }
 
+function pickRange(startHour: string, endHour: string): void {
+  // Multi-hour drag → set both bounds on the picked day. Both come as
+  // already-padded "HH:MM" strings. We deliberately don't preserve any
+  // previous duration here — the gesture itself defined the duration.
+  form.endDate = form.startDate;
+  form.startTime = startHour;
+  form.endTime = endHour;
+}
+
 function pickHour(hour: string): void {
   // Hour-pick implies a same-day window; preserve duration but cap inside the
   // 06–22 visible window.
@@ -466,25 +475,30 @@ onMounted(async () => {
       <input type="hidden" :value="form.resourceId" required />
     </div>
 
-    <div>
-      <label class="label" for="name">Meno *</label>
-      <input
-        id="name"
-        v-model="form.customerName"
-        class="input mt-1"
-        required
-        maxlength="200"
-      />
-    </div>
-    <div>
-      <label class="label" for="contact">Kontakt (e-mail alebo telefón)</label>
-      <input
-        id="contact"
-        v-model="form.customerContact"
-        class="input mt-1"
-        maxlength="200"
-      />
-    </div>
+    <fieldset class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
+      <legend class="px-1 text-sm font-semibold text-slate-700">Zákazník</legend>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label class="label" for="name">Meno *</label>
+          <input
+            id="name"
+            v-model="form.customerName"
+            class="input mt-1"
+            required
+            maxlength="200"
+          />
+        </div>
+        <div>
+          <label class="label" for="contact">Kontakt (e-mail alebo telefón)</label>
+          <input
+            id="contact"
+            v-model="form.customerContact"
+            class="input mt-1"
+            maxlength="200"
+          />
+        </div>
+      </div>
+    </fieldset>
 
     <fieldset class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
       <legend class="px-1 text-sm font-semibold text-slate-700">Termín</legend>
@@ -556,6 +570,7 @@ onMounted(async () => {
           :end-time="form.endTime"
           @pick-day="pickDay"
           @pick-hour="pickHour"
+          @pick-range="pickRange"
         />
       </div>
     </fieldset>

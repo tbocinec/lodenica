@@ -32,6 +32,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'pick-day', date: string): void;
   (e: 'pick-hour', hour: string): void;
+  /** Click-and-drag across hour cells emits a full range. `endHour`
+   *  is EXCLUSIVE, in "HH:MM" form — matches reservation convention
+   *  (endsAt is exclusive). A single-cell drag becomes a 1-hour range. */
+  (e: 'pick-range', startHour: string, endHour: string): void;
 }>();
 
 const HOUR_START = 6;
@@ -205,8 +209,86 @@ const hourTicks = computed(() => {
   return list;
 });
 
-function onClickHour(hour: number): void {
-  emit('pick-hour', `${String(hour).padStart(2, '0')}:00`);
+/* ────────────────────────  Drag-to-select  ──────────────────────── */
+/**
+ * Click + drag horizontally across the hour strip to pick a multi-hour
+ * range in one gesture. Works for mouse and touch via the unified
+ * Pointer Events API:
+ *
+ *   pointerdown on a cell  → start drag, record `dragStartHour`
+ *   pointermove on the doc → track cell under pointer via
+ *                            document.elementFromPoint (which works for
+ *                            both mouse hover AND touch slide; pointer
+ *                            capture would route events to the source
+ *                            button and skip neighbours, so we don't
+ *                            capture here)
+ *   pointerup    on the doc → emit `pick-range` and reset
+ *
+ * A single-cell gesture (down + up on the same hour) still falls back
+ * to the legacy single-hour `pick-hour` event so existing parent
+ * handlers don't need to special-case the "click" case.
+ */
+const isDragging = ref(false);
+const dragStartHour = ref<number | null>(null);
+const dragCurrentHour = ref<number | null>(null);
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function isHourSelected(h: number): boolean {
+  if (!isDragging.value || dragStartHour.value === null || dragCurrentHour.value === null) {
+    return false;
+  }
+  const lo = Math.min(dragStartHour.value, dragCurrentHour.value);
+  const hi = Math.max(dragStartHour.value, dragCurrentHour.value);
+  return h >= lo && h <= hi;
+}
+
+function hourFromEvent(ev: PointerEvent): number | null {
+  const el = document.elementFromPoint(ev.clientX, ev.clientY);
+  const target = (el as HTMLElement | null)?.closest<HTMLElement>('[data-hour]');
+  if (!target) return null;
+  const v = Number(target.dataset.hour);
+  return Number.isFinite(v) ? v : null;
+}
+
+function onHourPointerDown(hour: number, ev: PointerEvent): void {
+  // Only left mouse button / primary touch.
+  if (ev.button !== undefined && ev.button !== 0) return;
+  ev.preventDefault();
+  isDragging.value = true;
+  dragStartHour.value = hour;
+  dragCurrentHour.value = hour;
+  document.addEventListener('pointermove', onDocPointerMove);
+  document.addEventListener('pointerup', onDocPointerUp, { once: true });
+  document.addEventListener('pointercancel', onDocPointerUp, { once: true });
+}
+
+function onDocPointerMove(ev: PointerEvent): void {
+  if (!isDragging.value) return;
+  const h = hourFromEvent(ev);
+  if (h !== null) dragCurrentHour.value = h;
+}
+
+function onDocPointerUp(): void {
+  document.removeEventListener('pointermove', onDocPointerMove);
+  if (!isDragging.value || dragStartHour.value === null || dragCurrentHour.value === null) {
+    isDragging.value = false;
+    return;
+  }
+  const lo = Math.min(dragStartHour.value, dragCurrentHour.value);
+  const hi = Math.max(dragStartHour.value, dragCurrentHour.value);
+  isDragging.value = false;
+  dragStartHour.value = null;
+  dragCurrentHour.value = null;
+  if (lo === hi) {
+    // Pure click → keep existing behaviour: set startTime, leave duration.
+    emit('pick-hour', `${pad2(lo)}:00`);
+  } else {
+    // Range: end is exclusive (e.g. drag 9 → 11 means [09:00, 12:00)).
+    emit('pick-range', `${pad2(lo)}:00`, `${pad2(hi + 1)}:00`);
+  }
 }
 </script>
 
@@ -263,16 +345,22 @@ function onClickHour(hour: number): void {
           ⚠ Vybraný čas sa kryje s inou rezerváciou
         </span>
       </div>
-      <div class="relative">
-        <!-- Tick row -->
-        <div class="grid" :style="{ gridTemplateColumns: `repeat(${HOUR_SPAN}, minmax(0, 1fr))` }">
+      <div class="relative" :class="isDragging ? 'cursor-col-resize select-none' : ''">
+        <!-- Tick row — click for single hour, click+drag for multi-hour range. -->
+        <div
+          class="grid touch-none"
+          :style="{ gridTemplateColumns: `repeat(${HOUR_SPAN}, minmax(0, 1fr))` }"
+        >
           <button
             v-for="h in hourTicks.slice(0, -1)"
             :key="h"
             type="button"
+            :data-hour="h"
             class="h-10 border-r border-slate-100 hover:bg-brand-50"
-            :title="`Nastaviť začiatok na ${String(h).padStart(2, '0')}:00`"
-            @click="onClickHour(h)"
+            :class="isHourSelected(h) ? 'bg-brand-200/70 ring-1 ring-brand-500 ring-inset' : ''"
+            :title="`Klikni pre začiatok ${String(h).padStart(2, '0')}:00 — alebo potiahni pre viac hodín`"
+            @pointerdown="onHourPointerDown(h, $event)"
+            @click.prevent
           />
         </div>
         <!-- Existing reservation blocks (read-only) -->
