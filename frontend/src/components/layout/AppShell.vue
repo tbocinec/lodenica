@@ -26,9 +26,12 @@ const navItems = computed<NavItem[]>(() => {
     // Pravidlá rezervácie hneď za Prehľadom — nový člen ich vidí ako
     // prvú vec po úvodnom dashboarde.
     { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
+    // /timeline and /calendar still exist as routes; they're surfaced
+    // from inside ReservationsView so members reach them when the
+    // task fits ("I know the date but not which boat" → timeline,
+    // "browse a whole month" → calendar). The top nav stays focused
+    // on operational entries.
     { to: '/reservations', label: NAV_LABELS.reservations, icon: '📅' },
-    { to: '/timeline', label: NAV_LABELS.timeline, icon: '⏱️' },
-    { to: '/calendar', label: NAV_LABELS.calendar, icon: '🗓️' },
     { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
     { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
     { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },

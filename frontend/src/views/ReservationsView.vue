@@ -69,6 +69,62 @@ onMounted(load);
     </template>
   </PageHeader>
 
+  <!-- Hub cards — three paths into the booking flow, ordered by
+       expected mental model. Members open this page first, so it's
+       also the natural place to surface Časová os / Kalendár (which
+       used to live in the top nav). -->
+  <section class="mb-5 grid gap-3 sm:grid-cols-3">
+    <RouterLink
+      to="/reservations/new"
+      class="group flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-4 ring-1 ring-transparent transition hover:border-brand-400 hover:ring-brand-200"
+    >
+      <span class="text-2xl" aria-hidden="true">🛶</span>
+      <div class="flex-1">
+        <p class="font-semibold text-brand-900">Začínam loďou</p>
+        <p class="mt-0.5 text-xs text-brand-800">
+          Viem akú loď chcem — vyberiem si ju a doplním voľný termín.
+        </p>
+        <p class="mt-2 text-xs font-medium text-brand-700 group-hover:underline">
+          ＋ Vytvoriť rezerváciu →
+        </p>
+      </div>
+    </RouterLink>
+
+    <RouterLink
+      to="/timeline"
+      class="group flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-400 hover:shadow-sm"
+    >
+      <span class="text-2xl" aria-hidden="true">⏱️</span>
+      <div class="flex-1">
+        <p class="font-semibold text-slate-900">Viem dátum, hľadám loď</p>
+        <p class="mt-0.5 text-xs text-slate-600">
+          Pozriem si všetky lode na konkrétny deň po hodinách —
+          kde je voľno, tam kliknem.
+        </p>
+        <p class="mt-2 text-xs font-medium text-slate-700 group-hover:underline">
+          Časová os →
+        </p>
+      </div>
+    </RouterLink>
+
+    <RouterLink
+      to="/calendar"
+      class="group flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-400 hover:shadow-sm"
+    >
+      <span class="text-2xl" aria-hidden="true">🗓️</span>
+      <div class="flex-1">
+        <p class="font-semibold text-slate-900">Mesačný prehľad</p>
+        <p class="mt-0.5 text-xs text-slate-600">
+          Plánovanie víkendov a viacdňových akcií — vidím obsadenosť
+          celého mesiaca naraz.
+        </p>
+        <p class="mt-2 text-xs font-medium text-slate-700 group-hover:underline">
+          Kalendár →
+        </p>
+      </div>
+    </RouterLink>
+  </section>
+
   <div class="mb-3 flex items-center gap-3">
     <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
       <input v-model="showCancelled" type="checkbox" class="h-4 w-4 rounded" />
