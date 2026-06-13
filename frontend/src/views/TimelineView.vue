@@ -369,7 +369,7 @@ async function onReservationDeleted(): Promise<void> {
 <template>
   <PageHeader
     title="Časová os"
-    subtitle="Zdroje v riadkoch, čas v stĺpcoch. Klikni na bunku alebo ťahaj cez viaceré bunky a vyznač okno rezervácie."
+    subtitle="Klikni na bunku alebo ťahaj cez viaceré bunky a vyznač okno rezervácie."
   >
     <template #actions>
       <div class="inline-flex rounded-lg ring-1 ring-slate-300">
