@@ -1,6 +1,16 @@
 import { http } from './http';
 import type { Paginated, Reservation, ReservationStatus } from './types';
 
+/**
+ * Absolute URL of the .ics endpoint for a reservation — used directly
+ * as `<a :href=…>` so the browser handles download + hand-off to the
+ * mobile calendar app (iOS Calendar / Google Calendar / Outlook).
+ */
+export function reservationIcsUrl(id: string): string {
+  const base = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/+$/, '');
+  return `${base}/reservations/${id}/ics`;
+}
+
 export interface ListReservationsParams {
   page?: number;
   pageSize?: number;

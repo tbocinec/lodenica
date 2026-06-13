@@ -3,8 +3,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 
 import { eventsApi } from '@/api/events.api';
-import { reservationsApi } from '@/api/reservations.api';
-import { ResourceType, type Event } from '@/api/types';
+import { reservationIcsUrl, reservationsApi } from '@/api/reservations.api';
+import { ResourceType, type Event, type Reservation } from '@/api/types';
 import AvailabilityHints from '@/components/ui/AvailabilityHints.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -41,6 +41,22 @@ const form = reactive({
 
 const error = ref<string | null>(null);
 const submitting = ref(false);
+
+/**
+ * After a successful POST we switch the form view to a "saved" card
+ * with a "Pridať do kalendára" button. Keeping the user on this page
+ * (instead of an immediate redirect) lets them add the booking to
+ * their phone in one tap — the click target is hot, the slot is fresh
+ * in their head.
+ */
+const createdReservation = ref<Reservation | null>(null);
+const icsHref = computed(() =>
+  createdReservation.value ? reservationIcsUrl(createdReservation.value.id) : null,
+);
+
+function finishAndLeave(): void {
+  router.push(form.eventId ? `/events/${form.eventId}` : '/reservations');
+}
 
 /**
  * Two-step resource picker — first the user picks a TYPE (kajak, kanoe,
@@ -192,7 +208,7 @@ async function submit(): Promise<void> {
   error.value = null;
   submitting.value = true;
   try {
-    await reservationsApi.create({
+    const created = await reservationsApi.create({
       resourceId: form.resourceId,
       eventId: form.eventId || undefined,
       customerName: form.customerName,
@@ -201,7 +217,10 @@ async function submit(): Promise<void> {
       endsAt: composed.value.endsAt,
       note: form.note || undefined,
     });
-    await router.push(form.eventId ? `/events/${form.eventId}` : '/reservations');
+    // Stay on the page and show the success card so the user can tap
+    // "Pridať do kalendára" without losing context. finishAndLeave()
+    // navigates away once they're done.
+    createdReservation.value = created;
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -281,7 +300,43 @@ onMounted(async () => {
     </RouterLink>
   </div>
 
-  <form class="card-padded grid gap-4 sm:grid-cols-2" @submit.prevent="submit">
+  <!-- Success card: shown after a successful POST so the user can add
+       the booking to their phone calendar in one tap. Replaces the form
+       entirely; "Hotovo" exits to the list. -->
+  <div
+    v-if="createdReservation"
+    class="card-padded grid gap-4 border border-emerald-200 bg-emerald-50/40"
+  >
+    <div class="flex items-start gap-3">
+      <span class="text-3xl" aria-hidden="true">✅</span>
+      <div class="flex-1">
+        <h2 class="text-lg font-semibold text-emerald-900">Rezervácia vytvorená</h2>
+        <p class="mt-1 text-sm text-emerald-800">
+          {{ formatReservationRange(createdReservation.startsAt, createdReservation.endsAt) }}
+          <template v-if="selectedResource">
+            · {{ selectedResource.identifier }} · {{ selectedResource.name }}
+          </template>
+        </p>
+        <p class="mt-2 text-xs text-emerald-700">
+          Klikni na „Pridať do kalendára" — telefón ti otvorí natívnu kalendárovú aplikáciu
+          a rezervácia sa pridá ako udalosť.
+        </p>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center justify-end gap-2 pt-2">
+      <a
+        v-if="icsHref"
+        :href="icsHref"
+        class="btn-primary"
+        :download="`rezervacia-${createdReservation.id.slice(0, 8)}.ics`"
+      >
+        📅 Pridať do kalendára
+      </a>
+      <button type="button" class="btn-secondary" @click="finishAndLeave">Hotovo</button>
+    </div>
+  </div>
+
+  <form v-else class="card-padded grid gap-4 sm:grid-cols-2" @submit.prevent="submit">
     <!-- ────────────────────────────────────────────────────────────
          Step 1: pick a TYPE (tiles).
          Step 2: pick a concrete resource of that type (grid).
