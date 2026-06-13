@@ -19,9 +19,15 @@ class ReservationRulesApiTest extends TestCase
 
     public function test_default_rules_seed_is_present(): void
     {
+        // Migration seeds from backend-php/deploy/reservation-rules.html.
+        // The canonical content always starts with the "O tomto systéme"
+        // heading and references the club rulebook so a regression that
+        // wipes / mangles the seed would be caught here.
         $this->getJson('/api/v1/reservation-rules')
             ->assertOk()
-            ->assertJsonPath('content', fn ($content) => str_contains((string) $content, 'Pravidlá rezervácie'));
+            ->assertJsonPath('content', fn ($content) => is_string($content)
+                && str_contains($content, 'O tomto systéme')
+                && str_contains($content, 'Klubu vodných športov Karlova Ves'));
     }
 
     public function test_anonymous_cannot_update_rules(): void

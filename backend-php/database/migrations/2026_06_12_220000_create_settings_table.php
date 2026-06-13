@@ -21,12 +21,18 @@ return new class extends Migration
             $table->timestamp('updatedAt')->useCurrent();
         });
 
-        // Seed a default "reservation_rules" row so the frontend always
-        // has something to render before an admin first edits it.
+        // Seed the reservation_rules row from the canonical HTML kept in
+        // git so a fresh install starts with the same content the live
+        // admin can later edit (or that `scripts/set-reservation-rules.sh`
+        // pushes to an already-deployed instance).
+        $rulesHtmlPath = __DIR__.'/../../deploy/reservation-rules.html';
+        $defaultRules = is_readable($rulesHtmlPath)
+            ? (string) file_get_contents($rulesHtmlPath)
+            : '<h2>Pravidlá rezervácie</h2><p>Obsah doplní administrátor cez tlačidlo „Upraviť“.</p>';
+
         DB::table('settings')->insert([
             'key' => 'reservation_rules',
-            'value' => '<h2>Pravidlá rezervácie</h2>'
-                ."\n".'<p>Tu bude obsah pravidiel rezervácie. Administrátor ho môže upraviť cez tlačidlo „Upraviť“.</p>',
+            'value' => $defaultRules,
             'updatedAt' => now(),
         ]);
     }
