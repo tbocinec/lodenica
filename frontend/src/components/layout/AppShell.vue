@@ -23,14 +23,18 @@ interface NavItem {
 const navItems = computed<NavItem[]>(() => {
   const items: NavItem[] = [
     { to: '/', label: NAV_LABELS.dashboard, icon: '📊' },
-    { to: '/resources', label: NAV_LABELS.resources, icon: '🛶' },
+    // Pravidlá rezervácie hneď za Prehľadom — nový člen ich vidí ako
+    // prvú vec po úvodnom dashboarde.
+    { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
     { to: '/reservations', label: NAV_LABELS.reservations, icon: '📅' },
     { to: '/timeline', label: NAV_LABELS.timeline, icon: '⏱️' },
     { to: '/calendar', label: NAV_LABELS.calendar, icon: '🗓️' },
     { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
     { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
     { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
-    { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
+    // Lode posledné v "každodennej" sekcii — je to encyklopédia výbavy,
+    // nie operatívna obrazovka.
+    { to: '/resources', label: NAV_LABELS.resources, icon: '🛶' },
     { to: '/audit', label: NAV_LABELS.audit, icon: '📜', requires: 'member' },
     { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },
     { to: '/admin/usage', label: 'Štatistiky', icon: '📈', requires: 'admin' },
