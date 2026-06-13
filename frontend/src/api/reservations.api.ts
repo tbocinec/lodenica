@@ -4,11 +4,61 @@ import type { Paginated, Reservation, ReservationStatus } from './types';
 /**
  * Absolute URL of the .ics endpoint for a reservation — used directly
  * as `<a :href=…>` so the browser handles download + hand-off to the
- * mobile calendar app (iOS Calendar / Google Calendar / Outlook).
+ * native calendar app (iOS Calendar opens the .ics inline; Outlook /
+ * Thunderbird import on click).
  */
 export function reservationIcsUrl(id: string): string {
   const base = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/+$/, '');
   return `${base}/reservations/${id}/ics`;
+}
+
+/**
+ * Builds a Google Calendar "render template" URL that pre-fills a new
+ * event in the user's Google Calendar (web app on desktop, opens the
+ * Google Calendar app on Android if installed via Universal Links).
+ *
+ * Format: https://www.google.com/calendar/render?action=TEMPLATE
+ *         &text=<title>&dates=YYYYMMDDTHHMMSSZ/YYYYMMDDTHHMMSSZ
+ *         &details=<description>&location=<location>
+ *
+ * `dates` requires the compact ICS-style UTC format with no separators.
+ */
+const KVS_LOCATION = 'Klub vodných športov Karlova Ves';
+const KVS_MAPS_URL = 'https://maps.app.goo.gl/zZwKA168QCeugSxA8';
+
+export function reservationGoogleCalendarUrl(opts: {
+  title: string;
+  /** ISO-8601 datetime, UTC. */
+  startsAt: string;
+  /** ISO-8601 datetime, UTC. */
+  endsAt: string;
+  customerName: string;
+  resourceLabel?: string;
+  note?: string | null;
+}): string {
+  // ISO 8601 (2099-09-15T08:00:00.000Z) → 20990915T080000Z
+  const toCompactUtc = (iso: string): string =>
+    new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+  // Description: Maps URL first (tappable in Google Calendar), then the
+  // reservation details. \n becomes a soft line break in the GCal UI.
+  const description = [
+    KVS_MAPS_URL,
+    `Zákazník: ${opts.customerName}`,
+    opts.resourceLabel ? `Zdroj: ${opts.resourceLabel}` : null,
+    opts.note ? `Poznámka: ${opts.note}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: opts.title,
+    dates: `${toCompactUtc(opts.startsAt)}/${toCompactUtc(opts.endsAt)}`,
+    details: description,
+    location: KVS_LOCATION,
+  });
+  return `https://www.google.com/calendar/render?${params.toString()}`;
 }
 
 export interface ListReservationsParams {

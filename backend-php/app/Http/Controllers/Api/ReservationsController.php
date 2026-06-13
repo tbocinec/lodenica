@@ -107,7 +107,13 @@ class ReservationsController extends Controller
         $summary = $resource
             ? "Lodenica KVS: {$resource->identifier} – {$resource->name}"
             : 'Lodenica KVS: rezervácia';
+
+        // The Google Maps short link is intentionally on its own line at
+        // the top of the description — most calendar apps render plain
+        // URLs as tappable links, so the user can navigate from the
+        // event view straight to the boathouse.
         $description = trim(implode("\\n", array_filter([
+            'https://maps.app.goo.gl/zZwKA168QCeugSxA8',
             'Zákazník: '.$reservation->customerName,
             $reservation->customerContact ? 'Kontakt: '.$reservation->customerContact : null,
             $resource ? 'Zdroj: '.$resource->identifier.' '.$resource->name : null,
@@ -127,7 +133,7 @@ class ReservationsController extends Controller
             'DTEND:'.$fmt($end),
             'SUMMARY:'.$this->icalEscape($summary),
             'DESCRIPTION:'.$this->icalEscape($description),
-            'LOCATION:Lodenica KVS',
+            'LOCATION:'.$this->icalEscape('Klub vodných športov Karlova Ves'),
             'STATUS:'.($reservation->status->value === 'CONFIRMED' ? 'CONFIRMED' : 'CANCELLED'),
             'END:VEVENT',
             'END:VCALENDAR',

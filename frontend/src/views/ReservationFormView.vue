@@ -3,7 +3,11 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 
 import { eventsApi } from '@/api/events.api';
-import { reservationIcsUrl, reservationsApi } from '@/api/reservations.api';
+import {
+  reservationGoogleCalendarUrl,
+  reservationIcsUrl,
+  reservationsApi,
+} from '@/api/reservations.api';
 import { ResourceType, type Event, type Reservation } from '@/api/types';
 import AvailabilityHints from '@/components/ui/AvailabilityHints.vue';
 import LoadError from '@/components/ui/LoadError.vue';
@@ -53,6 +57,24 @@ const createdReservation = ref<Reservation | null>(null);
 const icsHref = computed(() =>
   createdReservation.value ? reservationIcsUrl(createdReservation.value.id) : null,
 );
+
+/**
+ * Google Calendar template URL with the booking pre-filled. Opens
+ * directly to the "new event" editor (browser tab on desktop, the
+ * native GCal app on Android via Universal Links) — no file download,
+ * no manual import step.
+ */
+const googleCalendarHref = computed(() => {
+  if (!createdReservation.value || !selectedResource.value) return null;
+  return reservationGoogleCalendarUrl({
+    title: `Lodenica KVS: ${selectedResource.value.identifier} – ${selectedResource.value.name}`,
+    startsAt: createdReservation.value.startsAt,
+    endsAt: createdReservation.value.endsAt,
+    customerName: createdReservation.value.customerName,
+    resourceLabel: `${selectedResource.value.identifier} ${selectedResource.value.name}`,
+    note: createdReservation.value.note,
+  });
+});
 
 function finishAndLeave(): void {
   router.push(form.eventId ? `/events/${form.eventId}` : '/reservations');
@@ -301,8 +323,9 @@ onMounted(async () => {
   </div>
 
   <!-- Success card: shown after a successful POST so the user can add
-       the booking to their phone calendar in one tap. Replaces the form
-       entirely; "Hotovo" exits to the list. -->
+       the booking to their PERSONAL calendar (not the boathouse one).
+       Two options: Google Calendar (opens editor directly, no download)
+       and .ics (Apple Calendar, Outlook, Thunderbird). -->
   <div
     v-if="createdReservation"
     class="card-padded grid gap-4 border border-emerald-200 bg-emerald-50/40"
@@ -317,21 +340,39 @@ onMounted(async () => {
             · {{ selectedResource.identifier }} · {{ selectedResource.name }}
           </template>
         </p>
-        <p class="mt-2 text-xs text-emerald-700">
-          Klikni na „Pridať do kalendára" — telefón ti otvorí natívnu kalendárovú aplikáciu
-          a rezervácia sa pridá ako udalosť.
-        </p>
       </div>
     </div>
-    <div class="flex flex-wrap items-center justify-end gap-2 pt-2">
-      <a
-        v-if="icsHref"
-        :href="icsHref"
-        class="btn-primary"
-        :download="`rezervacia-${createdReservation.id.slice(0, 8)}.ics`"
-      >
-        📅 Pridať do kalendára
-      </a>
+
+    <div class="border-t border-emerald-200 pt-3">
+      <p class="text-sm font-medium text-emerald-900">
+        Chceš si rezerváciu uložiť do osobného kalendára?
+      </p>
+      <p class="mt-1 text-xs text-emerald-700">
+        Pridá sa do TVOJHO mobilného / desktop kalendára (nie do klubového rozvrhu).
+        Miesto: <strong>Klub vodných športov Karlova Ves</strong>.
+      </p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <a
+          v-if="googleCalendarHref"
+          :href="googleCalendarHref"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-primary"
+        >
+          📅 Google Calendar
+        </a>
+        <a
+          v-if="icsHref"
+          :href="icsHref"
+          class="btn-secondary"
+          :download="`rezervacia-${createdReservation.id.slice(0, 8)}.ics`"
+        >
+          🍎 Apple Calendar / .ics
+        </a>
+      </div>
+    </div>
+
+    <div class="flex justify-end pt-2">
       <button type="button" class="btn-secondary" @click="finishAndLeave">Hotovo</button>
     </div>
   </div>
