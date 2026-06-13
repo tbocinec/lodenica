@@ -110,15 +110,20 @@ onMounted(load);
           v-if="snapshot.available.length === 0"
           title="Momentálne nie sú dostupné žiadne lode"
         />
-        <ul v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <li
-            v-for="r in snapshot.available"
-            :key="r.id"
-            class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/40 px-3 py-2"
-          >
-            <ResourceTypeBadge :type="r.type" />
-            <span class="font-medium text-slate-800">{{ r.name }}</span>
-            <span class="ml-auto text-xs text-slate-500">{{ r.identifier }}</span>
+        <p class="mb-2 text-xs text-slate-500">
+          Klikni na loď a otvor sa rezervačný formulár s predvyplneným zdrojom.
+        </p>
+        <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <li v-for="r in snapshot.available" :key="r.id">
+            <RouterLink
+              :to="{ path: '/reservations/new', query: { resourceId: r.id } }"
+              class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/40 px-3 py-2 transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
+            >
+              <ResourceTypeBadge :type="r.type" />
+              <span class="font-medium text-slate-800">{{ r.name }}</span>
+              <span class="ml-auto text-xs text-slate-500">{{ r.identifier }}</span>
+              <span aria-hidden="true" class="text-slate-300">›</span>
+            </RouterLink>
           </li>
         </ul>
       </div>
