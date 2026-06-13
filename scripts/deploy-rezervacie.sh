@@ -186,6 +186,9 @@ if (( DO_BUILD )); then
         --exclude='storage/framework/cache/data/*' \
         --exclude='storage/framework/sessions/*' \
         --exclude='storage/framework/views/*' \
+        --exclude='storage/framework/testing/' \
+        --exclude='storage/app/damages/*' \
+        --exclude='storage/app/public/*' \
         --exclude='bootstrap/cache/*.php' \
         --exclude='tests/' \
         --exclude='.phpunit*' \

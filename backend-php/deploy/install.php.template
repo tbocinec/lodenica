@@ -16,11 +16,17 @@
  * so the operator can re-trigger after fixing the issue.
  *
  * Usage:
- *   https://<domain>/install.php?token=<32-hex>&import=1
+ *   https://<domain>/install.php?token=<32-hex>            (safe, no import)
+ *   https://<domain>/install.php?token=<32-hex>&import=1   (also re-import
+ *                                                          inventory from Sheet)
  *
  * Query params:
  *   token   — REQUIRED, must equal __TOKEN__ (substituted at deploy time)
- *   import  — 1 to also run the sheet importer, 0 to skip
+ *   import  — DEFAULT 0. Pass 1 to run the destructive `lodenica:import-sheet`
+ *             command that wipes resources/reservations/events/damages and
+ *             re-imports the inventory from the Google Sheet. The deploy
+ *             script passes this explicitly; manual re-triggers stay safe
+ *             by default.
  *   step    — optional: only run a single phase. Valid values:
  *               "migrate"   — apply pending migrations
  *               "seed"      — bootstrap admin / demo data
@@ -35,7 +41,11 @@ declare(strict_types=1);
 
 $expectedToken = '__TOKEN__';
 $givenToken    = (string) ($_GET['token'] ?? '');
-$runImport     = (string) ($_GET['import'] ?? '1') === '1';
+// Safe-by-default: a curl-triggered manual re-run NEVER wipes data.
+// The destructive sheet import runs only if explicitly requested with
+// `&import=1`. The deploy script passes this flag when the operator
+// asked for `--import-sheet`.
+$runImport     = (string) ($_GET['import'] ?? '0') === '1';
 $singleStep    = isset($_GET['step']) ? (string) $_GET['step'] : null;
 
 header('Content-Type: text/plain; charset=utf-8');
