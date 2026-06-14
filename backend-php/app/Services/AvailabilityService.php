@@ -98,12 +98,16 @@ class AvailabilityService
 
     private function renderReservation(Reservation $r): array
     {
+        // Same privacy rule as ReservationResource — anon callers
+        // never receive the booker's contact, only registered members do.
+        $isAuthed = \Illuminate\Support\Facades\Auth::check();
+
         return [
             'id' => $r->id,
             'resourceId' => $r->resourceId,
             'eventId' => $r->eventId,
             'customerName' => $r->customerName,
-            'customerContact' => $r->customerContact,
+            'customerContact' => $isAuthed ? $r->customerContact : null,
             'startsAt' => $r->startsAt?->toIso8601String(),
             'endsAt' => $r->endsAt?->toIso8601String(),
             'note' => $r->note,

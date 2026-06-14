@@ -125,6 +125,44 @@ class ReservationsApiTest extends TestCase
         ])->assertCreated();
     }
 
+    public function test_customer_contact_is_hidden_for_anonymous_readers(): void
+    {
+        $reservation = $this->postJson('/api/v1/reservations', [
+            'resourceId' => $this->kayak->id,
+            'customerName' => 'Janka',
+            'customerContact' => 'janka@example.test',
+            'startsAt' => '2099-08-10T09:00:00Z',
+            'endsAt' => '2099-08-10T12:00:00Z',
+        ])->assertCreated()->json();
+
+        $id = $reservation['id'];
+
+        // Anonymous list — no contact leakage
+        $this->getJson('/api/v1/reservations?pageSize=200')
+            ->assertOk()
+            ->assertJsonPath('items.0.customerContact', null);
+
+        // Anonymous detail / show — same
+        $this->getJson("/api/v1/reservations/{$id}")
+            ->assertOk()
+            ->assertJsonPath('customerName', 'Janka')
+            ->assertJsonPath('customerContact', null);
+
+        // Anonymous "edit" (PATCH something innocuous, omitting contact)
+        // does NOT clobber the stored contact on the server.
+        $this->patchJson("/api/v1/reservations/{$id}", [
+            'note' => 'Anon update without touching contact',
+        ])->assertOk();
+        $this->assertSame('janka@example.test',
+            \App\Models\Reservation::find($id)->customerContact);
+
+        // Authenticated member sees the real contact
+        $this->actingAsMember();
+        $this->getJson("/api/v1/reservations/{$id}")
+            ->assertOk()
+            ->assertJsonPath('customerContact', 'janka@example.test');
+    }
+
     public function test_search_matches_resource_identifier_and_name(): void
     {
         // Distinct boats so we can confirm the search dragnet picks up

@@ -20,6 +20,7 @@ import { reactive, ref, watch } from 'vue';
 
 import { reservationsApi } from '@/api/reservations.api';
 import type { Reservation } from '@/api/types';
+import { useAuthStore } from '@/stores/auth.store';
 import { isoFromDateTime } from '@/utils/format';
 
 import DateInput from './DateInput.vue';
@@ -46,6 +47,7 @@ const form = reactive({
   note: '',
 });
 
+const auth = useAuthStore();
 const error = ref<string | null>(null);
 const submitting = ref(false);
 const deleting = ref(false);
@@ -159,13 +161,26 @@ async function remove(): Promise<void> {
           />
         </div>
         <div class="sm:col-span-2">
-          <label class="label" for="ed-contact">Kontakt</label>
+          <label class="label" for="ed-contact">
+            Kontakt
+            <span v-if="!auth.isAuthenticated" class="text-slate-400">**</span>
+          </label>
           <input
             id="ed-contact"
             v-model="form.customerContact"
             class="input mt-1"
             maxlength="200"
+            :placeholder="auth.isAuthenticated ? '' : '** skryté — len pre prihlásených členov'"
           />
+          <!-- Anon editor never sees the existing contact (the API
+               strips it out). They CAN type a replacement; if they
+               leave the field empty the existing value in the DB is
+               preserved (PATCH omits the field when blank). -->
+          <p v-if="!auth.isAuthenticated" class="mt-1 text-xs text-slate-500">
+            ** Aktuálny kontakt nie je zobrazený. Ak pole necháš
+            prázdne, pôvodný kontakt zostane zachovaný; ak napíšeš
+            nový, prepíše ten existujúci.
+          </p>
         </div>
 
         <div>
