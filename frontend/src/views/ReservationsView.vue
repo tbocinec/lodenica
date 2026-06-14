@@ -346,7 +346,7 @@ onMounted(load);
               <td>{{ r.customerName }}</td>
               <td class="hidden lg:table-cell text-slate-500">
                 <template v-if="auth.isAuthenticated">{{ r.customerContact ?? '—' }}</template>
-                <span v-else aria-label="Kontakt je viditeľný len pre prihlásených">***</span>
+                <span v-else aria-label="Kontakt je viditeľný len pre registrovaných členov">**</span>
               </td>
               <td>
                 <span :class="r.status === 'CONFIRMED' ? 'pill-green' : 'pill-slate'">
@@ -401,9 +401,9 @@ onMounted(load);
     <!-- Privacy note when contacts are masked. Members do see this
          line — harmless, just informational — but it's primarily for
          the anonymous viewer who's wondering why everyone's contact
-         shows "***". -->
+         shows "**". -->
     <p v-if="!auth.isAuthenticated" class="mt-3 text-xs text-slate-500">
-      🔒 Kontakt rezervujúceho je dostupný len pre prihlásených členov.
+      🔒 Tento údaj (kontakt) bude dostupný len pre registrovaných členov.
       <RouterLink to="/login" class="text-brand-700 hover:underline">Prihlásiť sa</RouterLink>
     </p>
 
