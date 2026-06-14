@@ -22,6 +22,7 @@ import { RouterLink } from 'vue-router';
 
 import { reservationsApi } from '@/api/reservations.api';
 import { ReservationStatus, type Reservation } from '@/api/types';
+import DateInput from '@/components/ui/DateInput.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -252,11 +253,11 @@ onMounted(load);
       </div>
       <div>
         <label class="label" for="r-from">Od</label>
-        <input id="r-from" v-model="dateFromFilter" type="date" class="input mt-1" />
+        <DateInput id="r-from" v-model="dateFromFilter" class="mt-1" />
       </div>
       <div>
         <label class="label" for="r-to">Do</label>
-        <input id="r-to" v-model="dateToFilter" type="date" class="input mt-1" />
+        <DateInput id="r-to" v-model="dateToFilter" class="mt-1" />
       </div>
     </div>
 

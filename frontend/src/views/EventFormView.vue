@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { eventsApi } from '@/api/events.api';
+import DateInput from '@/components/ui/DateInput.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import { isoFromDateTime, toIsoDate } from '@/utils/format';
@@ -112,7 +113,7 @@ onMounted(load);
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label class="label" for="start-date">Od dátum *</label>
-          <input id="start-date" v-model="form.startDate" type="date" class="input mt-1" required />
+          <DateInput id="start-date" v-model="form.startDate" class="mt-1" required />
         </div>
         <div>
           <label class="label" for="start-time">Od čas *</label>
@@ -120,11 +121,10 @@ onMounted(load);
         </div>
         <div>
           <label class="label" for="end-date">Do dátum *</label>
-          <input
+          <DateInput
             id="end-date"
             v-model="form.endDate"
-            type="date"
-            class="input mt-1"
+            class="mt-1"
             :min="form.startDate"
             required
           />

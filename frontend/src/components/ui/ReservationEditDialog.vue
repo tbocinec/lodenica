@@ -22,6 +22,7 @@ import { reservationsApi } from '@/api/reservations.api';
 import type { Reservation } from '@/api/types';
 import { isoFromDateTime } from '@/utils/format';
 
+import DateInput from './DateInput.vue';
 import LoadError from './LoadError.vue';
 
 const props = defineProps<{
@@ -169,7 +170,7 @@ async function remove(): Promise<void> {
 
         <div>
           <label class="label" for="ed-sd">Od dátum *</label>
-          <input id="ed-sd" v-model="form.startDate" type="date" class="input mt-1" required />
+          <DateInput id="ed-sd" v-model="form.startDate" class="mt-1" required />
         </div>
         <div>
           <label class="label" for="ed-st">Od čas *</label>
@@ -184,11 +185,10 @@ async function remove(): Promise<void> {
         </div>
         <div>
           <label class="label" for="ed-ed">Do dátum *</label>
-          <input
+          <DateInput
             id="ed-ed"
             v-model="form.endDate"
-            type="date"
-            class="input mt-1"
+            class="mt-1"
             :min="form.startDate"
             required
           />
