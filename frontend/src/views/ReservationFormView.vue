@@ -67,7 +67,7 @@ const icsHref = computed(() =>
 const googleCalendarHref = computed(() => {
   if (!createdReservation.value || !selectedResource.value) return null;
   return reservationGoogleCalendarUrl({
-    title: `Lodenica KVS: ${selectedResource.value.identifier} – ${selectedResource.value.name}`,
+    title: `Lodenica KVŠ: ${selectedResource.value.identifier} – ${selectedResource.value.name}`,
     startsAt: createdReservation.value.startsAt,
     endsAt: createdReservation.value.endsAt,
     customerName: createdReservation.value.customerName,

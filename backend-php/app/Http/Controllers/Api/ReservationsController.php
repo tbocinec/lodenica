@@ -113,8 +113,8 @@ class ReservationsController extends Controller
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         $summary = $resource
-            ? "Lodenica KVS: {$resource->identifier} – {$resource->name}"
-            : 'Lodenica KVS: rezervácia';
+            ? "Lodenica KVŠ: {$resource->identifier} – {$resource->name}"
+            : 'Lodenica KVŠ: rezervácia';
 
         // The Google Maps short link is intentionally on its own line at
         // the top of the description — most calendar apps render plain
@@ -131,7 +131,7 @@ class ReservationsController extends Controller
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//Lodenica KVS//SK',
+            'PRODID:-//Lodenica KVŠ//SK',
             'CALSCALE:GREGORIAN',
             'METHOD:PUBLISH',
             'BEGIN:VEVENT',

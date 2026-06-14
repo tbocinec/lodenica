@@ -38,7 +38,7 @@ class ReservationIcsApiTest extends TestCase
         $this->assertStringContainsString('UID:'.$reservation->id.'@rezervacie.lodenicakvs.sk', $body);
         $this->assertStringContainsString('DTSTART:20990812T090000Z', $body);
         $this->assertStringContainsString('DTEND:20990812T120000Z', $body);
-        $this->assertStringContainsString('SUMMARY:Lodenica KVS: K-ICS – P&H Cetus', $body);
+        $this->assertStringContainsString('SUMMARY:Lodenica KVŠ: K-ICS – P&H Cetus', $body);
         $this->assertStringContainsString('LOCATION:Klub vodných športov Karlova Ves', $body);
         $this->assertStringContainsString('Botanická 20/59', $body);
         $this->assertStringContainsString('841 04 Bratislava-Karlova Ves', $body);

@@ -179,6 +179,6 @@ router.beforeEach((to) => {
 });
 
 router.afterEach((to) => {
-  const title = (to.meta?.title as string | undefined) ?? 'Lodenica KVS';
-  document.title = `Lodenica KVS · ${title}`;
+  const title = (to.meta?.title as string | undefined) ?? 'Lodenica KVŠ';
+  document.title = `Lodenica KVŠ · ${title}`;
 });

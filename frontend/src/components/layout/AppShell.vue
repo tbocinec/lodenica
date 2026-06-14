@@ -95,7 +95,7 @@ async function logout(): Promise<void> {
               aria-hidden="true"
               class="h-8 w-8 rounded-lg object-contain"
             />
-            <span class="text-lg font-semibold tracking-tight text-slate-900">Lodenica KVS</span>
+            <span class="text-lg font-semibold tracking-tight text-slate-900">Lodenica KVŠ</span>
           </RouterLink>
         </div>
         <div class="hidden items-center gap-3 sm:flex">
