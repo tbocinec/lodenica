@@ -33,7 +33,7 @@ onMounted(load);
 <template>
   <PageHeader
     title="Lodenicné udalosti"
-    subtitle="Plánované akcie — splavy, tréningy, regaty. Na udalosť sa dajú zarezervovať lode a prihlásiť účastníci."
+    subtitle="Plánované akcie — splavy, tréningy, brigády. Na udalosť sa dajú zarezervovať lode a prihlásiť účastníci."
   >
     <template #actions>
       <RouterLink to="/events/new" class="btn-primary">＋ Nová udalosť</RouterLink>
