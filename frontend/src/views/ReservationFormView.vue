@@ -46,6 +46,10 @@ const form = reactive({
 
 const error = ref<string | null>(null);
 const submitting = ref(false);
+// Mandatory club-rules acknowledgement. Resets to false on every
+// page open so it's never auto-accepted just because the previous
+// booking session had it checked.
+const acceptedTerms = ref(false);
 
 /**
  * After a successful POST we switch the form view to a "saved" card
@@ -256,6 +260,10 @@ async function submit(): Promise<void> {
   }
   if (!rangeIsValid.value) {
     error.value = 'Koniec rezervácie musí byť po jej začiatku.';
+    return;
+  }
+  if (!acceptedTerms.value) {
+    error.value = 'Pre vytvorenie rezervácie potvrď súhlas s pravidlami a lodeničným poriadkom.';
     return;
   }
   error.value = null;
@@ -641,6 +649,37 @@ onMounted(async () => {
       ></textarea>
     </div>
 
+    <!-- Mandatory club-rules acknowledgement. We force it as a fresh
+         opt-in on every booking (no localStorage memoisation) so a
+         person who skim-reads the rules once still has to consciously
+         tick the box each time they book. -->
+    <label
+      class="sm:col-span-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/40 p-3 text-sm text-slate-700"
+    >
+      <input
+        v-model="acceptedTerms"
+        type="checkbox"
+        class="mt-0.5 h-4 w-4 rounded"
+        required
+      />
+      <span>
+        Súhlasím s
+        <RouterLink to="/rules" target="_blank" class="font-medium text-brand-700 hover:underline">
+          Pravidlami rezervácie
+        </RouterLink>
+        a som si vedomý/á
+        <a
+          href="https://www.lodenicakvs.sk/?page_id=4578"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-medium text-brand-700 hover:underline"
+        >
+          Lodeničného poriadku KVŠ
+        </a>.
+        <span class="text-rose-700">*</span>
+      </span>
+    </label>
+
     <LoadError class="sm:col-span-2" :message="error" />
 
     <div class="sm:col-span-2 flex flex-wrap items-center justify-end gap-2">
@@ -652,7 +691,7 @@ onMounted(async () => {
       <button
         type="submit"
         class="btn-primary"
-        :disabled="submitting || !rangeIsValid || !form.resourceId"
+        :disabled="submitting || !rangeIsValid || !form.resourceId || !acceptedTerms"
       >
         {{ submitting ? 'Ukladám…' : 'Vytvoriť rezerváciu' }}
       </button>

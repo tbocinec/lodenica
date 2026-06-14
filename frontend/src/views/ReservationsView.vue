@@ -25,6 +25,7 @@ import { ReservationStatus, type Reservation } from '@/api/types';
 import DateInput from '@/components/ui/DateInput.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
+import { useAuthStore } from '@/stores/auth.store';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
@@ -39,6 +40,7 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const editing = ref<Reservation | null>(null);
 const resourcesStore = useResourcesStore();
+const auth = useAuthStore();
 
 /* ─── filter state ─────────────────────────────────────────────── */
 
@@ -342,7 +344,10 @@ onMounted(load);
                 </div>
               </td>
               <td>{{ r.customerName }}</td>
-              <td class="hidden lg:table-cell text-slate-500">{{ r.customerContact ?? '—' }}</td>
+              <td class="hidden lg:table-cell text-slate-500">
+                <template v-if="auth.isAuthenticated">{{ r.customerContact ?? '—' }}</template>
+                <span v-else aria-label="Kontakt je viditeľný len pre prihlásených">***</span>
+              </td>
               <td>
                 <span :class="r.status === 'CONFIRMED' ? 'pill-green' : 'pill-slate'">
                   {{ RESERVATION_STATUS_LABEL[r.status] }}
@@ -392,6 +397,15 @@ onMounted(load);
         </div>
       </li>
     </ul>
+
+    <!-- Privacy note when contacts are masked. Members do see this
+         line — harmless, just informational — but it's primarily for
+         the anonymous viewer who's wondering why everyone's contact
+         shows "***". -->
+    <p v-if="!auth.isAuthenticated" class="mt-3 text-xs text-slate-500">
+      🔒 Kontakt rezervujúceho je dostupný len pre prihlásených členov.
+      <RouterLink to="/login" class="text-brand-700 hover:underline">Prihlásiť sa</RouterLink>
+    </p>
 
     <!-- Pagination footer -->
     <nav class="mt-4 flex items-center justify-between gap-3">
