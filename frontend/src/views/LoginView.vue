@@ -35,7 +35,7 @@ async function submit(): Promise<void> {
     <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div class="mb-6 text-center">
         <h1 class="text-2xl font-semibold text-slate-900">Lodenica KVŠ</h1>
-        <p class="mt-1 text-sm text-slate-500">Prihlásenie do admin zóny</p>
+        <p class="mt-1 text-sm text-slate-500">Prihlásenie do internej zóny</p>
       </div>
 
       <form class="grid gap-3" @submit.prevent="submit">
