@@ -187,34 +187,38 @@ watch(
   },
 );
 
-function applyPreset(preset: 'oneHour' | 'morning' | 'afternoon' | 'fullDay'): void {
+function applyPreset(preset: 'threeHours' | 'morning' | 'afternoon' | 'fullDay'): void {
   const date = form.startDate;
   switch (preset) {
-    case 'oneHour': {
+    case 'threeHours': {
+      // start + 3h on the same day, clamped at 23:59 so a 21:00 start
+      // doesn't quietly roll over midnight.
       form.endDate = date;
       const [h, m] = form.startTime.split(':').map(Number) as [number, number];
-      const endH = Math.min(h + 1, 23);
-      form.endTime = `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const totalMin = Math.min(h * 60 + m + 3 * 60, 23 * 60 + 59);
+      const endH = Math.floor(totalMin / 60);
+      const endM = totalMin % 60;
+      form.endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
       return;
     }
     case 'morning':
       form.endDate = date;
       form.startTime = '08:00';
-      form.endTime = '12:00';
+      form.endTime = '14:00';
       return;
     case 'afternoon':
       form.endDate = date;
-      form.startTime = '13:00';
-      form.endTime = '18:00';
+      form.startTime = '14:00';
+      form.endTime = '20:00';
       return;
-    case 'fullDay': {
-      form.startTime = '00:00';
-      form.endTime = '00:00';
-      const next = new Date(`${date}T00:00:00.000Z`);
-      next.setUTCDate(next.getUTCDate() + 1);
-      form.endDate = toIsoDate(next);
+    case 'fullDay':
+      // Single day from 06:00 (early morning, paddling window start)
+      // through 23:59. Stays inside one calendar day so the reservation
+      // doesn't span midnight.
+      form.endDate = date;
+      form.startTime = '06:00';
+      form.endTime = '23:59';
       return;
-    }
   }
 }
 
@@ -504,10 +508,10 @@ onMounted(async () => {
       <legend class="px-1 text-sm font-semibold text-slate-700">Termín</legend>
 
       <div class="mb-3 flex flex-wrap gap-2">
-        <button type="button" class="btn-secondary text-xs" @click="applyPreset('oneHour')">+1 hodina</button>
-        <button type="button" class="btn-secondary text-xs" @click="applyPreset('morning')">Doobeda 08:00–12:00</button>
-        <button type="button" class="btn-secondary text-xs" @click="applyPreset('afternoon')">Poobede 13:00–18:00</button>
-        <button type="button" class="btn-secondary text-xs" @click="applyPreset('fullDay')">Celý deň</button>
+        <button type="button" class="btn-secondary text-xs" @click="applyPreset('threeHours')">+3 hodiny</button>
+        <button type="button" class="btn-secondary text-xs" @click="applyPreset('morning')">Doobeda 08:00–14:00</button>
+        <button type="button" class="btn-secondary text-xs" @click="applyPreset('afternoon')">Poobede 14:00–20:00</button>
+        <button type="button" class="btn-secondary text-xs" @click="applyPreset('fullDay')">Celý deň 06:00–23:59</button>
       </div>
 
       <div class="grid gap-3 sm:grid-cols-2">
