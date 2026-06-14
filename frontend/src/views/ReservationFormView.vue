@@ -140,6 +140,29 @@ const resourcesInPickedType = computed(() => {
   return [...list].sort((a, b) => a.identifier.localeCompare(b.identifier));
 });
 
+/** Free-text filter for the resource grid (step 2). Only matters for
+ *  types with enough stock that scrolling is annoying — for the 3-
+ *  trailers / 2-spaces types the input is hidden (see `showResourceFilter`). */
+const resourceSearch = ref('');
+const RESOURCE_FILTER_THRESHOLD = 6;
+
+const showResourceFilter = computed(
+  () => resourcesInPickedType.value.length > RESOURCE_FILTER_THRESHOLD,
+);
+
+const filteredResourcesInPickedType = computed(() => {
+  const all = resourcesInPickedType.value;
+  const q = resourceSearch.value.trim().toLowerCase();
+  if (!q) return all;
+  return all.filter(
+    (r) =>
+      r.identifier.toLowerCase().includes(q) ||
+      r.name.toLowerCase().includes(q) ||
+      (r.model ?? '').toLowerCase().includes(q) ||
+      (r.color ?? '').toLowerCase().includes(q),
+  );
+});
+
 const selectedResource = computed(() =>
   resources.items.find((r) => r.id === form.resourceId),
 );
@@ -149,6 +172,7 @@ function pickType(t: ResourceType): void {
   // Clear any previously-picked resource so the user has to make a fresh
   // choice; the resource grid handles selection below.
   form.resourceId = '';
+  resourceSearch.value = '';
 }
 
 function pickResource(id: string): void {
@@ -158,6 +182,7 @@ function pickResource(id: string): void {
 function changeType(): void {
   pickedType.value = null;
   form.resourceId = '';
+  resourceSearch.value = '';
 }
 
 function changeResource(): void {
@@ -442,7 +467,7 @@ onMounted(async () => {
 
       <!-- Step 2: pick CONCRETE resource. -->
       <div v-else class="space-y-3">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-3">
           <p class="text-sm text-slate-700">
             <span aria-hidden="true">{{ TYPE_ICON[pickedType] ?? '📦' }}</span>
             <strong class="ml-1">{{ RESOURCE_TYPE_LABEL_PLURAL[pickedType] }}</strong>
@@ -452,9 +477,34 @@ onMounted(async () => {
             ← Zmeniť typ
           </button>
         </div>
-        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+
+        <!-- Inline filter: only when there's enough stock to warrant it
+             (e.g. 18 sea kayaks). Stays out of the way for 3-trailer
+             types where scrolling isn't a problem. -->
+        <div v-if="showResourceFilter" class="relative">
+          <span
+            aria-hidden="true"
+            class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+          >🔍</span>
+          <input
+            v-model="resourceSearch"
+            type="search"
+            class="input pl-8 text-sm"
+            :placeholder="`Filtrovať ${resourcesInPickedType.length} ks — ID, názov, model, farba…`"
+            maxlength="60"
+          />
+        </div>
+
+        <p
+          v-if="filteredResourcesInPickedType.length === 0"
+          class="rounded-lg bg-slate-50 px-3 py-3 text-center text-sm text-slate-500"
+        >
+          Žiadny zdroj nezodpovedá filtru „<strong>{{ resourceSearch }}</strong>“.
+        </p>
+
+        <div v-else class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <button
-            v-for="r in resourcesInPickedType"
+            v-for="r in filteredResourcesInPickedType"
             :key="r.id"
             type="button"
             class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
