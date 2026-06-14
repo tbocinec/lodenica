@@ -191,10 +191,20 @@ class ReservationsService
         }
         if (!empty($options['search'])) {
             $needle = '%'.strtolower($options['search']).'%';
+            // Match against the reservation's own free-text fields AND
+            // the joined resource — so typing "K-007" or "Pyranha" in the
+            // box finds every booking for that boat, not just bookings
+            // where the customer happened to type the identifier into
+            // the note field.
             $query->where(function ($q) use ($needle) {
                 $q->whereRaw('LOWER("customerName") LIKE ?', [$needle])
                   ->orWhereRaw('LOWER(COALESCE("customerContact", \'\')) LIKE ?', [$needle])
-                  ->orWhereRaw('LOWER(COALESCE("note", \'\')) LIKE ?', [$needle]);
+                  ->orWhereRaw('LOWER(COALESCE("note", \'\')) LIKE ?', [$needle])
+                  ->orWhereHas('resource', function ($rq) use ($needle) {
+                      $rq->whereRaw('LOWER("identifier") LIKE ?', [$needle])
+                         ->orWhereRaw('LOWER("name") LIKE ?', [$needle])
+                         ->orWhereRaw('LOWER(COALESCE("model", \'\')) LIKE ?', [$needle]);
+                  });
             });
         }
 

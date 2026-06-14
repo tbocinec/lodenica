@@ -237,7 +237,7 @@ onMounted(load);
           v-model="search"
           type="search"
           class="input mt-1"
-          placeholder="meno, kontakt, poznámka…"
+          placeholder="meno, kontakt, K-007, Pyranha…"
           maxlength="120"
         />
       </div>

@@ -124,4 +124,52 @@ class ReservationsApiTest extends TestCase
             'endsAt' => '2026-05-10T15:00:00Z',
         ])->assertCreated();
     }
+
+    public function test_search_matches_resource_identifier_and_name(): void
+    {
+        // Distinct boats so we can confirm the search dragnet picks up
+        // the right one via the joined resource — not just via the
+        // reservation's own free-text fields.
+        $burn = Resource::create([
+            'identifier' => 'K-007',
+            'type' => ResourceType::WW_KAYAK,
+            'name' => 'Pyranha Burn',
+        ]);
+        $cetus = Resource::create([
+            'identifier' => 'K-008',
+            'type' => ResourceType::SEA_KAYAK,
+            'name' => 'P&H Cetus',
+        ]);
+
+        $this->postJson('/api/v1/reservations', [
+            'resourceId' => $burn->id,
+            'customerName' => 'Anna',
+            'startsAt' => '2099-07-10T09:00:00Z',
+            'endsAt' => '2099-07-10T12:00:00Z',
+        ])->assertCreated();
+        $this->postJson('/api/v1/reservations', [
+            'resourceId' => $cetus->id,
+            'customerName' => 'Bohuš',
+            'startsAt' => '2099-07-11T09:00:00Z',
+            'endsAt' => '2099-07-11T12:00:00Z',
+        ])->assertCreated();
+
+        // Identifier match (case-insensitive, partial)
+        $this->getJson('/api/v1/reservations?search=K-007')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('items.0.customerName', 'Anna');
+
+        // Name match
+        $this->getJson('/api/v1/reservations?search=pyranha')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('items.0.customerName', 'Anna');
+
+        // Customer name still works (existing behaviour preserved)
+        $this->getJson('/api/v1/reservations?search=bohu')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('items.0.customerName', 'Bohuš');
+    }
 }
