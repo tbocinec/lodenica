@@ -69,7 +69,8 @@ onMounted(load);
             <div>
               <div class="flex items-center gap-2">
                 <ResourceTypeBadge :type="r.resource.type" />
-                <span class="font-medium text-slate-800">{{ r.resource.name }}</span>
+                <span class="font-mono text-sm font-semibold text-slate-900">{{ r.resource.identifier }}</span>
+                <span class="text-slate-600">{{ r.resource.name }}</span>
               </div>
               <p class="mt-1 text-sm text-slate-500">
                 {{ r.customerName }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
@@ -94,7 +95,8 @@ onMounted(load);
             <div>
               <div class="flex items-center gap-2">
                 <ResourceTypeBadge :type="r.resource.type" />
-                <span class="font-medium text-slate-800">{{ r.resource.name }}</span>
+                <span class="font-mono text-sm font-semibold text-slate-900">{{ r.resource.identifier }}</span>
+                <span class="text-slate-600">{{ r.resource.name }}</span>
               </div>
               <p class="mt-1 text-sm text-slate-500">
                 {{ r.customerName }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
@@ -120,9 +122,9 @@ onMounted(load);
               class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/40 px-3 py-2 transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
             >
               <ResourceTypeBadge :type="r.type" />
-              <span class="font-medium text-slate-800">{{ r.name }}</span>
-              <span class="ml-auto text-xs text-slate-500">{{ r.identifier }}</span>
-              <span aria-hidden="true" class="text-slate-300">›</span>
+              <span class="font-mono text-sm font-semibold text-slate-900">{{ r.identifier }}</span>
+              <span class="truncate text-slate-600">{{ r.name }}</span>
+              <span aria-hidden="true" class="ml-auto text-slate-300">›</span>
             </RouterLink>
           </li>
         </ul>
