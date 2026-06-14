@@ -543,7 +543,9 @@ onMounted(async () => {
       <legend class="px-1 text-sm font-semibold text-slate-700">Rezervácia pre</legend>
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
-          <label class="label" for="name">Meno *</label>
+          <label class="label" for="name">
+            Meno <span class="text-rose-700">*</span>
+          </label>
           <input
             id="name"
             v-model="form.customerName"
@@ -553,7 +555,10 @@ onMounted(async () => {
           />
         </div>
         <div>
-          <label class="label" for="contact">Kontakt (e-mail alebo telefón)</label>
+          <label class="label" for="contact">
+            Kontakt (e-mail alebo telefón)
+            <span class="text-slate-400">**</span>
+          </label>
           <input
             id="contact"
             v-model="form.customerContact"
@@ -562,6 +567,16 @@ onMounted(async () => {
           />
         </div>
       </div>
+      <!-- Visibility legend so the booker knows what each field means
+           for public readers. Meno is part of the public schedule
+           (so other paddlers can see whose boat is out); Kontakt is
+           private to logged-in members. -->
+      <p class="mt-3 text-xs text-slate-500">
+        <span class="text-rose-700">*</span> Povinné pole. &nbsp;
+        <span class="text-slate-400">**</span> Kontakt je viditeľný
+        <strong>len pre prihlásených členov</strong>. Meno je viditeľné
+        pre všetkých návštevníkov aplikácie.
+      </p>
     </fieldset>
 
     <fieldset class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
