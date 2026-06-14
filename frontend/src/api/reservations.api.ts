@@ -68,9 +68,16 @@ export interface ListReservationsParams {
   resourceId?: string;
   eventId?: string;
   status?: ReservationStatus;
-  /** ISO datetime — list reservations overlapping [from, to). */
+  /**
+   * ISO datetime. When BOTH from + to are set, the backend treats the
+   * pair as an overlap window (existing behaviour). When only one is
+   * set, it's a half-open bound — handy for "future only" (`from=now`,
+   * no upper) or "older than" (just `to`).
+   */
   from?: string;
   to?: string;
+  /** Free-text match against customerName / customerContact / note. */
+  search?: string;
 }
 
 export interface CreateReservationInput {

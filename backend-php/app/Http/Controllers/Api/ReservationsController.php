@@ -31,6 +31,11 @@ class ReservationsController extends Controller
         $page = (int) ($request->validated('page') ?? 1);
         $pageSize = (int) ($request->validated('pageSize') ?? 25);
 
+        // Independent from / to so the frontend can ask "from now onward"
+        // without inventing a far-future upper bound. When both are set
+        // we use the overlap semantics via TimeRange; with only one we
+        // pass it through as a direct lower / upper bound on endsAt /
+        // startsAt respectively.
         $range = null;
         $from = $request->validated('from');
         $to = $request->validated('to');
@@ -43,6 +48,9 @@ class ReservationsController extends Controller
             'eventId' => $request->validated('eventId'),
             'status' => $request->validated('status'),
             'range' => $range,
+            'startsAtFrom' => $range ? null : $from,
+            'endsAtTo' => $range ? null : $to,
+            'search' => $request->validated('search'),
             'skip' => ($page - 1) * $pageSize,
             'take' => $pageSize,
         ]);

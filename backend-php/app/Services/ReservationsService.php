@@ -181,6 +181,22 @@ class ReservationsService
             $query->where('startsAt', '<', $range->endsAt)
                   ->where('endsAt', '>', $range->startsAt);
         }
+        // Independent half-open bounds (used when caller only knows
+        // one side, e.g. "future only" → startsAtFrom=now, no upper).
+        if (!empty($options['startsAtFrom'])) {
+            $query->where('endsAt', '>=', $options['startsAtFrom']);
+        }
+        if (!empty($options['endsAtTo'])) {
+            $query->where('startsAt', '<', $options['endsAtTo']);
+        }
+        if (!empty($options['search'])) {
+            $needle = '%'.strtolower($options['search']).'%';
+            $query->where(function ($q) use ($needle) {
+                $q->whereRaw('LOWER("customerName") LIKE ?', [$needle])
+                  ->orWhereRaw('LOWER(COALESCE("customerContact", \'\')) LIKE ?', [$needle])
+                  ->orWhereRaw('LOWER(COALESCE("note", \'\')) LIKE ?', [$needle]);
+            });
+        }
 
         $total = (clone $query)->count();
 

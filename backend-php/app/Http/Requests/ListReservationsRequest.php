@@ -23,6 +23,7 @@ class ListReservationsRequest extends FormRequest
             'status' => ['nullable', new Enum(ReservationStatus::class)],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date'],
+            'search' => ['nullable', 'string', 'max:120'],
         ];
     }
 }
