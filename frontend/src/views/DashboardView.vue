@@ -113,7 +113,7 @@ onMounted(load);
           title="Momentálne nie sú dostupné žiadne lode"
         />
         <p class="mb-2 text-xs text-slate-500">
-          Klikni na loď a otvor sa rezervačný formulár s predvyplneným zdrojom.
+          Klikni na loď a otvorí sa rezervačný formulár s predvyplneným zdrojom.
         </p>
         <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <li v-for="r in snapshot.available" :key="r.id">
