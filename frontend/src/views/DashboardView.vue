@@ -179,8 +179,8 @@ onMounted(load);
       Ak niečo nefunguje alebo máte návrh na zlepšenie, napíšte na
       <a
         class="font-medium text-brand-700 hover:underline"
-        href="mailto:t.bocinec@gmail.com?subject=Lodenica%20KVS%20%E2%80%94%20feedback"
-      >t.bocinec@gmail.com</a>.
+        href="mailto:rezervacie@lodenicakvs.sk?subject=Lodenica%20KVS%20%E2%80%94%20feedback"
+      >rezervacie@lodenicakvs.sk</a>.
     </footer>
   </template>
 </template>
