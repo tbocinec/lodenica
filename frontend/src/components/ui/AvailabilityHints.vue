@@ -95,12 +95,26 @@ interface DayCell {
   isPast: boolean;
 }
 
+// Slovak / European convention: weeks start on Monday. Grid is aligned
+// to the Monday of the current week so the day-of-week column matches
+// across all rows (otherwise a chronological 30-day strip looks ordered
+// "from-Sunday" when today happens to be a Sunday). Days before today
+// are still rendered but dimmed and non-clickable.
 const dayCells = computed<DayCell[]>(() => {
-  const start = todayUtc();
-  const todayIso = toIsoDate(start);
+  const today = todayUtc();
+  const todayIso = toIsoDate(today);
+  // Monday of the current week: Carbon-free version of startOfWeek.
+  // JS getUTCDay returns 0 (Sun) … 6 (Sat); convert to Mon-based.
+  const dowFromMonday = (today.getUTCDay() + 6) % 7;
+  const weekStart = addDays(today, -dowFromMonday);
+
+  // Always show whole weeks. Round the requested window up to the next
+  // multiple of 7 days so the grid stays rectangular.
+  const totalCells = Math.ceil((DAYS.value + dowFromMonday) / 7) * 7;
+
   const cells: DayCell[] = [];
-  for (let i = 0; i < DAYS.value; i++) {
-    const d = addDays(start, i);
+  for (let i = 0; i < totalCells; i++) {
+    const d = addDays(weekStart, i);
     const iso = toIsoDate(d);
     cells.push({
       iso,
@@ -108,11 +122,14 @@ const dayCells = computed<DayCell[]>(() => {
       busyHours: busyHoursOnDay(d),
       isToday: iso === todayIso,
       isSelected: iso === props.date,
-      isPast: false,
+      isPast: d.getTime() < today.getTime(),
     });
   }
   return cells;
 });
+
+// Weekday header labels (Mon … Sun) used above the day-cell grid.
+const WEEKDAY_HEADERS = ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'] as const;
 
 function busyHoursOnDay(day: Date): number {
   const dayStart = day.getTime();
@@ -315,19 +332,27 @@ function onDocPointerUp(): void {
           </span>
         </div>
       </div>
+      <!-- Weekday headers (Po … Ne). Aligned with the cell grid below so
+           the column for each day-of-week stays consistent. -->
+      <div class="mb-1 grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+        <span v-for="h in WEEKDAY_HEADERS" :key="h">{{ h }}</span>
+      </div>
       <div class="grid grid-cols-7 gap-1">
         <button
           v-for="cell in dayCells"
           :key="cell.iso"
           type="button"
-          class="flex flex-col items-center justify-center rounded-md px-1 py-1.5 text-[11px] ring-1 transition-colors"
+          :disabled="cell.isPast"
+          class="flex flex-col items-center justify-center rounded-md px-1 py-1.5 text-[11px] ring-1 transition-colors disabled:cursor-not-allowed"
           :class="[
-            dayShade(cell.busyHours),
+            cell.isPast ? 'bg-slate-50 text-slate-300 ring-slate-100' : dayShade(cell.busyHours),
             cell.isSelected ? 'outline outline-2 outline-brand-600 outline-offset-1' : '',
             cell.isToday && !cell.isSelected ? 'font-bold' : '',
           ]"
-          :title="cell.busyHours > 0 ? `Obsadené ${cell.busyHours.toFixed(0)}h` : 'Voľný celý deň'"
-          @click="emit('pick-day', cell.iso)"
+          :title="cell.isPast
+            ? 'Minulý deň'
+            : (cell.busyHours > 0 ? `Obsadené ${cell.busyHours.toFixed(0)}h` : 'Voľný celý deň')"
+          @click="cell.isPast || emit('pick-day', cell.iso)"
         >
           <span class="text-[9px] font-medium uppercase opacity-70">{{ dayLabel(cell.date) }}</span>
           <span class="font-semibold">{{ cell.date.getUTCDate() }}.{{ cell.date.getUTCMonth() + 1 }}.</span>
