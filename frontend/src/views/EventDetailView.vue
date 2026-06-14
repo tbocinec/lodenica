@@ -42,12 +42,18 @@ const pickerOpen = ref(false);
 const selectedResourceIds = ref<Set<string>>(new Set());
 const attaching = ref(false);
 
-const BOAT_TYPES: ResourceType[] = [
+// Types that can be attached to an event. Trailers belong here — a
+// trip-to-another-river event needs both the boats AND the trailer to
+// transport them, so members were stuck doing the trailer booking
+// separately. BOATHOUSE_SPACE stays excluded (it's a clubhouse-only
+// resource, not part of a paddling event).
+const EVENT_RESOURCE_TYPES: ResourceType[] = [
   ResourceType.SEA_KAYAK,
   ResourceType.WW_KAYAK,
   ResourceType.CANOE,
   ResourceType.ROWING_BOAT,
   ResourceType.INFLATABLE_BOAT,
+  ResourceType.TRAILER,
 ];
 
 async function load() {
@@ -105,7 +111,7 @@ interface PickerRow {
 const pickerRows = computed<PickerRow[]>(() => {
   return resources.items
     .filter((r) => r.isActive)
-    .filter((r) => BOAT_TYPES.includes(r.type))
+    .filter((r) => EVENT_RESOURCE_TYPES.includes(r.type))
     .filter((r) => !attachedResourceIds.value.has(r.id))
     .map((r) => ({ resource: r, conflicting: conflictingResourceIds.value.has(r.id) }))
     .sort((a, b) => {
