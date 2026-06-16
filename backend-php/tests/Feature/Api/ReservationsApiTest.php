@@ -96,6 +96,10 @@ class ReservationsApiTest extends TestCase
         ])->assertCreated();
         $id = $first->json('id');
 
+        // Cancel requires a confirmed member (see
+        // docs/AUTH-AND-PERMISSIONS.md). Anonymous booking still
+        // works for the second create below.
+        $this->actingAsMember();
         $this->patchJson("/api/v1/reservations/{$id}/cancel")
             ->assertOk()
             ->assertJsonPath('status', 'CANCELLED');
@@ -125,8 +129,10 @@ class ReservationsApiTest extends TestCase
         ])->assertCreated();
     }
 
-    public function test_customer_contact_is_hidden_for_anonymous_readers(): void
+    public function test_customer_name_and_contact_are_hidden_for_anonymous_readers(): void
     {
+        // Both customerName and customerContact are private to confirmed
+        // members. See docs/AUTH-AND-PERMISSIONS.md.
         $reservation = $this->postJson('/api/v1/reservations', [
             'resourceId' => $this->kayak->id,
             'customerName' => 'Janka',
@@ -137,29 +143,41 @@ class ReservationsApiTest extends TestCase
 
         $id = $reservation['id'];
 
-        // Anonymous list — no contact leakage
+        // Anonymous list — no name or contact leakage
         $this->getJson('/api/v1/reservations?pageSize=200')
             ->assertOk()
+            ->assertJsonPath('items.0.customerName', null)
             ->assertJsonPath('items.0.customerContact', null);
 
         // Anonymous detail / show — same
         $this->getJson("/api/v1/reservations/{$id}")
             ->assertOk()
-            ->assertJsonPath('customerName', 'Janka')
+            ->assertJsonPath('customerName', null)
             ->assertJsonPath('customerContact', null);
 
-        // Anonymous "edit" (PATCH something innocuous, omitting contact)
-        // does NOT clobber the stored contact on the server.
+        // Anonymous PATCH is gated now — should be 401
         $this->patchJson("/api/v1/reservations/{$id}", [
-            'note' => 'Anon update without touching contact',
-        ])->assertOk();
+            'note' => 'Anon edit attempt',
+        ])->assertStatus(401);
+
+        // The stored row is untouched
+        $this->assertSame('Janka',
+            \App\Models\Reservation::find($id)->customerName);
         $this->assertSame('janka@example.test',
             \App\Models\Reservation::find($id)->customerContact);
 
-        // Authenticated member sees the real contact
+        // PENDING users see anonymised data too
+        $this->actingAsPending();
+        $this->getJson("/api/v1/reservations/{$id}")
+            ->assertOk()
+            ->assertJsonPath('customerName', null)
+            ->assertJsonPath('customerContact', null);
+
+        // Authenticated member sees the real values
         $this->actingAsMember();
         $this->getJson("/api/v1/reservations/{$id}")
             ->assertOk()
+            ->assertJsonPath('customerName', 'Janka')
             ->assertJsonPath('customerContact', 'janka@example.test');
     }
 
@@ -191,6 +209,11 @@ class ReservationsApiTest extends TestCase
             'startsAt' => '2099-07-11T09:00:00Z',
             'endsAt' => '2099-07-11T12:00:00Z',
         ])->assertCreated();
+
+        // Search is server-side and matches resource fields + customer
+        // free-text. As a confirmed member we also see the customerName
+        // values directly; anon would see total counts only.
+        $this->actingAsMember();
 
         // Identifier match (case-insensitive, partial)
         $this->getJson('/api/v1/reservations?search=K-007')

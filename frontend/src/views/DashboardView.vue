@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router';
 
 import { availabilityApi } from '@/api/availability.api';
 import type { DashboardSnapshot } from '@/api/types';
+import { useAuthStore } from '@/stores/auth.store';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -16,6 +17,7 @@ import { formatReservationRange } from '@/utils/format';
 const snapshot = ref<DashboardSnapshot | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
+const auth = useAuthStore();
 
 async function load() {
   loading.value = true;
@@ -41,6 +43,34 @@ onMounted(load);
   </PageHeader>
 
   <LoadError :message="error" />
+
+  <!-- PENDING accounts see a permanent banner explaining their state.
+       Permissions are otherwise identical to anonymous (no names, no
+       edits) — see docs/AUTH-AND-PERMISSIONS.md. -->
+  <div
+    v-if="auth.isPending"
+    class="mb-5 rounded-2xl border border-amber-200 bg-amber-50/60 p-5"
+  >
+    <div class="flex items-start gap-3">
+      <span class="text-2xl" aria-hidden="true">⏳</span>
+      <div>
+        <h2 class="text-base font-semibold text-amber-900">
+          Tvoj účet čaká na potvrdenie
+        </h2>
+        <p class="mt-1 text-sm text-amber-800">
+          Registrácia prebehla úspešne, ale ešte sa nemôžeš zúčastniť
+          klubových aktivít cez tento systém. Administrátor klubu tvoj
+          účet posúdi a po potvrdení budeš môcť rezervovať lode, vidieť
+          mená rezervujúcich a upravovať rezervácie.
+        </p>
+        <p class="mt-2 text-xs text-amber-700">
+          V prípade otázok napíš na
+          <a class="font-medium underline" href="mailto:t.bocinec@gmail.com">t.bocinec@gmail.com</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+
   <Spinner v-if="loading && !snapshot" />
 
   <template v-if="snapshot">
@@ -73,7 +103,7 @@ onMounted(load);
                 <span class="text-slate-600">{{ r.resource.name }}</span>
               </div>
               <p class="mt-1 text-sm text-slate-500">
-                {{ r.customerName }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
+                {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
               </p>
             </div>
           </li>
@@ -99,7 +129,7 @@ onMounted(load);
                 <span class="text-slate-600">{{ r.resource.name }}</span>
               </div>
               <p class="mt-1 text-sm text-slate-500">
-                {{ r.customerName }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
+                {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
               </p>
             </div>
           </li>
@@ -145,7 +175,7 @@ onMounted(load);
             <div>
               <p class="font-medium text-slate-800">{{ r.resource.name }}</p>
               <p class="mt-1 text-sm text-slate-500">
-                {{ r.customerName }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
+                {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
               </p>
             </div>
           </li>

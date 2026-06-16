@@ -107,6 +107,43 @@ class UsersService
         return $this->requireExisting($id);
     }
 
+    /**
+     * Promote a PENDING account to MEMBER. Idempotent for accounts that
+     * are already MEMBER (returns them as-is). Rejects ADMIN promotion
+     * attempts — admin role transitions go via the full update endpoint
+     * with audit context.
+     */
+    public function confirmPending(string $id, User $actor): User
+    {
+        $user = $this->requireExisting($id);
+        if ($user->role === UserRole::ADMIN) {
+            throw new \App\Exceptions\ConflictDomainException(
+                'Administrátor sa nedá potvrdiť ako bežný člen.',
+            );
+        }
+        if ($user->role === UserRole::MEMBER) {
+            return $user;
+        }
+
+        $before = $this->snapshot($user);
+        $user->role = UserRole::MEMBER;
+        if (!$user->isActive) {
+            $user->isActive = true;
+        }
+        $user->save();
+        $user->refresh();
+
+        $this->audit->logUpdate(
+            AuditEntityType::USER,
+            $user,
+            "Potvrdený nový člen „{$user->name}“ ({$user->email})",
+            $before,
+            $this->snapshot($user),
+        );
+
+        return $user;
+    }
+
     public function list(array $options): array
     {
         $query = User::query();

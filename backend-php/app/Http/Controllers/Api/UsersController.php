@@ -68,4 +68,21 @@ class UsersController extends Controller
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
+
+    /**
+     * POST /api/v1/users/{id}/confirm
+     *
+     * Promote a PENDING account to MEMBER. Admin-only (route is in the
+     * admin group). No-op when the target is already a member; rejects
+     * with 422 if the target is an admin (admins are never demoted via
+     * this endpoint — use full update for that).
+     */
+    public function confirm(Request $request, string $id): UserResource
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $user = $this->users->confirmPending($id, $actor);
+
+        return new UserResource($user);
+    }
 }

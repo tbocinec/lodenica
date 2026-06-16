@@ -23,6 +23,16 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => token.value !== null && user.value !== null);
   const isAdmin = computed(() => user.value?.role === 'ADMIN');
+  /**
+   * Confirmed member (MEMBER or ADMIN). PENDING + anonymous → false.
+   * Permission gates across the SPA key off this getter — names,
+   * contacts and reservation-edit actions are visible only when
+   * `isMember` is true. See docs/AUTH-AND-PERMISSIONS.md.
+   */
+  const isMember = computed(
+    () => user.value?.role === 'ADMIN' || user.value?.role === 'MEMBER',
+  );
+  const isPending = computed(() => user.value?.role === 'PENDING');
 
   async function bootstrap(): Promise<void> {
     initializing.value = true;
@@ -81,6 +91,8 @@ export const useAuthStore = defineStore('auth', () => {
     lastError,
     isAuthenticated,
     isAdmin,
+    isMember,
+    isPending,
     bootstrap,
     login,
     logout,

@@ -329,13 +329,19 @@ function blockLabel(r: Reservation): string {
     start.getUTCHours() === 0 && start.getUTCMinutes() === 0 && start.getUTCSeconds() === 0;
   const endsAtMidnight =
     end.getUTCHours() === 0 && end.getUTCMinutes() === 0 && end.getUTCSeconds() === 0;
-  if (startsAtMidnight && endsAtMidnight) return r.customerName;
-  return `${formatTime(r.startsAt)}–${formatTime(r.endsAt)} ${r.customerName}`;
+  // Backend strips customerName for non-members; fall back to a
+  // privacy-preserving placeholder. See docs/AUTH-AND-PERMISSIONS.md.
+  const name = r.customerName ?? '** rezervácia';
+  if (startsAtMidnight && endsAtMidnight) return name;
+  return `${formatTime(r.startsAt)}–${formatTime(r.endsAt)} ${name}`;
 }
 
 function blockColor(r: Reservation): string {
   let hash = 0;
-  for (const ch of r.customerName) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  // Colour-by-name groups same booker's blocks. Falls back to a
+  // stable bucket for non-member viewers who don't get the name.
+  const key = r.customerName ?? '__anon__';
+  for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
   const palette = [
     'bg-brand-200 text-brand-900 ring-brand-300',
     'bg-emerald-200 text-emerald-900 ring-emerald-300',
@@ -532,7 +538,7 @@ async function onReservationDeleted(): Promise<void> {
               class="absolute top-1 bottom-1 z-[5] truncate rounded px-1.5 text-[11px] font-medium shadow-sm ring-1 hover:brightness-95"
               :class="blockColor(b.reservation)"
               :style="{ left: b.leftPct + '%', width: 'max(' + b.widthPct + '%, 1.5rem)' }"
-              :title="`${b.reservation.customerName} · ${formatTime(b.reservation.startsAt)} – ${formatTime(b.reservation.endsAt)}`"
+              :title="`${b.reservation.customerName ?? '** rezervácia'} · ${formatTime(b.reservation.startsAt)} – ${formatTime(b.reservation.endsAt)}`"
               @pointerdown.stop
               @click.stop="selected = b.reservation"
             >

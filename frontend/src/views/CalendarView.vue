@@ -165,12 +165,13 @@ onMounted(async () => {
             v-for="r in reservationsByDay.get(format(d, 'yyyy-MM-dd')) ?? []"
             :key="r.id + d.toISOString()"
             class="truncate rounded bg-brand-100 px-1.5 py-0.5 text-[11px] text-brand-900"
-            :title="`${r.customerName} · ${resources.byId.get(r.resourceId)?.name ?? ''}`"
+            :title="`${r.customerName ?? '** rezervácia'} · ${resources.byId.get(r.resourceId)?.name ?? ''}`"
           >
             <span class="font-medium text-brand-700">
               {{ formatTime(r.startsAt) }}
             </span>
-            {{ resources.byId.get(r.resourceId)?.identifier ?? '?' }} · {{ r.customerName }}
+            {{ resources.byId.get(r.resourceId)?.identifier ?? '?' }} ·
+            {{ r.customerName ?? '** rezervácia' }}
           </li>
         </ul>
       </div>

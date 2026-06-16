@@ -34,12 +34,30 @@ abstract class TestCase extends BaseTestCase
         return $user;
     }
 
+    /**
+     * Same pattern with the PENDING role — registered but not yet
+     * confirmed by an admin. Useful for asserting that PENDING is
+     * treated as anonymous-grade for permission purposes.
+     */
+    protected function actingAsPending(array $overrides = []): User
+    {
+        $user = $this->makeUser(UserRole::PENDING, $overrides);
+        Sanctum::actingAs($user, ['*']);
+
+        return $user;
+    }
+
     private function makeUser(UserRole $role, array $overrides): User
     {
         $suffix = bin2hex(random_bytes(4));
+        $label = match ($role) {
+            UserRole::ADMIN => 'Admin',
+            UserRole::MEMBER => 'Member',
+            UserRole::PENDING => 'Pending',
+        };
 
         return User::create(array_merge([
-            'name' => $role === UserRole::ADMIN ? 'Test Admin' : 'Test Member',
+            'name' => "Test {$label}",
             'email' => "test.{$role->value}.{$suffix}@example.test",
             'password' => 'password123',
             'role' => $role,

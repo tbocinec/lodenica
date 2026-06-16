@@ -66,7 +66,9 @@ export interface Reservation {
   id: string;
   resourceId: string;
   eventId: string | null;
-  customerName: string;
+  /** Null for non-member callers (anonymous + PENDING). Backend strips
+   *  the value at the API boundary; see docs/AUTH-AND-PERMISSIONS.md. */
+  customerName: string | null;
   customerContact: string | null;
   /** ISO datetime, inclusive lower bound. */
   startsAt: string;
@@ -150,7 +152,7 @@ export interface DashboardSnapshot {
   };
 }
 
-export type UserRole = 'ADMIN' | 'MEMBER';
+export type UserRole = 'ADMIN' | 'MEMBER' | 'PENDING';
 
 export interface User {
   id: string;

@@ -77,7 +77,7 @@ onMounted(load);
       <ul v-else class="divide-y divide-slate-100">
         <li v-for="r in reservationsFor(space.id)" :key="r.id" class="py-3">
           <div class="flex items-baseline justify-between gap-3">
-            <p class="font-medium text-slate-800">{{ r.customerName }}</p>
+            <p class="font-medium text-slate-800">{{ r.customerName ?? '** rezervácia' }}</p>
             <span class="text-xs text-slate-500">
               {{ formatReservationRange(r.startsAt, r.endsAt) }}
             </span>

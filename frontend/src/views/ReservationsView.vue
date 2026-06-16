@@ -325,8 +325,8 @@ onMounted(load);
             <tr
               v-for="r in reservations"
               :key="r.id"
-              class="cursor-pointer hover:bg-brand-50/40"
-              @click="editing = r"
+              :class="auth.isMember ? 'cursor-pointer hover:bg-brand-50/40' : ''"
+              @click="auth.isMember && (editing = r)"
             >
               <td class="font-medium">{{ formatReservationRange(r.startsAt, r.endsAt) }}</td>
               <td>
@@ -343,9 +343,12 @@ onMounted(load);
                   </span>
                 </div>
               </td>
-              <td>{{ r.customerName }}</td>
+              <td>
+                <template v-if="auth.isMember">{{ r.customerName }}</template>
+                <span v-else class="text-slate-400" aria-label="Meno je viditeľné len pre registrovaných členov">**</span>
+              </td>
               <td class="hidden lg:table-cell text-slate-500">
-                <template v-if="auth.isAuthenticated">{{ r.customerContact ?? '—' }}</template>
+                <template v-if="auth.isMember">{{ r.customerContact ?? '—' }}</template>
                 <span v-else aria-label="Kontakt je viditeľný len pre registrovaných členov">**</span>
               </td>
               <td>
@@ -354,9 +357,15 @@ onMounted(load);
                 </span>
               </td>
               <td class="text-right">
-                <button class="btn-secondary" type="button" @click.stop="editing = r">
+                <button
+                  v-if="auth.isMember"
+                  class="btn-secondary"
+                  type="button"
+                  @click.stop="editing = r"
+                >
                   Upraviť
                 </button>
+                <span v-else class="text-xs text-slate-400">Len pre členov</span>
               </td>
             </tr>
           </tbody>
@@ -369,8 +378,11 @@ onMounted(load);
       <li
         v-for="r in reservations"
         :key="r.id"
-        class="cursor-pointer rounded-xl bg-white p-3 ring-1 ring-slate-200 active:ring-brand-400"
-        @click="editing = r"
+        :class="[
+          'rounded-xl bg-white p-3 ring-1 ring-slate-200',
+          auth.isMember ? 'cursor-pointer active:ring-brand-400' : '',
+        ]"
+        @click="auth.isMember && (editing = r)"
       >
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0 flex-1">
@@ -386,7 +398,10 @@ onMounted(load);
                 {{ resourcesStore.byId.get(r.resourceId)?.name ?? '' }}
               </span>
             </div>
-            <p class="mt-1 text-sm font-medium text-slate-800">{{ r.customerName }}</p>
+            <p class="mt-1 text-sm font-medium text-slate-800">
+              <template v-if="auth.isMember">{{ r.customerName }}</template>
+              <span v-else class="text-slate-400">** meno skryté</span>
+            </p>
             <p class="text-xs text-slate-500">
               {{ formatReservationRange(r.startsAt, r.endsAt) }}
             </p>
@@ -398,13 +413,16 @@ onMounted(load);
       </li>
     </ul>
 
-    <!-- Privacy note when contacts are masked. Members do see this
-         line — harmless, just informational — but it's primarily for
-         the anonymous viewer who's wondering why everyone's contact
-         shows "**". -->
-    <p v-if="!auth.isAuthenticated" class="mt-3 text-xs text-slate-500">
-      🔒 Tento údaj (kontakt) bude dostupný len pre registrovaných členov.
-      <RouterLink to="/login" class="text-brand-700 hover:underline">Prihlásiť sa</RouterLink>
+    <!-- Privacy note when names + contacts are masked. Shown to
+         anon AND PENDING (anyone for whom !auth.isMember). -->
+    <p v-if="!auth.isMember" class="mt-3 text-xs text-slate-500">
+      🔒 Meno aj kontakt rezervujúceho sú viditeľné len pre potvrdených členov klubu.
+      <RouterLink v-if="!auth.isAuthenticated" to="/login" class="text-brand-700 hover:underline">
+        Prihlásiť sa
+      </RouterLink>
+      <span v-else-if="auth.isPending" class="text-amber-700">
+        Tvoj účet čaká na potvrdenie administrátorom.
+      </span>
     </p>
 
     <!-- Pagination footer -->

@@ -13,21 +13,23 @@ class ReservationResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // Customer contact is private PII (email / phone of the booker).
-        // The reservation list is intentionally public-readable so other
-        // paddlers can see whose boat is out, but the contact column is
-        // gated behind authentication — anonymous callers never receive
-        // the value, not even on detail / edit endpoints. The frontend
-        // edit dialog handles this gracefully (blank input; PATCH skips
-        // the field if untouched so the DB value is preserved).
-        $isAuthed = $request->user() !== null;
+        // customerName + customerContact are private to confirmed
+        // members. Anonymous visitors and PENDING accounts see the
+        // schedule (which boat is out at which time) but not WHO is
+        // using it. PII gate lives at the API boundary so the value
+        // never reaches an unprivileged client — see
+        // docs/AUTH-AND-PERMISSIONS.md for the full matrix.
+        $user = $request->user();
+        $isMember = $user !== null
+            && method_exists($user, 'isMember')
+            && $user->isMember();
 
         return [
             'id' => $this->id,
             'resourceId' => $this->resourceId,
             'eventId' => $this->eventId,
-            'customerName' => $this->customerName,
-            'customerContact' => $isAuthed ? $this->customerContact : null,
+            'customerName' => $isMember ? $this->customerName : null,
+            'customerContact' => $isMember ? $this->customerContact : null,
             'startsAt' => $this->startsAt?->toIso8601String(),
             'endsAt' => $this->endsAt?->toIso8601String(),
             'note' => $this->note,

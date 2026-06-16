@@ -36,4 +36,12 @@ export const usersApi = {
   async remove(id: string): Promise<void> {
     await http.delete(`/users/${id}`);
   },
+  /**
+   * Admin-only: promote a PENDING account to MEMBER. Idempotent for
+   * accounts that are already MEMBER; 409 when the target is ADMIN.
+   */
+  async confirm(id: string): Promise<User> {
+    const { data } = await http.post<User>(`/users/${id}/confirm`);
+    return data;
+  },
 };

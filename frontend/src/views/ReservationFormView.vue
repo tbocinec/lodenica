@@ -75,7 +75,7 @@ const googleCalendarHref = computed(() => {
     title: `Lodenica KVŠ: ${selectedResource.value.identifier} – ${selectedResource.value.name}`,
     startsAt: createdReservation.value.startsAt,
     endsAt: createdReservation.value.endsAt,
-    customerName: createdReservation.value.customerName,
+    customerName: createdReservation.value.customerName ?? form.customerName,
     resourceLabel: `${selectedResource.value.identifier} ${selectedResource.value.name}`,
     note: createdReservation.value.note,
   });

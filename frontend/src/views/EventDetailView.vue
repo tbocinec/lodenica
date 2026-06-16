@@ -208,7 +208,7 @@ function reservationOverlapName(resourceId: string): string | null {
     (r) => r.resourceId === resourceId && r.eventId !== id.value,
   );
   if (!conflict) return null;
-  return `${conflict.customerName} · ${formatReservationRange(conflict.startsAt, conflict.endsAt)}`;
+  return `${conflict.customerName ?? '** rezervácia'} · ${formatReservationRange(conflict.startsAt, conflict.endsAt)}`;
 }
 
 onMounted(load);

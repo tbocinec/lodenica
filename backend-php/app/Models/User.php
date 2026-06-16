@@ -37,4 +37,19 @@ class User extends Authenticatable
     {
         return $this->role === UserRole::ADMIN;
     }
+
+    /**
+     * True for ADMIN and MEMBER. PENDING returns false — pending users
+     * are treated like anonymous visitors for permission purposes.
+     * See docs/AUTH-AND-PERMISSIONS.md.
+     */
+    public function isMember(): bool
+    {
+        return $this->role === UserRole::MEMBER || $this->role === UserRole::ADMIN;
+    }
+
+    public function isPending(): bool
+    {
+        return $this->role === UserRole::PENDING;
+    }
 }

@@ -61,7 +61,9 @@ watch(
     deleting.value = false;
     const start = new Date(r.startsAt);
     const end = new Date(r.endsAt);
-    form.customerName = r.customerName;
+    // r.customerName is `null` only for non-members; we gate dialog
+    // open on auth.isMember so this branch is effectively members-only.
+    form.customerName = r.customerName ?? '';
     form.customerContact = r.customerContact ?? '';
     form.startDate = utcDate(start);
     form.startTime = utcTime(start);
@@ -163,20 +165,20 @@ async function remove(): Promise<void> {
         <div class="sm:col-span-2">
           <label class="label" for="ed-contact">
             Kontakt
-            <span v-if="!auth.isAuthenticated" class="text-slate-400">**</span>
+            <span v-if="!auth.isMember" class="text-slate-400">**</span>
           </label>
           <input
             id="ed-contact"
             v-model="form.customerContact"
             class="input mt-1"
             maxlength="200"
-            :placeholder="auth.isAuthenticated ? '' : '** skryté — len pre prihlásených členov'"
+            :placeholder="auth.isMember ? '' : '** skryté — len pre prihlásených členov'"
           />
           <!-- Anon editor never sees the existing contact (the API
                strips it out). They CAN type a replacement; if they
                leave the field empty the existing value in the DB is
                preserved (PATCH omits the field when blank). -->
-          <p v-if="!auth.isAuthenticated" class="mt-1 text-xs text-slate-500">
+          <p v-if="!auth.isMember" class="mt-1 text-xs text-slate-500">
             ** Aktuálny kontakt nie je zobrazený. Ak pole necháš
             prázdne, pôvodný kontakt zostane zachovaný; ak napíšeš
             nový, prepíše ten existujúci.

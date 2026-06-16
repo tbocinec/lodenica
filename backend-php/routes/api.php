@@ -30,9 +30,12 @@ Route::get('availability/dashboard', [AvailabilityController::class, 'dashboard'
 Route::get('resources', [ResourcesController::class, 'index']);
 Route::get('resources/{id}', [ResourcesController::class, 'show']);
 
-Route::apiResource('reservations', ReservationsController::class)
-    ->parameters(['reservations' => 'id']);
-Route::patch('reservations/{id}/cancel', [ReservationsController::class, 'cancel']);
+// Reservation reads + creation are public so anonymous visitors can
+// see the schedule and book; edits / cancels / deletes are gated to
+// confirmed members in the group below. See docs/AUTH-AND-PERMISSIONS.md.
+Route::get('reservations', [ReservationsController::class, 'index']);
+Route::get('reservations/{id}', [ReservationsController::class, 'show']);
+Route::post('reservations', [ReservationsController::class, 'store']);
 Route::get('reservations/{id}/ics', [ReservationsController::class, 'ics']);
 
 Route::apiResource('events', EventsController::class)
@@ -63,7 +66,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
 
+    // Audit log is technical and shown to everyone with a verified
+    // account (including pending — useful for "did I really submit
+    // that?" self-verification).
     Route::get('audit-logs', [AuditLogsController::class, 'index']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Confirmed member or admin (NOT pending, NOT anonymous)
+|--------------------------------------------------------------------------
+| Existing reservations belong to other paddlers; editing them is a
+| meaningful action that requires a vetted account.
+*/
+
+Route::middleware(['auth:sanctum', 'member'])->group(function () {
+    Route::patch('reservations/{id}', [ReservationsController::class, 'update']);
+    Route::delete('reservations/{id}', [ReservationsController::class, 'destroy']);
+    Route::patch('reservations/{id}/cancel', [ReservationsController::class, 'cancel']);
 });
 
 /*
@@ -82,6 +102,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::apiResource('users', UsersController::class)
         ->parameters(['users' => 'id']);
+    Route::post('users/{id}/confirm', [UsersController::class, 'confirm']);
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
 

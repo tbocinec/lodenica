@@ -147,6 +147,25 @@ Rules to keep them from stepping on each other:
   in `data`. Laravel `JsonResource::withoutWrapping()` is set in
   `AppServiceProvider::boot()` so both backends match.
 
+## Auth + permissions — read before touching any of it
+
+Anything that depends on the user's role or auth state — adding a new
+endpoint, hiding a field for anonymous viewers, gating a button on the
+SPA, introducing a new role — **must start with**
+[`docs/AUTH-AND-PERMISSIONS.md`](docs/AUTH-AND-PERMISSIONS.md).
+
+Quick reference:
+
+- Three roles: `PENDING` (waiting for admin confirmation),
+  `MEMBER`, `ADMIN`. Plus anonymous (no token).
+- `PENDING == anonymous` for permission purposes. The only thing they
+  see differently is the "waiting" dashboard banner.
+- Gates live in three layers (route middleware → API resource shape →
+  SPA visibility/action). All three must stay in sync. The doc has
+  the patterns and the full matrix.
+- Update the matrix in the same commit as the code change. If the doc
+  is stale, treat that as a bug.
+
 ## Onboarding checklist for a fresh agent session
 
 1. Read this file.

@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: ['api/*']);
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
+            'member' => \App\Http\Middleware\EnsureMember::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

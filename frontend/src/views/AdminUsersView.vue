@@ -33,6 +33,7 @@ const newUser = reactive({
 const ROLE_LABEL: Record<UserRole, string> = {
   ADMIN: 'Administrátor',
   MEMBER: 'Člen',
+  PENDING: 'Čaká na potvrdenie',
 };
 
 async function load(): Promise<void> {
@@ -101,6 +102,18 @@ async function remove(user: User): Promise<void> {
   if (!window.confirm(`Naozaj zmazať používateľa „${user.name}“ (${user.email})?`)) return;
   try {
     await usersApi.remove(user.id);
+    await load();
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+}
+
+/** Promote a PENDING account to MEMBER. Surfaced as a green
+ *  "Potvrdiť člena" button next to the role pill. */
+async function confirmMember(user: User): Promise<void> {
+  if (!window.confirm(`Potvrdiť „${user.name}“ ako riadneho člena klubu?`)) return;
+  try {
+    await usersApi.confirm(user.id);
     await load();
   } catch (e) {
     error.value = (e as Error).message;
@@ -195,15 +208,29 @@ onMounted(load);
           </td>
           <td class="px-4 py-2 text-slate-700">{{ user.email }}</td>
           <td class="px-4 py-2">
-            <select
-              :value="user.role"
-              class="input py-1"
-              :disabled="isSelf(user)"
-              @change="setRole(user, ($event.target as HTMLSelectElement).value as UserRole)"
-            >
-              <option value="MEMBER">{{ ROLE_LABEL.MEMBER }}</option>
-              <option value="ADMIN">{{ ROLE_LABEL.ADMIN }}</option>
-            </select>
+            <div class="flex items-center gap-2">
+              <select
+                :value="user.role"
+                class="input py-1"
+                :disabled="isSelf(user)"
+                @change="setRole(user, ($event.target as HTMLSelectElement).value as UserRole)"
+              >
+                <option value="PENDING">{{ ROLE_LABEL.PENDING }}</option>
+                <option value="MEMBER">{{ ROLE_LABEL.MEMBER }}</option>
+                <option value="ADMIN">{{ ROLE_LABEL.ADMIN }}</option>
+              </select>
+              <!-- One-click promotion shortcut for PENDING accounts —
+                   the most common admin action for new registrations. -->
+              <button
+                v-if="user.role === 'PENDING'"
+                type="button"
+                class="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                title="Potvrdiť ako riadneho člena"
+                @click="confirmMember(user)"
+              >
+                ✓ Potvrdiť
+              </button>
+            </div>
           </td>
           <td class="px-4 py-2">
             <button

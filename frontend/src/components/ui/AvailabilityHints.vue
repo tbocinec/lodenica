@@ -395,9 +395,9 @@ function onDocPointerUp(): void {
             :key="b.reservation.id"
             class="absolute top-1 bottom-1 truncate rounded bg-slate-300/70 px-1.5 text-[10px] font-medium text-slate-800 ring-1 ring-slate-400"
             :style="{ left: b.leftPct + '%', width: b.widthPct + '%' }"
-            :title="`${b.reservation.customerName} · ${formatTime(b.reservation.startsAt)}–${formatTime(b.reservation.endsAt)}`"
+            :title="`${b.reservation.customerName ?? '** rezervácia'} · ${formatTime(b.reservation.startsAt)}–${formatTime(b.reservation.endsAt)}`"
           >
-            {{ b.reservation.customerName }}
+            {{ b.reservation.customerName ?? '** rezervácia' }}
           </div>
         </div>
         <!-- Proposed slot overlay -->

@@ -118,7 +118,7 @@ onMounted(load);
       <template v-if="reservedNow">
         <p class="text-sm font-semibold text-amber-800">⏰ Práve obsadené</p>
         <p class="mt-1 text-sm text-amber-900">
-          {{ reservedNow.customerName }} ·
+          {{ reservedNow.customerName ?? '** rezervácia' }} ·
           {{ formatReservationRange(reservedNow.startsAt, reservedNow.endsAt) }}
         </p>
       </template>
@@ -194,7 +194,7 @@ onMounted(load);
         />
         <ul v-else class="divide-y divide-slate-100">
           <li v-for="r in upcomingReservations" :key="r.id" class="py-3">
-            <p class="font-medium text-slate-800">{{ r.customerName }}</p>
+            <p class="font-medium text-slate-800">{{ r.customerName ?? '** rezervácia' }}</p>
             <p class="text-xs text-slate-500">
               {{ formatReservationRange(r.startsAt, r.endsAt) }}
             </p>
