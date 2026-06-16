@@ -545,6 +545,7 @@ onMounted(async () => {
         <div>
           <label class="label" for="name">
             Meno <span class="text-rose-700">*</span>
+            <span class="text-slate-400">**</span>
           </label>
           <input
             id="name"
@@ -567,15 +568,13 @@ onMounted(async () => {
           />
         </div>
       </div>
-      <!-- Visibility legend so the booker knows what each field means
-           for public readers. Meno is part of the public schedule
-           (so other paddlers can see whose boat is out); Kontakt is
-           private to logged-in members. -->
+      <!-- Visibility legend. Per docs/AUTH-AND-PERMISSIONS.md both the
+           name AND the contact are private to confirmed members —
+           anonymous + PENDING viewers see "**" in their place. -->
       <p class="mt-3 text-xs text-slate-500">
         <span class="text-rose-700">*</span> Povinné pole. &nbsp;
-        <span class="text-slate-400">**</span> Kontakt je viditeľný
-        <strong>len pre prihlásených členov</strong>. Meno je viditeľné
-        pre všetkých návštevníkov aplikácie.
+        <span class="text-slate-400">**</span> Meno aj kontakt sú viditeľné
+        <strong>len pre prihlásených členov klubu</strong>.
       </p>
     </fieldset>
 
