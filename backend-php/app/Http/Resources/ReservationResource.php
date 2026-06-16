@@ -16,13 +16,15 @@ class ReservationResource extends JsonResource
         // customerName + customerContact are private to confirmed
         // members. Anonymous visitors and PENDING accounts see the
         // schedule (which boat is out at which time) but not WHO is
-        // using it. PII gate lives at the API boundary so the value
-        // never reaches an unprivileged client — see
-        // docs/AUTH-AND-PERMISSIONS.md for the full matrix.
-        $user = $request->user();
-        $isMember = $user !== null
-            && method_exists($user, 'isMember')
-            && $user->isMember();
+        // using it. See docs/AUTH-AND-PERMISSIONS.md for the matrix.
+        //
+        // GET /reservations is a public route (no `auth:sanctum`
+        // middleware), which means Laravel's default guard never runs
+        // and `$request->user()` returns null even when a member
+        // sends a Bearer token. Ask the sanctum guard explicitly so
+        // the token gets resolved regardless of route gating.
+        $user = $request->user('sanctum') ?? $request->user();
+        $isMember = $user instanceof \App\Models\User && $user->isMember();
 
         return [
             'id' => $this->id,

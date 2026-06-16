@@ -181,6 +181,40 @@ class ReservationsApiTest extends TestCase
             ->assertJsonPath('customerContact', 'janka@example.test');
     }
 
+    public function test_member_bearer_token_on_public_route_reveals_name_and_contact(): void
+    {
+        // Regression: GET /reservations is a public route (no
+        // `auth:sanctum` middleware), so Laravel's default guard never
+        // runs and `$request->user()` returns null even when a member
+        // sends a valid Bearer token. The resource has to resolve the
+        // sanctum guard explicitly so admin / member callers see the
+        // private fields. Use a REAL token (not Sanctum::actingAs,
+        // which switches the default guard and hides the bug) so the
+        // test exercises the same path as production.
+        $member = \App\Models\User::create([
+            'name' => 'Real Member',
+            'email' => 'real-member-'.bin2hex(random_bytes(3)).'@example.test',
+            'password' => 'password123',
+            'role' => \App\Domain\Enums\UserRole::MEMBER,
+            'isActive' => true,
+        ]);
+        $token = $member->createToken('test')->plainTextToken;
+
+        $reservation = $this->postJson('/api/v1/reservations', [
+            'resourceId' => $this->kayak->id,
+            'customerName' => 'Bearer Test',
+            'customerContact' => 'bearer@example.test',
+            'startsAt' => '2099-09-01T09:00:00Z',
+            'endsAt' => '2099-09-01T12:00:00Z',
+        ])->assertCreated()->json();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson("/api/v1/reservations/{$reservation['id']}")
+            ->assertOk()
+            ->assertJsonPath('customerName', 'Bearer Test')
+            ->assertJsonPath('customerContact', 'bearer@example.test');
+    }
+
     public function test_search_matches_resource_identifier_and_name(): void
     {
         // Distinct boats so we can confirm the search dragnet picks up

@@ -100,9 +100,13 @@ class AvailabilityService
     {
         // Same privacy rule as ReservationResource — customer name +
         // contact are private to confirmed members. PENDING accounts
-        // and anonymous visitors see "kto-vie-čo" anonymised schedule.
+        // and anonymous visitors see the anonymised schedule.
         // See docs/AUTH-AND-PERMISSIONS.md.
-        $user = \Illuminate\Support\Facades\Auth::user();
+        //
+        // GET /availability/dashboard is a public route, so the
+        // default guard does not run. Ask the sanctum guard directly
+        // to resolve any Bearer token on the request.
+        $user = \Illuminate\Support\Facades\Auth::guard('sanctum')->user();
         $isMember = $user instanceof \App\Models\User && $user->isMember();
 
         return [
