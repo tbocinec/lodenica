@@ -21,7 +21,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SECRETS="$REPO_ROOT/.deploy-secrets"
+SECRETS="${LODENICA_DEPLOY_SECRETS:-$REPO_ROOT/.deploy-secrets}"
 STAGE="${LODENICA_DEPLOY_STAGE:-/tmp/lodenica-rezervacie-deploy}"
 
 #────────────────────────────────────────────────────────────────────────────
@@ -49,6 +49,10 @@ Safe for both first install AND repeated code updates by default:
                         DESTRUCTIVE — wipes the live DB of resources,
                         reservations, events and damages. Use ONLY for the
                         first install or a deliberate inventory refresh.
+  --secrets PATH        Source deploy credentials from a custom file instead
+                        of .deploy-secrets. Useful for test/staging targets:
+                          scripts/deploy-rezervacie.sh --secrets .deploy-secrets.test
+                        (Also settable via LODENICA_DEPLOY_SECRETS env var.)
   --no-build            Skip composer install + pnpm build (reuse last stage).
   --no-upload           Skip the SFTP upload (build only).
   --no-install          Skip the HTTPS install.php trigger (no migrate / no cache).
@@ -71,6 +75,8 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --explore)         DO_EXPLORE=1 ;;
         --import-sheet|--import) DO_IMPORT=1 ;;
+        --secrets)         shift; [[ -n "${1:-}" ]] || { echo "--secrets needs a path" >&2; exit 2; }; SECRETS="$1" ;;
+        --secrets=*)       SECRETS="${1#--secrets=}" ;;
         --no-build)        DO_BUILD=0 ;;
         --no-upload)       DO_UPLOAD=0 ;;
         --no-install)      DO_INSTALL=0 ;;
@@ -88,8 +94,9 @@ log() { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m[fail]\033[0m %s\n' "$*" >&2; exit 1; }
 
-[[ -f "$SECRETS" ]] || die ".deploy-secrets not found at $SECRETS. Copy .deploy-secrets.example and fill in."
+[[ -f "$SECRETS" ]] || die "secrets file not found at $SECRETS. Copy .deploy-secrets.example and fill in (or pass --secrets PATH)."
 
+log "Using secrets: $SECRETS"
 # Source the secrets file. shellcheck source=/dev/null
 set -a; . "$SECRETS"; set +a
 
