@@ -70,7 +70,7 @@ onMounted(load);
       </div>
       <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
         <p class="text-xs uppercase tracking-wide text-slate-400">Slnko</p>
-        <p class="mt-1 font-medium text-slate-900">🌇 {{ hhmm(d.daylight.sunset) }}</p>
+        <p class="mt-1 font-medium text-slate-900">🌇 západ {{ hhmm(d.daylight.sunset) }}</p>
         <p class="text-sm text-slate-500">🌅 východ {{ hhmm(d.daylight.sunrise) }}</p>
       </div>
     </section>
