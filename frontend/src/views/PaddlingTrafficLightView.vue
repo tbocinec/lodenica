@@ -14,7 +14,6 @@ import {
 
 const { response, loading, error, load } = usePaddlingTrafficLight();
 const d = computed(() => response.value?.data ?? null);
-const sourceUrl = computed(() => response.value?.sourceUrl ?? 'https://www.dunajcik.sk/vodacky-semafor');
 
 onMounted(load);
 </script>
@@ -114,12 +113,5 @@ onMounted(load);
         </li>
       </ul>
     </section>
-
-    <p class="text-xs text-slate-400">
-      Údaje a vyhodnotenie poskytuje
-      <a :href="sourceUrl" target="_blank" rel="noopener noreferrer" class="underline hover:text-slate-600">
-        {{ response?.source ?? 'dunajcik.sk' }}
-      </a>. Aktualizované každých pár minút.
-    </p>
   </template>
 </template>
