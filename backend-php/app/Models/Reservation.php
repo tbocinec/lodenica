@@ -41,6 +41,12 @@ class Reservation extends Model
         return $this->belongsTo(Event::class, 'eventId');
     }
 
+    /** The logged-in user who created this booking (null for anonymous). */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'createdById');
+    }
+
     public function range(): TimeRange
     {
         return TimeRange::fromInstants($this->startsAt, $this->endsAt);

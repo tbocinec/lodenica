@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BulkImportUsersRequest;
 use App\Http\Requests\CreateUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserResource;
 use App\Http\Support\Paginated;
 use App\Models\User;
+use App\Services\BulkUserImportService;
 use App\Services\UsersService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,5 +86,25 @@ class UsersController extends Controller
         $user = $this->users->confirmPending($id, $actor);
 
         return new UserResource($user);
+    }
+
+    /**
+     * POST /api/v1/users/import — bulk-create PENDING accounts from a CSV
+     * of "name,email" rows. Each new account gets an invitation email with
+     * a set-your-password link. Duplicates are skipped, malformed rows are
+     * reported. Admin-only (route is in the admin group).
+     */
+    public function import(BulkImportUsersRequest $request, BulkUserImportService $importer): JsonResponse
+    {
+        $summary = $importer->import($request->validated('csv'));
+
+        return new JsonResponse([
+            'createdCount' => count($summary['created']),
+            'skippedCount' => count($summary['skipped']),
+            'invalidCount' => count($summary['invalid']),
+            'created' => $summary['created'],
+            'skipped' => $summary['skipped'],
+            'invalid' => $summary['invalid'],
+        ], Response::HTTP_CREATED);
     }
 }

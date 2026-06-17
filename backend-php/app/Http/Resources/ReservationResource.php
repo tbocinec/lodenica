@@ -30,6 +30,9 @@ class ReservationResource extends JsonResource
             'id' => $this->id,
             'resourceId' => $this->resourceId,
             'eventId' => $this->eventId,
+            // The logged-in user who created the booking (null for
+            // anonymous). Lets the SPA flag "my reservations". Not PII.
+            'createdById' => $this->createdById,
             'customerName' => $isMember ? $this->customerName : null,
             'customerContact' => $isMember ? $this->customerContact : null,
             'startsAt' => $this->startsAt?->toIso8601String(),

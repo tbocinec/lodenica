@@ -43,6 +43,7 @@ class ReservationsService
         $reservation = Reservation::create([
             'resourceId' => $cmd['resourceId'],
             'eventId' => $cmd['eventId'] ?? null,
+            'createdById' => $cmd['createdById'] ?? null,
             'customerName' => $cmd['customerName'],
             'customerContact' => $cmd['customerContact'] ?? null,
             'startsAt' => $range->startsAt,
@@ -169,6 +170,9 @@ class ReservationsService
         if (!empty($options['eventId'])) {
             $query->where('eventId', $options['eventId']);
         }
+        if (!empty($options['createdById'])) {
+            $query->where('createdById', $options['createdById']);
+        }
         if (!empty($options['status'])) {
             $status = $options['status'] instanceof ReservationStatus
                 ? $options['status']
@@ -210,9 +214,15 @@ class ReservationsService
 
         $total = (clone $query)->count();
 
+        // "My reservations" wants newest-first; the schedule views want
+        // chronological. Default stays chronological.
+        if (!empty($options['orderByLatest'])) {
+            $query->orderByDesc('startsAt')->orderByDesc('createdAt');
+        } else {
+            $query->orderBy('startsAt')->orderBy('createdAt');
+        }
+
         $items = $query
-            ->orderBy('startsAt')
-            ->orderBy('createdAt')
             ->skip($options['skip'] ?? 0)
             ->take($options['take'] ?? 25)
             ->get();

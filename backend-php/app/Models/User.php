@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Domain\Enums\UserRole;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -51,5 +52,17 @@ class User extends Authenticatable
     public function isPending(): bool
     {
         return $this->role === UserRole::PENDING;
+    }
+
+    /** Social logins (Google / Facebook) linked to this account. */
+    public function identities(): HasMany
+    {
+        return $this->hasMany(UserIdentity::class, 'userId');
+    }
+
+    /** Reservations this user created (their own bookings). */
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class, 'createdById');
     }
 }

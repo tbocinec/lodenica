@@ -11,6 +11,7 @@ use App\Http\Resources\ReservationResource;
 use App\Http\Support\Paginated;
 use App\Services\ReservationsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class ReservationsController extends Controller
@@ -19,11 +20,46 @@ class ReservationsController extends Controller
 
     public function store(CreateReservationRequest $request): JsonResponse
     {
-        $reservation = $this->reservations->create($request->validated());
+        $cmd = $request->validated();
+        // Stamp the booking with its creator when made by a logged-in user
+        // (public route → resolve the sanctum guard explicitly). Anonymous
+        // bookings stay ownerless. See docs/AUTH-AND-PERMISSIONS.md.
+        $user = $request->user('sanctum');
+        if ($user !== null) {
+            $cmd['createdById'] = $user->id;
+        }
+
+        $reservation = $this->reservations->create($cmd);
 
         return (new ReservationResource($reservation))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * GET /api/v1/reservations/mine — the logged-in user's own bookings
+     * (everything they created), newest first. Any authenticated account,
+     * including PENDING. See docs/AUTH-AND-PERMISSIONS.md.
+     */
+    public function mine(Request $request): array
+    {
+        $page = (int) ($request->query('page') ?? 1);
+        $pageSize = (int) ($request->query('pageSize') ?? 50);
+
+        $result = $this->reservations->list([
+            'createdById' => $request->user()->id,
+            'skip' => ($page - 1) * $pageSize,
+            'take' => $pageSize,
+            'orderByLatest' => true,
+        ]);
+
+        return Paginated::from(
+            $result['items'],
+            $result['total'],
+            $page,
+            $pageSize,
+            ReservationResource::class,
+        );
     }
 
     public function index(ListReservationsRequest $request): array

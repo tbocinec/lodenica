@@ -35,4 +35,20 @@ return [
         ],
     ],
 
+    // Social login (Laravel Socialite). Empty client id/secret keeps the
+    // provider DORMANT: the SPA hides the button and the redirect/callback
+    // routes return a clean 404. Fill the values in via .env (written from
+    // .deploy-secrets by scripts/deploy-rezervacie.sh) to go live.
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => env('FACEBOOK_REDIRECT_URI'),
+    ],
+
 ];

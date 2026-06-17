@@ -141,6 +141,19 @@ class UsersService
             $this->snapshot($user),
         );
 
+        // Let the new member know they've been approved. Email failure must
+        // not undo the confirmation — log and move on.
+        try {
+            $loginUrl = rtrim((string) config('app.url'), '/').'/login';
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(
+                new \App\Mail\MembershipApprovedMail($user->name, $loginUrl),
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning(
+                'Membership-approved email failed for '.$user->email.': '.$e->getMessage(),
+            );
+        }
+
         return $user;
     }
 
