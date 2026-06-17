@@ -24,7 +24,7 @@ import {
   RESOURCE_TYPE_LABEL,
 } from '@/i18n/labels';
 import { formatDateTime, formatReservationRange } from '@/utils/format';
-import { qrDataUrl, resourceBookingUrl } from '@/utils/qr';
+import { qrWithCenterLabel, resourceBookingUrl } from '@/utils/qr';
 
 const route = useRoute();
 const id = computed(() => route.params.id as string);
@@ -50,7 +50,7 @@ async function load() {
     resource.value = r;
     reservations.value = rsv.items;
     damages.value = dmg.items;
-    qrDataUrl(resourceBookingUrl(r.id)).then((u) => { qrUrl.value = u; }).catch(() => {});
+    qrWithCenterLabel(resourceBookingUrl(r.id), r.identifier).then((u) => { qrUrl.value = u; }).catch(() => {});
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -70,13 +70,11 @@ function printQr(): void {
   if (!qrUrl.value || !resource.value) return;
   const win = window.open('', '_blank');
   if (!win) return;
-  const label = `${resource.value.identifier} — ${resource.value.name}`;
+  // The identifier is rendered inside the QR; no extra name/label.
   win.document.write(
     `<!DOCTYPE html><html lang="sk"><head><meta charset="utf-8"><title>QR ${resource.value.identifier}</title></head>` +
-      `<body style="margin:0;padding:32px;text-align:center;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">` +
-      `<img src="${qrUrl.value}" alt="QR" style="width:280px;height:280px;"/>` +
-      `<h2 style="margin:12px 0 4px;font-size:20px;">${label}</h2>` +
-      `<p style="margin:0;color:#475569;">Naskenuj a rezervuj túto loď</p>` +
+      `<body style="margin:0;padding:32px;text-align:center;">` +
+      `<img src="${qrUrl.value}" alt="QR ${resource.value.identifier}" style="width:280px;height:280px;"/>` +
       `</body></html>`,
   );
   win.document.close();

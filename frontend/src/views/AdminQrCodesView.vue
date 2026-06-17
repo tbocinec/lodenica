@@ -11,11 +11,10 @@ import type { Resource } from '@/api/types';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Spinner from '@/components/ui/Spinner.vue';
-import { qrDataUrl, resourceBookingUrl } from '@/utils/qr';
+import { qrWithCenterLabel, resourceBookingUrl } from '@/utils/qr';
 
 interface QrItem {
   identifier: string;
-  name: string;
   qr: string;
 }
 
@@ -32,8 +31,7 @@ async function load(): Promise<void> {
     items.value = await Promise.all(
       sorted.map(async (r: Resource) => ({
         identifier: r.identifier,
-        name: r.name,
-        qr: await qrDataUrl(resourceBookingUrl(r.id), 240),
+        qr: await qrWithCenterLabel(resourceBookingUrl(r.id), r.identifier, 240),
       })),
     );
   } catch (e) {
@@ -46,21 +44,17 @@ async function load(): Promise<void> {
 function printAll(): void {
   const win = window.open('', '_blank');
   if (!win) return;
+  // The identifier is rendered inside each QR, so the cells are QR-only.
   const cells = items.value
-    .map(
-      (i) =>
-        `<div class="cell"><img src="${i.qr}" alt=""/><div class="id">${i.identifier}</div><div class="nm">${i.name}</div></div>`,
-    )
+    .map((i) => `<div class="cell"><img src="${i.qr}" alt="QR ${i.identifier}"/></div>`)
     .join('');
   win.document.write(
     `<!DOCTYPE html><html lang="sk"><head><meta charset="utf-8"><title>QR kódy lodí</title>` +
       `<style>` +
-      `body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:12px;}` +
-      `.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}` +
-      `.cell{border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center;break-inside:avoid;}` +
+      `body{margin:0;padding:12px;}` +
+      `.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}` +
+      `.cell{border:1px solid #e2e8f0;border-radius:8px;padding:8px;text-align:center;break-inside:avoid;}` +
       `.cell img{width:150px;height:150px;}` +
-      `.id{font-weight:700;font-size:14px;margin-top:6px;}` +
-      `.nm{color:#475569;font-size:12px;}` +
       `@media print{.cell{border-color:#cbd5e1;}}` +
       `</style></head><body><div class="grid">${cells}</div>` +
       `<script>window.onload=function(){window.print();}<\/script>` +
@@ -90,16 +84,16 @@ onMounted(load);
   <div v-if="loading" class="flex justify-center py-12"><Spinner /></div>
 
   <template v-else>
-    <p class="mb-3 text-sm text-slate-500">{{ items.length }} lodí · každý QR otvára rezerváciu danej lode.</p>
+    <p class="mb-3 text-sm text-slate-500">
+      {{ items.length }} lodí · identifikátor je v strede QR · každý QR otvára rezerváciu danej lode.
+    </p>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       <div
         v-for="i in items"
         :key="i.identifier"
         class="rounded-xl bg-white p-3 text-center ring-1 ring-slate-200"
       >
-        <img :src="i.qr" :alt="`QR ${i.identifier}`" class="mx-auto h-32 w-32" />
-        <p class="mt-2 font-mono text-sm font-semibold text-slate-900">{{ i.identifier }}</p>
-        <p class="truncate text-xs text-slate-500">{{ i.name }}</p>
+        <img :src="i.qr" :alt="`QR ${i.identifier}`" class="mx-auto h-36 w-36" />
       </div>
     </div>
   </template>
