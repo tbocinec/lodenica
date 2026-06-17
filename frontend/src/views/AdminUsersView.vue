@@ -30,6 +30,29 @@ const newUser = reactive({
   role: 'MEMBER' as UserRole,
 });
 
+// Invite a single member (auto-confirmed, emailed a set-password link).
+const showInvite = ref(false);
+const inviteForm = reactive({ name: '', email: '' });
+const inviting = ref(false);
+const inviteSuccess = ref<string | null>(null);
+
+async function invite(): Promise<void> {
+  error.value = null;
+  inviteSuccess.value = null;
+  inviting.value = true;
+  try {
+    const u = await usersApi.invite(inviteForm.name.trim(), inviteForm.email.trim());
+    inviteSuccess.value = `Pozvánka odoslaná na ${u.email}.`;
+    inviteForm.name = '';
+    inviteForm.email = '';
+    await load();
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    inviting.value = false;
+  }
+}
+
 // Bulk CSV import.
 const showImport = ref(false);
 const csvText = ref('');
@@ -164,6 +187,9 @@ onMounted(load);
     subtitle="Manažment členov a administrátorov klubu."
   >
     <template #actions>
+      <button type="button" class="btn-secondary" @click="showInvite = !showInvite">
+        {{ showInvite ? 'Skryť pozvánku' : '✉ Pozvať člena' }}
+      </button>
       <button type="button" class="btn-secondary" @click="showImport = !showImport">
         {{ showImport ? 'Skryť import' : '⬆ Import CSV' }}
       </button>
@@ -172,6 +198,34 @@ onMounted(load);
       </button>
     </template>
   </PageHeader>
+
+  <!-- Invite a single member: name + email, no password. Auto-confirmed as
+       MEMBER and emailed a set-your-password link (valid 30 days). -->
+  <form
+    v-if="showInvite"
+    class="mb-6 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 sm:grid-cols-[1fr_1fr_auto]"
+    @submit.prevent="invite"
+  >
+    <div>
+      <label class="label" for="inv-name">Meno *</label>
+      <input id="inv-name" v-model="inviteForm.name" class="input mt-1" required maxlength="200" />
+    </div>
+    <div>
+      <label class="label" for="inv-email">Email *</label>
+      <input id="inv-email" v-model="inviteForm.email" type="email" class="input mt-1" required />
+    </div>
+    <div class="flex items-end">
+      <button type="submit" class="btn-primary" :disabled="inviting || !inviteForm.name.trim() || !inviteForm.email.trim()">
+        <Spinner v-if="inviting" class="mr-2" />
+        {{ inviting ? 'Pozývam…' : 'Pozvať' }}
+      </button>
+    </div>
+    <p class="sm:col-span-3 text-xs text-slate-500">
+      Člen dostane e-mail s odkazom na nastavenie hesla (platný 30 dní) a je
+      rovno potvrdený — nemusíte ho potvrdzovať zvlášť.
+    </p>
+    <p v-if="inviteSuccess" class="sm:col-span-3 text-sm text-emerald-700">{{ inviteSuccess }}</p>
+  </form>
 
   <!-- Bulk CSV import: name,email rows. Each new account is PENDING and is
        emailed a set-your-password invitation. -->
@@ -184,8 +238,8 @@ onMounted(load);
       <p class="mt-1 text-xs text-slate-500">
         Vlož CSV so stĺpcami <code>meno,email</code> (jeden na riadok), alebo
         nahraj súbor. Každý nový kontakt dostane e-mail s odkazom na
-        nastavenie hesla. Účty vzniknú ako „čaká na potvrdenie“. Duplicitné
-        e-maily sa preskočia.
+        nastavenie hesla (platný 30 dní) a je rovno potvrdený ako člen.
+        Duplicitné e-maily sa preskočia.
       </p>
     </div>
     <input type="file" accept=".csv,text/csv,text/plain" class="text-sm" @change="onCsvFile" />

@@ -92,7 +92,7 @@ onMounted(() => {
         </p>
         <p class="mt-2 text-xs text-amber-700">
           V prípade otázok napíš na
-          <a class="font-medium underline" href="mailto:t.bocinec@gmail.com">t.bocinec@gmail.com</a>.
+          <a class="font-medium underline" href="mailto:rezervacie@lodenicakvs.sk">rezervacie@lodenicakvs.sk</a>.
         </p>
       </div>
     </div>

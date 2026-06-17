@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BulkImportUsersRequest;
 use App\Http\Requests\CreateUserRequest;
+use App\Http\Requests\InviteUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserResource;
 use App\Http\Support\Paginated;
 use App\Models\User;
 use App\Services\BulkUserImportService;
+use App\Services\PasswordResetService;
 use App\Services\UsersService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class UsersController extends Controller
@@ -106,5 +110,28 @@ class UsersController extends Controller
             'skipped' => $summary['skipped'],
             'invalid' => $summary['invalid'],
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * POST /api/v1/users/invite — invite a single member by name + email.
+     * Same as a one-row CSV import: the account is created CONFIRMED
+     * (MEMBER) and emailed a set-your-password link. Admin-only.
+     */
+    public function invite(InviteUserRequest $request, PasswordResetService $passwordReset): JsonResponse
+    {
+        $data = $request->validated();
+        $user = $this->users->create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Str::random(40), // placeholder; set via invite link
+            'role' => UserRole::MEMBER,     // admin-invited → auto-confirmed
+            'isActive' => true,
+        ]);
+
+        $passwordReset->sendInvitation($user);
+
+        return (new UserResource($user))
+            ->response()
+            ->setStatusCode(Response::HTTP_CREATED);
     }
 }

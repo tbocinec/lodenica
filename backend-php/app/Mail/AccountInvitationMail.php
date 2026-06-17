@@ -14,7 +14,7 @@ class AccountInvitationMail extends Mailable
         public readonly string $email,
         public readonly ?string $name,
         public readonly string $setupUrl,
-        public readonly int $expiresHours,
+        public readonly int $expiresDays,
     ) {}
 
     public function build(): self
@@ -25,7 +25,7 @@ class AccountInvitationMail extends Mailable
                 'email' => $this->email,
                 'name' => $this->name,
                 'setupUrl' => $this->setupUrl,
-                'expiresHours' => $this->expiresHours,
+                'expiresDays' => $this->expiresDays,
             ]);
     }
 }

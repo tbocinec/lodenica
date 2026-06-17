@@ -136,6 +136,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::apiResource('users', UsersController::class)
         ->parameters(['users' => 'id']);
     Route::post('users/{id}/confirm', [UsersController::class, 'confirm']);
+    Route::post('users/invite', [UsersController::class, 'invite']);
     Route::post('users/import', [UsersController::class, 'import']);
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);

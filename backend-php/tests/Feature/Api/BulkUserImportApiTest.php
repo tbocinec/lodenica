@@ -26,8 +26,9 @@ class BulkUserImportApiTest extends TestCase
             ->assertJsonPath('skippedCount', 0)
             ->assertJsonPath('invalidCount', 0);
 
-        $this->assertDatabaseHas('users', ['email' => 'jan@example.test', 'role' => UserRole::PENDING->value]);
-        $this->assertDatabaseHas('users', ['email' => 'eva@example.test']);
+        // Admin-invited accounts are auto-confirmed (MEMBER), not PENDING.
+        $this->assertDatabaseHas('users', ['email' => 'jan@example.test', 'role' => UserRole::MEMBER->value]);
+        $this->assertDatabaseHas('users', ['email' => 'eva@example.test', 'role' => UserRole::MEMBER->value]);
 
         Mail::assertSent(AccountInvitationMail::class, 2);
     }
@@ -64,5 +65,47 @@ class BulkUserImportApiTest extends TestCase
     {
         $this->postJson('/api/v1/users/import', ['csv' => 'a@b.test'])
             ->assertStatus(401);
+    }
+
+    public function test_admin_can_invite_single_member_auto_confirmed(): void
+    {
+        Mail::fake();
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/v1/users/invite', [
+            'name' => 'Pozvaný Člen',
+            'email' => 'pozvany@example.test',
+        ])->assertCreated()
+            ->assertJsonPath('role', 'MEMBER')
+            ->assertJsonPath('email', 'pozvany@example.test');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'pozvany@example.test',
+            'role' => UserRole::MEMBER->value,
+        ]);
+        Mail::assertSent(AccountInvitationMail::class, fn ($m) => $m->hasTo('pozvany@example.test'));
+    }
+
+    public function test_invite_rejects_duplicate_email(): void
+    {
+        Mail::fake();
+        $this->actingAsAdmin();
+        User::create([
+            'name' => 'X', 'email' => 'dup2@example.test',
+            'password' => 'password123', 'role' => UserRole::MEMBER, 'isActive' => true,
+        ]);
+
+        $this->postJson('/api/v1/users/invite', [
+            'name' => 'Y', 'email' => 'dup2@example.test',
+        ])->assertStatus(400)->assertJsonPath('code', 'VALIDATION_ERROR');
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_invite_is_admin_only(): void
+    {
+        $this->actingAsMember();
+        $this->postJson('/api/v1/users/invite', ['name' => 'Z', 'email' => 'z@example.test'])
+            ->assertStatus(403);
     }
 }

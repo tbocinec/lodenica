@@ -14,14 +14,14 @@
     <div style="margin:0 0 20px;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
         <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#0f172a;">Čo systém umožňuje</p>
         <p style="margin:0;font-size:13px;line-height:1.6;color:#475569;">
-            Po prihlásení uvidíte obsadenosť lodí a priestorov, môžete si
-            vytvárať rezervácie a sledovať svoje rezervácie. Plný prístup
-            (mená a kontakty pri rezerváciách) získate po tom, ako vaše
-            členstvo potvrdí správca.
+            Máte plný prístup člena klubu — po nastavení hesla a prihlásení
+            uvidíte obsadenosť lodí a priestorov, mená a kontakty pri
+            rezerváciách, môžete si vytvárať a upravovať rezervácie a
+            sledovať svoje rezervácie.
         </p>
     </div>
     <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">
-        Odkaz na nastavenie hesla je platný {{ $expiresHours }} hodín.
+        Odkaz na nastavenie hesla je platný {{ $expiresDays }} dní.
     </p>
     <p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#94a3b8;word-break:break-all;">
         Ak tlačidlo nefunguje, skopírujte do prehliadača túto adresu:<br>

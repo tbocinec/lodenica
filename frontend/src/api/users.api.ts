@@ -45,11 +45,20 @@ export const usersApi = {
     return data;
   },
   /**
-   * Admin-only: bulk-create PENDING accounts from CSV text ("name,email"
-   * rows). Each new account is emailed a set-your-password invitation.
+   * Admin-only: bulk-create confirmed (MEMBER) accounts from CSV text
+   * ("name,email" rows). Each new account is emailed a set-your-password
+   * invitation. Admin-invited accounts are auto-confirmed.
    */
   async bulkImport(csv: string): Promise<BulkImportResult> {
     const { data } = await http.post<BulkImportResult>('/users/import', { csv });
+    return data;
+  },
+  /**
+   * Admin-only: invite a single member by name + email (no password — they
+   * set it via the emailed link). Auto-confirmed as MEMBER.
+   */
+  async invite(name: string, email: string): Promise<User> {
+    const { data } = await http.post<User>('/users/invite', { name, email });
     return data;
   },
 };

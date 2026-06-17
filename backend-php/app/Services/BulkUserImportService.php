@@ -9,8 +9,10 @@ use Illuminate\Support\Str;
 
 /**
  * Bulk-create accounts from a pasted/uploaded CSV of "name,email" rows.
- * Each new account is PENDING (awaits admin confirmation) and gets an
- * invitation email with a set-your-password link.
+ * The admin is doing the inviting, so each account is created already
+ * CONFIRMED (MEMBER) — no separate approval step — and gets an invitation
+ * email with a set-your-password link. (Self-registration + first OAuth
+ * login still land PENDING; those aren't admin-vetted.)
  *
  * Robust by design: duplicates are skipped (not errors), malformed rows
  * are reported, and an email send that fails for one row doesn't abort the
@@ -54,7 +56,7 @@ class BulkUserImportService
                 'name' => $name,
                 'email' => $email,
                 'password' => Str::random(40), // placeholder; set via invite link
-                'role' => UserRole::PENDING,
+                'role' => UserRole::MEMBER, // admin-invited → auto-confirmed
                 'isActive' => true,
             ]);
 

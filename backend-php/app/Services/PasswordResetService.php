@@ -24,7 +24,7 @@ use Illuminate\Support\Str;
 class PasswordResetService
 {
     public const RESET_TTL_MINUTES = 60;
-    public const INVITE_TTL_HOURS = 72;
+    public const INVITE_TTL_DAYS = 30;
 
     /**
      * Issue + email a reset link. No-op (silently) when the email is
@@ -52,11 +52,11 @@ class PasswordResetService
      */
     public function sendInvitation(User $user): void
     {
-        $plain = $this->issueToken($user->email, self::INVITE_TTL_HOURS * 3600);
+        $plain = $this->issueToken($user->email, self::INVITE_TTL_DAYS * 86400);
         $url = $this->buildUrl($user->email, $plain, invite: true);
 
         Mail::to($user->email)->send(
-            new AccountInvitationMail($user->email, $user->name, $url, self::INVITE_TTL_HOURS),
+            new AccountInvitationMail($user->email, $user->name, $url, self::INVITE_TTL_DAYS),
         );
     }
 

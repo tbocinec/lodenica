@@ -91,7 +91,7 @@ auth.isPending         // strict PENDING
 | Confirm a pending user → MEMBER (sends approval email) | ❌ | ❌ | ❌ | ✅ |
 | Edit user roles + active flag | ❌ | ❌ | ❌ | ✅ |
 | Reset ANY user's password (`PATCH /users/{id}`) | ❌ | ❌ | ❌ | ✅ |
-| Bulk-import users from CSV (`POST /users/import`) | ❌ | ❌ | ❌ | ✅ |
+| Invite a member — single (`POST /users/invite`) or bulk CSV (`POST /users/import`); both auto-confirm as MEMBER | ❌ | ❌ | ❌ | ✅ |
 | Export DB / CSV, purge reservations | ❌ | ❌ | ❌ | ✅ |
 
 ## Where the gating actually lives
@@ -188,9 +188,10 @@ be MEMBER/ADMIN directly):
    PENDING account (`OAuthService::resolveLogin`). If the provider email
    matches an existing account, the identity is linked to it instead.
 3. **Admin create** — `/admin/users` form, role chosen by the admin.
-4. **Bulk CSV import** — `POST /users/import` creates PENDING accounts and
-   emails each an invitation with a set-your-password link (the same
-   token mechanism as password reset, longer TTL).
+4. **Admin invite** — single (`POST /users/invite`, name + email) or bulk
+   CSV (`POST /users/import`). Admin-invited accounts are **auto-confirmed
+   as MEMBER** (the admin vetted them) and emailed a set-your-password
+   link (same token mechanism as reset, 30-day TTL). They are NOT PENDING.
 
 ## Password reset & invitations
 
