@@ -72,10 +72,6 @@ onMounted(() => {
 
   <LoadError :message="error" />
 
-  <!-- Paddling traffic light (orientation widget, top of the dashboard).
-       Self-hides if the upstream feed is unavailable. -->
-  <PaddlingTrafficLightWidget />
-
   <!-- PENDING accounts see a permanent banner explaining their state.
        Permissions are otherwise identical to anonymous (no names, no
        edits) — see docs/AUTH-AND-PERMISSIONS.md. -->
@@ -139,10 +135,13 @@ onMounted(() => {
     </ul>
   </section>
 
-  <Spinner v-if="loading && !snapshot" />
-
-  <template v-if="snapshot">
-    <section class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+  <!-- Top summary: paddling traffic light + key counts side by side on
+       desktop (xl), stacked on mobile/tablet (unchanged there). The light
+       self-hides if its upstream feed is down; the counts wait for the
+       dashboard snapshot. -->
+  <div class="mb-6 grid items-stretch gap-4 xl:grid-cols-2">
+    <PaddlingTrafficLightWidget />
+    <section v-if="snapshot" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <StatCard label="Dnes obsadené" :value="snapshot.occupiedToday.length" tone="amber" />
       <StatCard
         label="Nadchádzajúcich rezervácií"
@@ -150,8 +149,12 @@ onMounted(() => {
       />
       <StatCard label="Aktuálne poškodenia" :value="snapshot.totals.openDamages" tone="red" />
     </section>
+  </div>
 
-    <section class="mt-6 grid gap-6 lg:grid-cols-2">
+  <Spinner v-if="loading && !snapshot" />
+
+  <template v-if="snapshot">
+    <section class="grid gap-6 lg:grid-cols-2">
       <div class="card-padded">
         <h2 class="mb-3 text-lg font-semibold">Dnes obsadené</h2>
         <EmptyState

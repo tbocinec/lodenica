@@ -32,7 +32,7 @@ onMounted(load);
        down — it's a nice-to-have, never blocks the dashboard. -->
   <section
     v-if="d"
-    class="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border p-4"
+    class="flex h-full flex-wrap items-center gap-4 rounded-2xl border p-4"
     :class="accent"
   >
     <RouterLink to="/vodacky-semafor" class="shrink-0" title="Vodácky semafor — detail">
@@ -80,7 +80,7 @@ onMounted(load);
        call errored (not while still loading). -->
   <p
     v-else-if="error && !loading"
-    class="mb-6 text-xs text-slate-400"
+    class="text-xs text-slate-400"
   >
     Vodácky semafor je momentálne nedostupný.
   </p>
