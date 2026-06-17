@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 
 import { NAV_LABELS } from '@/i18n/labels';
@@ -20,13 +20,17 @@ interface NavItem {
   external?: boolean;
 }
 
+function visible(item: NavItem): boolean {
+  if (!item.requires) return true;
+  if (item.requires === 'member') return auth.isAuthenticated;
+  if (item.requires === 'admin') return auth.isAdmin;
+  return true;
+}
+
+// Operational entries — the everyday nav.
 const navItems = computed<NavItem[]>(() => {
   const items: NavItem[] = [
     { to: '/', label: NAV_LABELS.dashboard, icon: '📊' },
-    { to: '/vodacky-semafor', label: 'Vodácky semafor', icon: '🚦' },
-    // Pravidlá rezervácie hneď za Prehľadom — nový člen ich vidí ako
-    // prvú vec po úvodnom dashboarde.
-    { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
     // /timeline and /calendar still exist as routes; they're surfaced
     // from inside ReservationsView so members reach them when the
     // task fits ("I know the date but not which boat" → timeline,
@@ -43,26 +47,36 @@ const navItems = computed<NavItem[]>(() => {
     { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },
     { to: '/admin/usage', label: 'Štatistiky', icon: '📈', requires: 'admin' },
     { to: '/admin/data', label: 'Správa dát', icon: '💾', requires: 'admin' },
-    { to: '/ochrana-udajov', label: 'Ochrana údajov', icon: '🔒' },
-    {
-      to: 'https://www.lodenicakvs.sk/?page_id=4578',
-      label: 'Lodeničný poriadok',
-      icon: '📘',
-      external: true,
-    },
   ];
-  return items.filter((item) => {
-    if (!item.requires) return true;
-    if (item.requires === 'member') return auth.isAuthenticated;
-    if (item.requires === 'admin') return auth.isAdmin;
-    return true;
-  });
+  return items.filter(visible);
 });
+
+// Informational pages grouped under a collapsible "Informácie" subsection
+// so the main nav stays uncluttered.
+const infoItems: NavItem[] = [
+  { to: '/vodacky-semafor', label: 'Vodácky semafor', icon: '🚦' },
+  { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
+  { to: '/ochrana-udajov', label: 'Ochrana údajov', icon: '🔒' },
+  {
+    to: 'https://www.lodenicakvs.sk/?page_id=4578',
+    label: 'Lodeničný poriadok',
+    icon: '📘',
+    external: true,
+  },
+];
 
 function isActive(path: string): boolean {
   if (path === '/') return route.path === '/';
   return route.path.startsWith(path);
 }
+
+// Expand the "Informácie" group automatically when the user is on one of
+// its pages, otherwise keep it collapsed to reduce clutter.
+const infoActive = computed(() =>
+  infoItems.some((i) => !i.external && isActive(i.to)),
+);
+const infoOpen = ref(false);
+watch(infoActive, (active) => { if (active) infoOpen.value = true; }, { immediate: true });
 
 async function logout(): Promise<void> {
   await auth.logout();
@@ -158,6 +172,52 @@ async function logout(): Promise<void> {
               <span>{{ item.label }}</span>
             </RouterLink>
           </template>
+
+          <!-- Informational pages, tucked into a collapsible subsection so
+               the everyday nav stays short. Auto-expands on its pages. -->
+          <div class="pt-1">
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              :class="infoActive ? 'text-brand-800' : ''"
+              :aria-expanded="infoOpen"
+              @click="infoOpen = !infoOpen"
+            >
+              <span aria-hidden="true">ℹ️</span>
+              <span>Informácie</span>
+              <span
+                aria-hidden="true"
+                class="ml-auto text-xs text-slate-400 transition-transform"
+                :class="infoOpen ? 'rotate-90' : ''"
+              >▶</span>
+            </button>
+            <div v-show="infoOpen" class="mt-1 space-y-1 border-l border-slate-200 pl-3">
+              <template v-for="item in infoItems" :key="item.to">
+                <a
+                  v-if="item.external"
+                  :href="item.to"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+                  @click="navOpen = false"
+                >
+                  <span aria-hidden="true">{{ item.icon }}</span>
+                  <span>{{ item.label }}</span>
+                  <span aria-hidden="true" class="ml-auto text-xs text-slate-400">↗</span>
+                </a>
+                <RouterLink
+                  v-else
+                  :to="item.to"
+                  class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+                  :class="isActive(item.to) ? 'bg-brand-50 text-brand-800 ring-1 ring-brand-100' : ''"
+                  @click="navOpen = false"
+                >
+                  <span aria-hidden="true">{{ item.icon }}</span>
+                  <span>{{ item.label }}</span>
+                </RouterLink>
+              </template>
+            </div>
+          </div>
         </nav>
         <div class="mt-6 sm:hidden space-y-2">
           <RouterLink to="/reservations/new" class="btn-primary w-full">
