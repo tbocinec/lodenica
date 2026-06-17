@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\DamagesController;
 use App\Http\Controllers\Api\EventsController;
+use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\OAuthController;
 use App\Http\Controllers\Api\PaddlingTrafficLightController;
 use App\Http\Controllers\Api\PrivacyPolicyController;
@@ -46,6 +47,9 @@ Route::get('paddling-traffic-light', [PaddlingTrafficLightController::class, 'sh
 // Read-only resource browsing is public; writes are admin-only (see group below).
 Route::get('resources', [ResourcesController::class, 'index']);
 Route::get('resources/{id}', [ResourcesController::class, 'show']);
+// Resource photo — public read (shown in the boat detail); upload/remove
+// are admin-only (see admin group below).
+Route::get('resources/{id}/photo', [ResourcesController::class, 'showPhoto']);
 
 // Reservation reads + creation are public so anonymous visitors can
 // see the schedule and book; edits / cancels / deletes are gated to
@@ -79,6 +83,9 @@ Route::get('reservation-rules', [ReservationRulesController::class, 'show']);
 // Privacy policy — public read (also the URL Facebook Login requires);
 // PATCH is in the admin group below.
 Route::get('privacy-policy', [PrivacyPolicyController::class, 'show']);
+
+// Q&A / FAQ — public read; PATCH is in the admin group below.
+Route::get('faq', [FaqController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
@@ -141,6 +148,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('resources/{id}', [ResourcesController::class, 'destroy']);
     Route::patch('resources/{id}/deactivate', [ResourcesController::class, 'deactivate']);
     Route::patch('resources/{id}/activate', [ResourcesController::class, 'activate']);
+    Route::post('resources/{id}/photo', [ResourcesController::class, 'addPhoto']);
+    Route::delete('resources/{id}/photo', [ResourcesController::class, 'removePhoto']);
 
     Route::apiResource('users', UsersController::class)
         ->parameters(['users' => 'id']);
@@ -150,6 +159,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
     Route::patch('privacy-policy', [PrivacyPolicyController::class, 'update']);
+    Route::patch('faq', [FaqController::class, 'update']);
 
     Route::get('admin/usage-stats', [UsageStatsController::class, 'show']);
 

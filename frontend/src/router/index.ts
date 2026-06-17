@@ -189,6 +189,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Vodácky semafor' },
   },
   {
+    path: '/q-a',
+    name: 'faq',
+    component: () => import('@/views/FaqView.vue'),
+    meta: { title: 'Otázky a odpovede' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: () => import('@/views/NotFoundView.vue'),
     meta: { title: 'Stránka nenájdená' },

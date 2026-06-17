@@ -53,4 +53,17 @@ export const resourcesApi = {
   async remove(id: string): Promise<void> {
     await http.delete(`/resources/${id}`);
   },
+  /** Admin-only: upload/replace the resource photo (multipart). */
+  async uploadPhoto(id: string, file: File): Promise<Resource> {
+    const form = new FormData();
+    form.append('photo', file);
+    const { data } = await http.post<Resource>(`/resources/${id}/photo`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+  /** Admin-only: remove the uploaded resource photo. */
+  async removePhoto(id: string): Promise<void> {
+    await http.delete(`/resources/${id}/photo`);
+  },
 };

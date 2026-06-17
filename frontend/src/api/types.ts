@@ -57,6 +57,9 @@ export interface Resource {
   weightKg: number | null;
   note: string | null;
   imageUrl: string | null;
+  /** Backend-served URL of the uploaded photo, or null. Distinct from
+   *  imageUrl (a manually-entered external URL). */
+  photoUrl: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

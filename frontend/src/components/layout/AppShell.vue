@@ -56,6 +56,7 @@ const navItems = computed<NavItem[]>(() => {
 const infoItems: NavItem[] = [
   { to: '/vodacky-semafor', label: 'Vodácky semafor', icon: '🚦' },
   { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
+  { to: '/q-a', label: 'Otázky a odpovede', icon: '❓' },
   { to: '/ochrana-udajov', label: 'Ochrana údajov', icon: '🔒' },
   {
     to: 'https://www.lodenicakvs.sk/?page_id=4578',

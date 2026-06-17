@@ -23,9 +23,11 @@ import {
   DAMAGE_STATUS_LABEL,
   RESOURCE_TYPE_LABEL,
 } from '@/i18n/labels';
+import { useAuthStore } from '@/stores/auth.store';
 import { formatDateTime, formatReservationRange } from '@/utils/format';
 
 const route = useRoute();
+const auth = useAuthStore();
 const id = computed(() => route.params.id as string);
 
 const resource = ref<Resource | null>(null);
@@ -33,6 +35,39 @@ const reservations = ref<Reservation[]>([]);
 const damages = ref<Damage[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
+
+// Photo upload (admin only).
+const photoUploading = ref(false);
+const photoInput = ref<HTMLInputElement | null>(null);
+
+async function onPhotoSelected(event: Event): Promise<void> {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file || !resource.value) return;
+  photoUploading.value = true;
+  error.value = null;
+  try {
+    resource.value = await resourcesApi.uploadPhoto(resource.value.id, file);
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    photoUploading.value = false;
+    if (photoInput.value) photoInput.value.value = '';
+  }
+}
+
+async function removePhoto(): Promise<void> {
+  if (!resource.value || !window.confirm('Odstrániť fotku lode?')) return;
+  photoUploading.value = true;
+  error.value = null;
+  try {
+    await resourcesApi.removePhoto(resource.value.id);
+    resource.value = { ...resource.value, photoUrl: null };
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    photoUploading.value = false;
+  }
+}
 
 async function load() {
   loading.value = true;
@@ -172,12 +207,50 @@ onMounted(load);
           </template>
         </dl>
 
-        <img
-          v-if="resource.imageUrl"
-          :src="resource.imageUrl"
-          :alt="resource.name"
-          class="mt-4 max-h-60 w-full rounded-lg object-cover"
-        />
+        <!-- Photo: uploaded photo takes priority over the external imageUrl. -->
+        <div class="mt-4">
+          <img
+            v-if="resource.photoUrl || resource.imageUrl"
+            :src="resource.photoUrl ?? resource.imageUrl ?? ''"
+            :alt="resource.name"
+            class="max-h-60 w-full rounded-lg object-cover"
+          />
+          <div
+            v-else-if="auth.isAdmin"
+            class="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-slate-200 text-sm text-slate-400"
+          >
+            Zatiaľ bez fotky
+          </div>
+
+          <!-- Admin photo controls -->
+          <div v-if="auth.isAdmin" class="mt-2 flex flex-wrap items-center gap-2">
+            <input
+              ref="photoInput"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              class="hidden"
+              @change="onPhotoSelected"
+            />
+            <button
+              type="button"
+              class="btn-secondary text-xs"
+              :disabled="photoUploading"
+              @click="photoInput?.click()"
+            >
+              {{ photoUploading ? 'Nahrávam…' : (resource.photoUrl ? '📷 Zmeniť fotku' : '📷 Pridať fotku') }}
+            </button>
+            <button
+              v-if="resource.photoUrl"
+              type="button"
+              class="text-xs text-rose-600 hover:underline disabled:text-slate-300"
+              :disabled="photoUploading"
+              @click="removePhoto"
+            >
+              Odstrániť fotku
+            </button>
+            <span class="text-xs text-slate-400">JPG/PNG/WEBP, max 5 MB.</span>
+          </div>
+        </div>
       </section>
 
       <!-- Upcoming reservations -->
