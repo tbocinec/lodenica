@@ -6,16 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Users table for Lodenica. UUID primary key (consistent with the rest of
- * the schema), email login, hashed password, and a coarse 2-value role:
+ * the schema), email login, hashed password, and a role column. Originally
+ * a 2-value ENUM (ADMIN, MEMBER); PENDING was added later by the followup
+ * migration 2026_06_17_000000_add_pending_to_userrole_enum.php — see
+ * docs/AUTH-AND-PERMISSIONS.md for the full role matrix.
  *
- *   ADMIN  — full control: can manage other users + the resource inventory
- *   MEMBER — logged-in club member; can view the audit log
- *
- * Authorization layers above the role:
- *   - anonymous users can read & write most things (reservations, events,
- *     damages) — that decision lives in routes/api.php, not here
- *   - the audit log requires MEMBER or ADMIN
- *   - resource & user management requires ADMIN
+ * Authorization layers above the role live in routes/api.php +
+ * EnsureMember middleware; they're separate from the schema.
  *
  * Portable across Postgres and SQLite for tests.
  */
