@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\DamagesController;
 use App\Http\Controllers\Api\EventsController;
 use App\Http\Controllers\Api\OAuthController;
+use App\Http\Controllers\Api\PaddlingTrafficLightController;
 use App\Http\Controllers\Api\PrivacyPolicyController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReservationRulesController;
@@ -38,6 +39,9 @@ Route::get('auth/oauth/{provider}/redirect', [OAuthController::class, 'redirect'
 Route::get('auth/oauth/{provider}/callback', [OAuthController::class, 'callback']);
 
 Route::get('availability/dashboard', [AvailabilityController::class, 'dashboard']);
+
+// Paddling traffic light (proxied + cached from dunajcik.sk). Public.
+Route::get('paddling-traffic-light', [PaddlingTrafficLightController::class, 'show']);
 
 // Read-only resource browsing is public; writes are admin-only (see group below).
 Route::get('resources', [ResourcesController::class, 'index']);

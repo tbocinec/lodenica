@@ -183,6 +183,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Ochrana osobných údajov' },
   },
   {
+    path: '/vodacky-semafor',
+    name: 'paddling-traffic-light',
+    component: () => import('@/views/PaddlingTrafficLightView.vue'),
+    meta: { title: 'Vodácky semafor' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: () => import('@/views/NotFoundView.vue'),
     meta: { title: 'Stránka nenájdená' },

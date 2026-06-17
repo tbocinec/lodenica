@@ -23,6 +23,7 @@ interface NavItem {
 const navItems = computed<NavItem[]>(() => {
   const items: NavItem[] = [
     { to: '/', label: NAV_LABELS.dashboard, icon: '📊' },
+    { to: '/vodacky-semafor', label: 'Vodácky semafor', icon: '🚦' },
     // Pravidlá rezervácie hneď za Prehľadom — nový člen ich vidí ako
     // prvú vec po úvodnom dashboarde.
     { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },

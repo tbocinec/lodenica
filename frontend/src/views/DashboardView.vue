@@ -7,6 +7,7 @@ import { reservationsApi } from '@/api/reservations.api';
 import type { DashboardSnapshot, Reservation } from '@/api/types';
 import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
+import PaddlingTrafficLightWidget from '@/components/PaddlingTrafficLightWidget.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -70,6 +71,10 @@ onMounted(() => {
   </PageHeader>
 
   <LoadError :message="error" />
+
+  <!-- Paddling traffic light (orientation widget, top of the dashboard).
+       Self-hides if the upstream feed is unavailable. -->
+  <PaddlingTrafficLightWidget />
 
   <!-- PENDING accounts see a permanent banner explaining their state.
        Permissions are otherwise identical to anonymous (no names, no
