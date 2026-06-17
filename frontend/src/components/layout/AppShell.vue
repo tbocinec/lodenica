@@ -104,7 +104,7 @@ async function logout(): Promise<void> {
             Vytvoriť rezerváciu
           </RouterLink>
           <template v-if="auth.isAuthenticated">
-            <span class="text-sm text-slate-600">
+            <RouterLink to="/profil" class="text-sm text-slate-600 hover:text-slate-900 hover:underline">
               {{ auth.user?.email }}
               <span
                 v-if="auth.isAdmin"
@@ -112,7 +112,7 @@ async function logout(): Promise<void> {
               >
                 admin
               </span>
-            </span>
+            </RouterLink>
             <button type="button" class="btn-secondary" @click="logout">Odhlásiť</button>
           </template>
           <template v-else>
@@ -162,10 +162,15 @@ async function logout(): Promise<void> {
             ＋ Vytvoriť rezerváciu
           </RouterLink>
           <template v-if="auth.isAuthenticated">
-            <div class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200">
+            <RouterLink
+              to="/profil"
+              class="block rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
+              @click="navOpen = false"
+            >
               {{ auth.user?.email }}
               <span v-if="auth.isAdmin" class="ml-1 font-semibold text-amber-700">(admin)</span>
-            </div>
+              <span class="ml-1 text-slate-400">· môj profil</span>
+            </RouterLink>
             <button type="button" class="btn-secondary w-full" @click="logout">Odhlásiť</button>
           </template>
           <RouterLink v-else to="/login" class="btn-secondary w-full">Prihlásiť sa</RouterLink>

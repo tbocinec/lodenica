@@ -253,6 +253,26 @@ if (( DO_BUILD )); then
         printf 'CACHE_STORE=file\n'
         printf 'BROADCAST_CONNECTION=log\n'
         printf 'FILESYSTEM_DISK=local\n'
+        printf '\n'
+        # Transactional email (Websupport SMTP). Password comes from
+        # .deploy-secrets (MAIL_PASSWORD); host/port/from are fixed here.
+        printf 'MAIL_MAILER=%s\n' "${MAIL_PASSWORD:+smtp}"
+        printf 'MAIL_SCHEME=smtps\n'
+        printf 'MAIL_HOST=%s\n' "${MAIL_HOST:-smtp.m1.websupport.sk}"
+        printf 'MAIL_PORT=%s\n' "${MAIL_PORT:-465}"
+        printf 'MAIL_USERNAME=%s\n' "${MAIL_USERNAME:-potvrdenie.rezervacie@lodenicakvs.sk}"
+        printf 'MAIL_PASSWORD=%s\n' "${MAIL_PASSWORD:-}"
+        printf 'MAIL_FROM_ADDRESS=%s\n' "${MAIL_FROM_ADDRESS:-potvrdenie.rezervacie@lodenicakvs.sk}"
+        printf 'MAIL_FROM_NAME=%s\n' "${MAIL_FROM_NAME:-Lodenica KVŠ}"
+        printf '\n'
+        # OAuth (Socialite). Empty values keep the providers dormant; the
+        # SPA hides the buttons and the callback routes stay inert.
+        printf 'GOOGLE_CLIENT_ID=%s\n' "${GOOGLE_CLIENT_ID:-}"
+        printf 'GOOGLE_CLIENT_SECRET=%s\n' "${GOOGLE_CLIENT_SECRET:-}"
+        printf 'GOOGLE_REDIRECT_URI=https://%s/api/v1/auth/oauth/google/callback\n' "$PROD_DOMAIN"
+        printf 'FACEBOOK_CLIENT_ID=%s\n' "${FACEBOOK_CLIENT_ID:-}"
+        printf 'FACEBOOK_CLIENT_SECRET=%s\n' "${FACEBOOK_CLIENT_SECRET:-}"
+        printf 'FACEBOOK_REDIRECT_URI=https://%s/api/v1/auth/oauth/facebook/callback\n' "$PROD_DOMAIN"
     } > "$LARAVEL_STAGE/.env"
     chmod 600 "$LARAVEL_STAGE/.env"
 

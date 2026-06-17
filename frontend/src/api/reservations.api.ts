@@ -101,6 +101,11 @@ export const reservationsApi = {
     const { data } = await http.get<Paginated<Reservation>>('/reservations', { params });
     return data;
   },
+  /** The logged-in user's own bookings, newest first. */
+  async mine(params: { page?: number; pageSize?: number } = {}): Promise<Paginated<Reservation>> {
+    const { data } = await http.get<Paginated<Reservation>>('/reservations/mine', { params });
+    return data;
+  },
   async get(id: string): Promise<Reservation> {
     const { data } = await http.get<Reservation>(`/reservations/${id}`);
     return data;

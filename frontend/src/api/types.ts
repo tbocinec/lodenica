@@ -70,6 +70,9 @@ export interface Reservation {
    *  the value at the API boundary; see docs/AUTH-AND-PERMISSIONS.md. */
   customerName: string | null;
   customerContact: string | null;
+  /** Id of the logged-in user who created the booking, or null for
+   *  anonymous bookings. Lets the SPA flag "my reservations". */
+  createdById: string | null;
   /** ISO datetime, inclusive lower bound. */
   startsAt: string;
   /** ISO datetime, exclusive upper bound. */
@@ -167,6 +170,38 @@ export interface User {
 export interface LoginResponse {
   token: string;
   user: User;
+}
+
+/** A social login linked to the current account (profile screen). */
+export interface UserIdentity {
+  provider: string;
+  providerLabel: string;
+  email: string | null;
+  createdAt: string;
+}
+
+/** A live OAuth provider, as advertised by GET /auth/providers. Empty list
+ *  while OAuth is dormant (no keys configured). */
+export interface OAuthProviderInfo {
+  provider: string;
+  label: string;
+  url: string;
+}
+
+/** A captcha challenge issued for the forgot-password form. */
+export interface CaptchaChallenge {
+  token: string;
+  /** Inline SVG markup to render the puzzle. */
+  svg: string;
+}
+
+export interface BulkImportResult {
+  createdCount: number;
+  skippedCount: number;
+  invalidCount: number;
+  created: Array<{ name: string; email: string }>;
+  skipped: string[];
+  invalid: string[];
 }
 
 export type AuditEntityType =

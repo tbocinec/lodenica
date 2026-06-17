@@ -53,13 +53,42 @@ export const useAuthStore = defineStore('auth', () => {
     lastError.value = null;
     try {
       const res = await authApi.login(email, password);
-      token.value = res.token;
-      writeStoredToken(res.token);
-      user.value = res.user;
+      setSession(res.token, res.user);
     } catch (e) {
       lastError.value = (e as Error).message;
       throw e;
     }
+  }
+
+  /** Public self-registration. The new account lands as PENDING. */
+  async function register(name: string, email: string, password: string): Promise<void> {
+    lastError.value = null;
+    try {
+      const res = await authApi.register(name, email, password);
+      setSession(res.token, res.user);
+    } catch (e) {
+      lastError.value = (e as Error).message;
+      throw e;
+    }
+  }
+
+  /** Consume a reset/invitation token + log in with the new password. */
+  async function resetPassword(email: string, resetToken: string, password: string): Promise<void> {
+    const res = await authApi.resetPassword(email, resetToken, password);
+    setSession(res.token, res.user);
+  }
+
+  /** Adopt a token minted server-side (OAuth callback) and load the user. */
+  async function applyToken(newToken: string): Promise<void> {
+    token.value = newToken;
+    writeStoredToken(newToken);
+    user.value = await authApi.me();
+  }
+
+  function setSession(newToken: string, newUser: User): void {
+    token.value = newToken;
+    writeStoredToken(newToken);
+    user.value = newUser;
   }
 
   async function logout(): Promise<void> {
@@ -95,6 +124,10 @@ export const useAuthStore = defineStore('auth', () => {
     isPending,
     bootstrap,
     login,
+    register,
+    resetPassword,
+    applyToken,
+    setSession,
     logout,
     clearAuth,
   };

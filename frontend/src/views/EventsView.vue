@@ -8,8 +8,10 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Spinner from '@/components/ui/Spinner.vue';
+import { useAuthStore } from '@/stores/auth.store';
 import { formatReservationRange } from '@/utils/format';
 
+const auth = useAuthStore();
 const events = ref<Event[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -36,7 +38,7 @@ onMounted(load);
     subtitle="Plánované akcie — splavy, tréningy, brigády. Na udalosť sa dajú zarezervovať lode a prihlásiť účastníci."
   >
     <template #actions>
-      <RouterLink to="/events/new" class="btn-primary">＋ Nová udalosť</RouterLink>
+      <RouterLink v-if="auth.isMember" to="/events/new" class="btn-primary">＋ Nová udalosť</RouterLink>
     </template>
   </PageHeader>
 
@@ -48,7 +50,7 @@ onMounted(load);
     title="Žiadne udalosti"
     description="Vytvor prvú udalosť — pridáš k nej lode a účastníkov."
   >
-    <RouterLink to="/events/new" class="btn-primary">＋ Nová udalosť</RouterLink>
+    <RouterLink v-if="auth.isMember" to="/events/new" class="btn-primary">＋ Nová udalosť</RouterLink>
   </EmptyState>
 
   <div v-else class="grid gap-3">

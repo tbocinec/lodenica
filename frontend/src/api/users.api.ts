@@ -1,5 +1,5 @@
 import { http } from './http';
-import type { Paginated, User, UserRole } from './types';
+import type { BulkImportResult, Paginated, User, UserRole } from './types';
 
 export interface ListUsersParams {
   role?: UserRole;
@@ -42,6 +42,14 @@ export const usersApi = {
    */
   async confirm(id: string): Promise<User> {
     const { data } = await http.post<User>(`/users/${id}/confirm`);
+    return data;
+  },
+  /**
+   * Admin-only: bulk-create PENDING accounts from CSV text ("name,email"
+   * rows). Each new account is emailed a set-your-password invitation.
+   */
+  async bulkImport(csv: string): Promise<BulkImportResult> {
+    const { data } = await http.post<BulkImportResult>('/users/import', { csv });
     return data;
   },
 };

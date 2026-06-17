@@ -9,7 +9,7 @@
 import { onMounted, reactive, ref } from 'vue';
 
 import { usersApi } from '@/api/users.api';
-import type { User, UserRole } from '@/api/types';
+import type { BulkImportResult, User, UserRole } from '@/api/types';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -29,6 +29,37 @@ const newUser = reactive({
   password: '',
   role: 'MEMBER' as UserRole,
 });
+
+// Bulk CSV import.
+const showImport = ref(false);
+const csvText = ref('');
+const importing = ref(false);
+const importResult = ref<BulkImportResult | null>(null);
+
+function onCsvFile(event: Event): void {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    csvText.value = String(reader.result ?? '');
+  };
+  reader.readAsText(file);
+}
+
+async function runImport(): Promise<void> {
+  if (!csvText.value.trim()) return;
+  importing.value = true;
+  error.value = null;
+  importResult.value = null;
+  try {
+    importResult.value = await usersApi.bulkImport(csvText.value);
+    await load();
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    importing.value = false;
+  }
+}
 
 const ROLE_LABEL: Record<UserRole, string> = {
   ADMIN: 'Administrátor',
@@ -133,11 +164,61 @@ onMounted(load);
     subtitle="Manažment členov a administrátorov klubu."
   >
     <template #actions>
+      <button type="button" class="btn-secondary" @click="showImport = !showImport">
+        {{ showImport ? 'Skryť import' : '⬆ Import CSV' }}
+      </button>
       <button type="button" class="btn-primary" @click="showCreate = !showCreate">
         {{ showCreate ? 'Skryť formulár' : '+ Pridať používateľa' }}
       </button>
     </template>
   </PageHeader>
+
+  <!-- Bulk CSV import: name,email rows. Each new account is PENDING and is
+       emailed a set-your-password invitation. -->
+  <section
+    v-if="showImport"
+    class="mb-6 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200"
+  >
+    <div>
+      <h2 class="text-sm font-semibold text-slate-800">Hromadný import používateľov</h2>
+      <p class="mt-1 text-xs text-slate-500">
+        Vlož CSV so stĺpcami <code>meno,email</code> (jeden na riadok), alebo
+        nahraj súbor. Každý nový kontakt dostane e-mail s odkazom na
+        nastavenie hesla. Účty vzniknú ako „čaká na potvrdenie“. Duplicitné
+        e-maily sa preskočia.
+      </p>
+    </div>
+    <input type="file" accept=".csv,text/csv,text/plain" class="text-sm" @change="onCsvFile" />
+    <textarea
+      v-model="csvText"
+      class="input font-mono text-xs"
+      rows="6"
+      placeholder="Ján Novák,jan@example.com&#10;Eva Malá,eva@example.com"
+    ></textarea>
+    <div class="flex items-center justify-end gap-2">
+      <button type="button" class="btn-secondary" @click="showImport = false">Zavrieť</button>
+      <button type="button" class="btn-primary" :disabled="importing || !csvText.trim()" @click="runImport">
+        <Spinner v-if="importing" class="mr-2" />
+        {{ importing ? 'Importujem…' : 'Importovať' }}
+      </button>
+    </div>
+    <div
+      v-if="importResult"
+      class="rounded-lg bg-slate-50 px-3 py-3 text-sm ring-1 ring-slate-200"
+    >
+      <p class="font-medium text-slate-800">
+        Pridaných {{ importResult.createdCount }} ·
+        preskočených {{ importResult.skippedCount }} ·
+        chybných {{ importResult.invalidCount }}
+      </p>
+      <p v-if="importResult.skipped.length" class="mt-1 text-xs text-slate-500">
+        Preskočené (už existujú): {{ importResult.skipped.join(', ') }}
+      </p>
+      <p v-if="importResult.invalid.length" class="mt-1 text-xs text-rose-600">
+        Chybné riadky: {{ importResult.invalid.join(', ') }}
+      </p>
+    </div>
+  </section>
 
   <form
     v-if="showCreate"

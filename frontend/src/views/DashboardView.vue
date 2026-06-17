@@ -3,8 +3,10 @@ import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { availabilityApi } from '@/api/availability.api';
-import type { DashboardSnapshot } from '@/api/types';
+import { reservationsApi } from '@/api/reservations.api';
+import type { DashboardSnapshot, Reservation } from '@/api/types';
 import { useAuthStore } from '@/stores/auth.store';
+import { useResourcesStore } from '@/stores/resources.store';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -18,6 +20,28 @@ const snapshot = ref<DashboardSnapshot | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const auth = useAuthStore();
+const resources = useResourcesStore();
+
+// My reservations (logged-in users only).
+const myReservations = ref<Reservation[]>([]);
+
+function resourceLabel(resourceId: string): string {
+  const r = resources.items.find((x) => x.id === resourceId);
+  return r ? `${r.identifier} · ${r.name}` : 'Zdroj';
+}
+
+async function loadMine() {
+  if (!auth.isAuthenticated) return;
+  try {
+    const [mine] = await Promise.all([
+      reservationsApi.mine({ pageSize: 50 }),
+      resources.items.length ? Promise.resolve() : resources.fetch(),
+    ]);
+    myReservations.value = mine.items;
+  } catch {
+    // Non-fatal for the dashboard — leave the section empty.
+  }
+}
 
 async function load() {
   loading.value = true;
@@ -31,7 +55,10 @@ async function load() {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  load();
+  loadMine();
+});
 </script>
 
 <template>
@@ -70,6 +97,42 @@ onMounted(load);
       </div>
     </div>
   </div>
+
+  <!-- My reservations — logged-in users see their own bookings up top. -->
+  <section
+    v-if="auth.isAuthenticated"
+    class="mb-6 card-padded"
+  >
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-lg font-semibold">Moje rezervácie</h2>
+      <RouterLink to="/reservations/new" class="btn-secondary text-xs">＋ Nová</RouterLink>
+    </div>
+    <EmptyState
+      v-if="myReservations.length === 0"
+      title="Zatiaľ nemáš žiadne rezervácie"
+      description="Vytvor si rezerváciu a objaví sa tu."
+    />
+    <ul v-else class="divide-y divide-slate-100">
+      <li
+        v-for="r in myReservations"
+        :key="r.id"
+        class="flex items-center justify-between gap-3 py-3"
+      >
+        <div class="min-w-0">
+          <p class="truncate text-sm font-medium text-slate-900">{{ resourceLabel(r.resourceId) }}</p>
+          <p class="text-sm text-slate-500">{{ formatReservationRange(r.startsAt, r.endsAt) }}</p>
+        </div>
+        <span
+          class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1"
+          :class="r.status === 'CANCELLED'
+            ? 'bg-slate-100 text-slate-500 ring-slate-200'
+            : 'bg-emerald-50 text-emerald-700 ring-emerald-200'"
+        >
+          {{ r.status === 'CANCELLED' ? 'Zrušená' : 'Potvrdená' }}
+        </span>
+      </li>
+    </ul>
+  </section>
 
   <Spinner v-if="loading && !snapshot" />
 

@@ -17,6 +17,7 @@ import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
+import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
 import { formatReservationRange } from '@/utils/format';
 
@@ -24,6 +25,7 @@ const route = useRoute();
 const router = useRouter();
 const id = computed(() => route.params.id as string);
 
+const auth = useAuthStore();
 const resources = useResourcesStore();
 
 const event = ref<Event | null>(null);
@@ -62,6 +64,12 @@ async function load() {
   try {
     const ev = await eventsApi.get(id.value);
     event.value = ev;
+    // Boats + participants are confirmed-member only (the participants
+    // endpoint 401s for non-members). Anonymous / PENDING visitors see
+    // just the event metadata above. See docs/AUTH-AND-PERMISSIONS.md.
+    if (!auth.isMember) {
+      return;
+    }
     const [rsv, parts, overlap] = await Promise.all([
       reservationsApi.list({ eventId: id.value, pageSize: 200 }),
       eventsApi.listParticipants(id.value),
@@ -221,8 +229,11 @@ onMounted(load);
   <template v-if="event">
     <PageHeader :title="event.title" :subtitle="formatReservationRange(event.startsAt, event.endsAt)">
       <template #actions>
-        <RouterLink :to="`/events/${event.id}/edit`" class="btn-secondary">Upraviť</RouterLink>
-        <button class="btn-secondary text-red-700" type="button" @click="removeEvent">Zmazať</button>
+        <!-- Editing is confirmed-member only. -->
+        <template v-if="auth.isMember">
+          <RouterLink :to="`/events/${event.id}/edit`" class="btn-secondary">Upraviť</RouterLink>
+          <button class="btn-secondary text-red-700" type="button" @click="removeEvent">Zmazať</button>
+        </template>
       </template>
     </PageHeader>
 
@@ -237,7 +248,18 @@ onMounted(load);
       </div>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-2">
+    <!-- Non-members see metadata only: who's going + which boats are
+         confirmed-member information. See docs/AUTH-AND-PERMISSIONS.md. -->
+    <div
+      v-if="!auth.isMember"
+      class="card-padded text-sm text-slate-600"
+    >
+      Zoznam lodí a prihlásených účastníkov je viditeľný len pre
+      prihlásených členov klubu.
+      <RouterLink to="/login" class="font-medium text-brand-700 hover:underline">Prihlásiť sa</RouterLink>
+    </div>
+
+    <div v-else class="grid gap-6 lg:grid-cols-2">
       <!-- Reservations linked to this event -->
       <section class="card-padded">
         <header class="mb-3 flex items-center justify-between gap-3">

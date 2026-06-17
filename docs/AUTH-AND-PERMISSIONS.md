@@ -61,6 +61,10 @@ auth.isPending         // strict PENDING
 | `customerContact` on reservations | ❌ (null) | ❌ (null) | ✅ | ✅ |
 | Damage reports + photos | ✅ | ✅ | ✅ | ✅ |
 | Reservation rules page | ✅ | ✅ | ✅ | ✅ |
+| Event list + single-event metadata (title, description, date, location) | ✅ | ✅ | ✅ | ✅ |
+| Event participants (`GET /events/{id}/participants`) | ❌ (401) | ❌ (403) | ✅ | ✅ |
+| Boats attached to an event (shown in SPA event detail) | ❌ | ❌ | ✅ | ✅ |
+| My own reservations (`GET /reservations/mine`) | ❌ (401) | ✅ (own) | ✅ (own) | ✅ (own) |
 | Audit log | ❌ (401) | ✅ | ✅ | ✅ |
 | Admin pages (users, usage, data, settings edit) | ❌ | ❌ | ❌ | ✅ |
 
@@ -68,16 +72,26 @@ auth.isPending         // strict PENDING
 
 | Action | Anonymous | PENDING | MEMBER | ADMIN |
 | --- | --- | --- | --- | --- |
-| Create a reservation (`POST /reservations`) | ✅ | ✅ | ✅ | ✅ |
+| Register an account (`POST /auth/register`) → always PENDING | ✅ | — | — | — |
+| Request password reset (`POST /auth/forgot-password`, captcha-gated) | ✅ | ✅ | ✅ | ✅ |
+| Reset password with token (`POST /auth/reset-password`) | ✅ | ✅ | ✅ | ✅ |
+| Change OWN password (`POST /profile/change-password`) | ❌ (401) | ✅ | ✅ | ✅ |
+| Link / unlink own social login (`/profile/identities`, `/profile/oauth/*`) | ❌ (401) | ✅ | ✅ | ✅ |
+| Create a reservation (`POST /reservations`) — stamps `createdById` when logged in | ✅ | ✅ | ✅ | ✅ |
 | Update a reservation (`PATCH /reservations/{id}`) | ❌ (401) | ❌ (403) | ✅ | ✅ |
 | Cancel a reservation (`PATCH /reservations/{id}/cancel`) | ❌ | ❌ | ✅ | ✅ |
 | Delete a reservation (`DELETE /reservations/{id}`) | ❌ | ❌ | ✅ | ✅ |
 | Report a damage | ✅ | ✅ | ✅ | ✅ |
 | Edit / delete damage report | ✅ | ✅ | ✅ | ✅ |
+| Create / update / delete an event | ❌ (401) | ❌ (403) | ✅ | ✅ |
+| Add / remove event participants | ❌ | ❌ | ✅ | ✅ |
+| Attach boats to an event (`POST /events/{id}/reservations`) | ❌ | ❌ | ✅ | ✅ |
 | Create / update inventory (resources) | ❌ | ❌ | ❌ | ✅ |
 | Edit reservation rules HTML | ❌ | ❌ | ❌ | ✅ |
-| Confirm a pending user → MEMBER | ❌ | ❌ | ❌ | ✅ |
+| Confirm a pending user → MEMBER (sends approval email) | ❌ | ❌ | ❌ | ✅ |
 | Edit user roles + active flag | ❌ | ❌ | ❌ | ✅ |
+| Reset ANY user's password (`PATCH /users/{id}`) | ❌ | ❌ | ❌ | ✅ |
+| Bulk-import users from CSV (`POST /users/import`) | ❌ | ❌ | ❌ | ✅ |
 | Export DB / CSV, purge reservations | ❌ | ❌ | ❌ | ✅ |
 
 ## Where the gating actually lives
@@ -91,10 +105,17 @@ sync. When you add a new permission-sensitive feature, touch all three.
 
 | Middleware stack | Who passes | Use for |
 | --- | --- | --- |
-| (none) | anonymous + all roles | Public reads + low-friction writes (create reservation, report damage) |
-| `auth:sanctum` | any logged-in role (incl. PENDING) | Reading audit log, `/auth/me`, `/auth/logout` |
-| `auth:sanctum`, `member` | MEMBER + ADMIN | Edits/cancels/deletes on existing reservations |
-| `auth:sanctum`, `admin` | ADMIN only | Resource edits, user management, settings, exports |
+| (none) | anonymous + all roles | Public reads + low-friction writes (create reservation, report damage); auth entry points (`login`, `register`, `captcha`, `forgot-password`, `reset-password`, `providers`, `oauth/*`); event list + single-event reads |
+| `auth:sanctum` | any logged-in role (incl. PENDING) | `/auth/me`, `/auth/logout`, audit log, **own** profile (change password, link/unlink identity), **own** reservations (`/reservations/mine`) |
+| `auth:sanctum`, `member` | MEMBER + ADMIN | Edits/cancels/deletes on reservations; event create/update/delete + participants + attach-boats |
+| `auth:sanctum`, `admin` | ADMIN only | Resource edits, user management, bulk import, settings, exports |
+
+> **Public-route guard gotcha.** On a route with no `auth:sanctum`
+> middleware the default guard never runs, so `$request->user()` is null
+> even when a valid Bearer token is present. Code that needs the user on a
+> public route (e.g. `ReservationResource`, `CreateReservationRequest`'s
+> default-to-self, stamping `createdById` in `ReservationsController::store`)
+> must ask the sanctum guard explicitly: `$request->user('sanctum')`.
 
 Aliases in `bootstrap/app.php`:
 
@@ -122,13 +143,11 @@ Two places to update if you add a new private field:
   rule, applied to the dashboard payload (separate code path because
   it's not a JsonResource).
 
-Pattern:
+Pattern (note the explicit `sanctum` guard — these run on public routes):
 
 ```php
-$user = $request->user();
-$isMember = $user !== null
-    && method_exists($user, 'isMember')
-    && $user->isMember();
+$user = $request->user('sanctum') ?? $request->user();
+$isMember = $user instanceof \App\Models\User && $user->isMember();
 
 return [
     // …
@@ -157,10 +176,47 @@ which forms are interactive, and where buttons appear. Patterns:
   on each `NavItem` (see `components/layout/AppShell.vue`); filtering
   is computed live.
 
-## How a new account flows through the system
+## How an account is created (four ways)
 
-1. Admin creates a user with role `PENDING` via `/admin/users` (or
-   future self-registration writes the row directly).
+All four paths land the account as **PENDING** (admin-created accounts can
+be MEMBER/ADMIN directly):
+
+1. **Self-registration** — `POST /auth/register` (email + password). Role
+   is forced to PENDING server-side; the client cannot pick it. Auto-logs
+   in so the user immediately sees the "waiting" dashboard.
+2. **Social login** — first OAuth login with an unknown identity creates a
+   PENDING account (`OAuthService::resolveLogin`). If the provider email
+   matches an existing account, the identity is linked to it instead.
+3. **Admin create** — `/admin/users` form, role chosen by the admin.
+4. **Bulk CSV import** — `POST /users/import` creates PENDING accounts and
+   emails each an invitation with a set-your-password link (the same
+   token mechanism as password reset, longer TTL).
+
+## Password reset & invitations
+
+- `POST /auth/forgot-password` is **captcha-gated** (stateless HMAC-signed
+  SVG captcha — `CaptchaService`, no GD/session needed) and always returns
+  a generic 200, even for unknown emails, to prevent account enumeration.
+- Tokens live in `password_reset_tokens` (sha256-hashed, per-row
+  `expires_at`). `PasswordResetService` handles both reset (60 min) and
+  invitation (72 h) flows; both land on the SPA `/reset-password` screen.
+- Reset/invite consumption revokes the user's existing API tokens.
+
+## OAuth (Google / Facebook) — dormant by default
+
+- `laravel/socialite` + a `user_identities` table (one row per provider
+  identity → user). Add a provider with an enum case + a `config/services`
+  block; the flow is provider-agnostic.
+- **Dormant** until client id/secret are set in `.env` (from
+  `.deploy-secrets`). Unconfigured providers 404 and `GET /auth/providers`
+  returns `[]`, so the SPA hides the buttons.
+- Full-page redirect flow (stateless Socialite, since the API has no
+  session). Linking from the profile screen carries the logged-in user's
+  id in an HMAC-signed `state` so the callback links instead of logging in.
+
+## How a PENDING account becomes a member
+
+1. Account is created PENDING by one of the four paths above.
 2. User logs in via `/auth/login` → gets a Sanctum token like any
    other role.
 3. SPA boot calls `/auth/me`, sees `role === 'PENDING'`, switches the
@@ -169,7 +225,8 @@ which forms are interactive, and where buttons appear. Patterns:
 4. Admin opens `/admin/users`, sees the PENDING row with a green
    "✓ Potvrdiť" button next to the role select.
 5. Click → `POST /users/{id}/confirm` → backend `confirmPending()`
-   transitions PENDING → MEMBER and writes an audit-log entry.
+   transitions PENDING → MEMBER, writes an audit-log entry, and emails the
+   member a "membership approved" notice.
 6. User reloads (or their next `/auth/me`) → `role: 'MEMBER'` →
    `auth.isMember` flips true → full UI.
 
@@ -195,3 +252,23 @@ gets to see what, the docs are stale — fix the file before merging.
   — privacy regression net.
 - `backend-php/tests/Feature/Api/AdminDataApiTest.php` — RBAC on
   destructive admin operations.
+- `backend-php/tests/Feature/Api/AuthRegistrationApiTest.php` — self-reg
+  lands PENDING, role can't be forced, duplicate-email guard.
+- `backend-php/tests/Feature/Api/PasswordResetApiTest.php` — captcha gate,
+  no enumeration, token reset.
+- `backend-php/tests/Feature/Api/ProfileApiTest.php` — own-password change
+  (incl. PENDING), wrong-current rejection.
+- `backend-php/tests/Feature/Api/MyReservationsApiTest.php` —
+  default-to-self, book-for-others, `createdById`, `/reservations/mine`.
+- `backend-php/tests/Feature/Api/BulkUserImportApiTest.php` — CSV import,
+  duplicate/invalid handling, invitation emails.
+- `backend-php/tests/Feature/Api/MembershipApprovalMailTest.php` —
+  approval email on confirm.
+- `backend-php/tests/Feature/Api/OAuthDormantApiTest.php` +
+  `tests/Feature/OAuthServiceTest.php` — dormant providers 404, identity
+  create/link/unlink logic.
+
+> **SPA route gate `confirmed`.** `router/index.ts` adds a third
+> `meta.auth` value: `'member'` = any authenticated (incl. PENDING, e.g.
+> profile/audit), `'confirmed'` = MEMBER/ADMIN only (PENDING bounced, e.g.
+> creating events), `'admin'` = ADMIN.

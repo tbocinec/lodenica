@@ -14,12 +14,37 @@ import DateInput from '@/components/ui/DateInput.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import { RESOURCE_TYPE_LABEL, RESOURCE_TYPE_LABEL_PLURAL } from '@/i18n/labels';
+import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
 import { formatReservationRange, isoFromDateTime, toIsoDate } from '@/utils/format';
 
 const route = useRoute();
 const router = useRouter();
 const resources = useResourcesStore();
+const auth = useAuthStore();
+
+/**
+ * When logged in, the booking defaults to the member themselves — their
+ * name + contact prefill the customer fields. Ticking "for someone else"
+ * clears them for manual entry. Anonymous visitors always type the name.
+ */
+const bookingForSomeoneElse = ref(false);
+
+function fillSelf(): void {
+  if (auth.user) {
+    form.customerName = auth.user.name;
+    form.customerContact = auth.user.email;
+  }
+}
+
+watch(bookingForSomeoneElse, (forOther) => {
+  if (forOther) {
+    form.customerName = '';
+    form.customerContact = '';
+  } else {
+    fillSelf();
+  }
+});
 
 const today = toIsoDate(new Date());
 
@@ -330,6 +355,12 @@ function pickHour(hour: string): void {
 const linkedEvent = ref<Event | null>(null);
 
 onMounted(async () => {
+  // Default the booking to the logged-in member (they can switch to
+  // "for someone else"). Don't clobber a name already passed in.
+  if (auth.isAuthenticated && !form.customerName) {
+    fillSelf();
+  }
+
   await resources.fetch();
   // Pre-fill from ?resourceId=… (timeline drag-create, event detail).
   // Surface the type tile so "Iný kus" returns to the right grid.
@@ -541,6 +572,17 @@ onMounted(async () => {
 
     <fieldset class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
       <legend class="px-1 text-sm font-semibold text-slate-700">Rezervácia pre</legend>
+
+      <!-- Logged-in members book for themselves by default; tick this to
+           book on behalf of someone else (different name + contact). -->
+      <label
+        v-if="auth.isAuthenticated"
+        class="mb-3 flex items-center gap-2 text-sm text-slate-700"
+      >
+        <input v-model="bookingForSomeoneElse" type="checkbox" class="h-4 w-4 rounded" />
+        Rezervujem pre niekoho iného (iné meno a kontakt)
+      </label>
+
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label class="label" for="name">
