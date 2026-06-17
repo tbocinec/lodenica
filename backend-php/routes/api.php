@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\DamagesController;
 use App\Http\Controllers\Api\EventsController;
 use App\Http\Controllers\Api\OAuthController;
+use App\Http\Controllers\Api\PrivacyPolicyController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
@@ -70,6 +71,10 @@ Route::delete('damages/{id}/photo', [DamagesController::class, 'removePhoto']);
 // Reservation rules — public read so anonymous bookers can see them;
 // PATCH is in the admin group below.
 Route::get('reservation-rules', [ReservationRulesController::class, 'show']);
+
+// Privacy policy — public read (also the URL Facebook Login requires);
+// PATCH is in the admin group below.
+Route::get('privacy-policy', [PrivacyPolicyController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
@@ -140,6 +145,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('users/import', [UsersController::class, 'import']);
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
+    Route::patch('privacy-policy', [PrivacyPolicyController::class, 'update']);
 
     Route::get('admin/usage-stats', [UsageStatsController::class, 'show']);
 

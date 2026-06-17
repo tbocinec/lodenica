@@ -61,6 +61,7 @@ auth.isPending         // strict PENDING
 | `customerContact` on reservations | ❌ (null) | ❌ (null) | ✅ | ✅ |
 | Damage reports + photos | ✅ | ✅ | ✅ | ✅ |
 | Reservation rules page | ✅ | ✅ | ✅ | ✅ |
+| Privacy policy page (`/ochrana-udajov`) | ✅ | ✅ | ✅ | ✅ |
 | Event list + single-event metadata (title, description, date, location) | ✅ | ✅ | ✅ | ✅ |
 | Event participants (`GET /events/{id}/participants`) | ❌ (401) | ❌ (403) | ✅ | ✅ |
 | Boats attached to an event (shown in SPA event detail) | ❌ | ❌ | ✅ | ✅ |
@@ -88,6 +89,7 @@ auth.isPending         // strict PENDING
 | Attach boats to an event (`POST /events/{id}/reservations`) | ❌ | ❌ | ✅ | ✅ |
 | Create / update inventory (resources) | ❌ | ❌ | ❌ | ✅ |
 | Edit reservation rules HTML | ❌ | ❌ | ❌ | ✅ |
+| Edit privacy policy HTML | ❌ | ❌ | ❌ | ✅ |
 | Confirm a pending user → MEMBER (sends approval email) | ❌ | ❌ | ❌ | ✅ |
 | Edit user roles + active flag | ❌ | ❌ | ❌ | ✅ |
 | Reset ANY user's password (`PATCH /users/{id}`) | ❌ | ❌ | ❌ | ✅ |
@@ -187,6 +189,10 @@ be MEMBER/ADMIN directly):
 2. **Social login** — first OAuth login with an unknown identity creates a
    PENDING account (`OAuthService::resolveLogin`). If the provider email
    matches an existing account, the identity is linked to it instead.
+
+> Self-registration and a new OAuth PENDING account both fire an admin
+> notification email (`AdminNotifier::pendingMemberAwaitingApproval`) to
+> `config('mail.admin_address')` (default `rezervacie@lodenicakvs.sk`).
 3. **Admin create** — `/admin/users` form, role chosen by the admin.
 4. **Admin invite** — single (`POST /users/invite`, name + email) or bulk
    CSV (`POST /users/import`). Admin-invited accounts are **auto-confirmed

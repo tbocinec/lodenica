@@ -12,6 +12,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\AdminNotifier;
 use App\Services\CaptchaService;
 use App\Services\PasswordResetService;
 use App\Services\UsersService;
@@ -58,7 +59,7 @@ class AuthController extends Controller
      * SPA can show the "awaiting approval" dashboard immediately.
      * Duplicate emails are rejected by RegisterRequest's unique rule.
      */
-    public function register(RegisterRequest $request, UsersService $users): JsonResponse
+    public function register(RegisterRequest $request, UsersService $users, AdminNotifier $notifier): JsonResponse
     {
         $data = $request->validated();
         $user = $users->create([
@@ -68,6 +69,9 @@ class AuthController extends Controller
             'role' => UserRole::PENDING,
             'isActive' => true,
         ]);
+
+        // Let an admin know someone is waiting for approval.
+        $notifier->pendingMemberAwaitingApproval($user);
 
         return $this->tokenResponse($user, $request, 201);
     }

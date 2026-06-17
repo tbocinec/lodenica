@@ -6,7 +6,7 @@
  * themselves) are enforced server-side; this UI keeps the dangerous
  * buttons disabled too for clearer feedback.
  */
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { usersApi } from '@/api/users.api';
 import type { BulkImportResult, User, UserRole } from '@/api/types';
@@ -174,8 +174,42 @@ async function confirmMember(user: User): Promise<void> {
   }
 }
 
+async function rejectPending(user: User): Promise<void> {
+  if (!window.confirm(`Zamietnuť a zmazať žiadosť „${user.name}“ (${user.email})?`)) return;
+  try {
+    await usersApi.remove(user.id);
+    await load();
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+}
+
 function isSelf(user: User): boolean {
   return user.id === auth.user?.id;
+}
+
+// ── Pending queue + filters ───────────────────────────────────────────────
+const pendingUsers = computed(() => items.value.filter((u) => u.role === 'PENDING'));
+
+const searchQuery = ref('');
+const roleFilter = ref<UserRole | ''>('');
+const activeFilter = ref<'all' | 'active' | 'inactive'>('all');
+
+const filteredUsers = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
+  return items.value.filter((u) => {
+    if (roleFilter.value && u.role !== roleFilter.value) return false;
+    if (activeFilter.value === 'active' && !u.isActive) return false;
+    if (activeFilter.value === 'inactive' && u.isActive) return false;
+    if (q && !`${u.name} ${u.email}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+});
+
+function clearFilters(): void {
+  searchQuery.value = '';
+  roleFilter.value = '';
+  activeFilter.value = 'all';
 }
 
 onMounted(load);
@@ -313,6 +347,48 @@ onMounted(load);
 
   <LoadError class="mb-4" :message="error" />
 
+  <!-- Pending approvals surfaced separately at the top — the most common
+       admin action for new self-registrations. -->
+  <section
+    v-if="pendingUsers.length"
+    class="mb-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-4"
+  >
+    <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900">
+      <span aria-hidden="true">⏳</span>
+      Čakajú na schválenie
+      <span class="rounded-full bg-amber-200 px-2 py-0.5 text-xs text-amber-900">{{ pendingUsers.length }}</span>
+    </h2>
+    <ul class="divide-y divide-amber-200/70">
+      <li
+        v-for="user in pendingUsers"
+        :key="user.id"
+        class="flex flex-wrap items-center justify-between gap-2 py-2"
+      >
+        <div class="min-w-0">
+          <span class="font-medium text-slate-900">{{ user.name }}</span>
+          <span class="text-slate-500"> · {{ user.email }}</span>
+          <span class="ml-1 text-xs text-slate-400">{{ formatDate(user.createdAt) }}</span>
+        </div>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+            @click="confirmMember(user)"
+          >
+            ✓ Potvrdiť
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-3 py-1 text-xs font-medium text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50"
+            @click="rejectPending(user)"
+          >
+            ✕ Zamietnuť
+          </button>
+        </div>
+      </li>
+    </ul>
+  </section>
+
   <div v-if="loading" class="flex justify-center py-12">
     <Spinner />
   </div>
@@ -323,7 +399,47 @@ onMounted(load);
     description="Začni pridaním prvého člena alebo admina."
   />
 
-  <div v-else class="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+  <template v-else>
+    <!-- Filter bar -->
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+      <div class="relative grow sm:grow-0">
+        <span aria-hidden="true" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+        <input
+          v-model="searchQuery"
+          type="search"
+          class="input pl-8 text-sm sm:w-64"
+          placeholder="Hľadať meno alebo email…"
+        />
+      </div>
+      <select v-model="roleFilter" class="input py-1.5 text-sm sm:w-44">
+        <option value="">Všetky role</option>
+        <option value="PENDING">{{ ROLE_LABEL.PENDING }}</option>
+        <option value="MEMBER">{{ ROLE_LABEL.MEMBER }}</option>
+        <option value="ADMIN">{{ ROLE_LABEL.ADMIN }}</option>
+      </select>
+      <select v-model="activeFilter" class="input py-1.5 text-sm sm:w-40">
+        <option value="all">Aktívni aj neaktívni</option>
+        <option value="active">Len aktívni</option>
+        <option value="inactive">Len deaktivovaní</option>
+      </select>
+      <span class="text-xs text-slate-500">{{ filteredUsers.length }} / {{ items.length }}</span>
+      <button
+        v-if="searchQuery || roleFilter || activeFilter !== 'all'"
+        type="button"
+        class="text-xs text-slate-500 hover:text-slate-700 hover:underline"
+        @click="clearFilters"
+      >
+        Zrušiť filtre
+      </button>
+    </div>
+
+    <EmptyState
+      v-if="filteredUsers.length === 0"
+      title="Nič nezodpovedá filtru"
+      description="Skús zmeniť hľadanie alebo zrušiť filtre."
+    />
+
+    <div v-else class="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
     <table class="min-w-full divide-y divide-slate-200 text-sm">
       <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
         <tr>
@@ -336,7 +452,7 @@ onMounted(load);
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
-        <tr v-for="user in items" :key="user.id" :class="{ 'bg-sky-50/40': isSelf(user) }">
+        <tr v-for="user in filteredUsers" :key="user.id" :class="{ 'bg-sky-50/40': isSelf(user) }">
           <td class="px-4 py-2 font-medium text-slate-900">
             {{ user.name }}
             <span v-if="isSelf(user)" class="ml-1 text-xs font-normal text-slate-500">(ja)</span>
@@ -403,5 +519,6 @@ onMounted(load);
         </tr>
       </tbody>
     </table>
-  </div>
+    </div>
+  </template>
 </template>

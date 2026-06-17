@@ -177,6 +177,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Pravidlá rezervácie' },
   },
   {
+    path: '/ochrana-udajov',
+    name: 'privacy-policy',
+    component: () => import('@/views/PrivacyPolicyView.vue'),
+    meta: { title: 'Ochrana osobných údajov' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: () => import('@/views/NotFoundView.vue'),
     meta: { title: 'Stránka nenájdená' },

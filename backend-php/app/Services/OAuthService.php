@@ -28,7 +28,10 @@ use Laravel\Socialite\Contracts\User as SocialiteUser;
  */
 class OAuthService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly AdminNotifier $notifier,
+    ) {}
 
     /**
      * Find-or-create the local user for a social login.
@@ -72,6 +75,9 @@ class OAuthService
                 "Registrácia cez {$provider->label()}: „{$user->name}“ ({$user->email})",
                 ['name' => $user->name, 'email' => $user->email, 'role' => $user->role->value],
             );
+
+            // New OAuth account is PENDING — notify an admin it's waiting.
+            $this->notifier->pendingMemberAwaitingApproval($user);
 
             return ['user' => $user, 'created' => true];
         });

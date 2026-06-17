@@ -3,13 +3,28 @@
 namespace Tests\Feature\Api;
 
 use App\Domain\Enums\UserRole;
+use App\Mail\PendingMemberNotificationMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class AuthRegistrationApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_registration_notifies_admin_of_pending_member(): void
+    {
+        Mail::fake();
+
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Čakateľ',
+            'email' => 'waiting@example.test',
+            'password' => 'tajneheslo123',
+        ])->assertCreated();
+
+        Mail::assertSent(PendingMemberNotificationMail::class, fn ($m) => $m->memberEmail === 'waiting@example.test');
+    }
 
     public function test_public_registration_creates_pending_account_and_logs_in(): void
     {

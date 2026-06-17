@@ -115,4 +115,14 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin notification address
+    |--------------------------------------------------------------------------
+    | Where operational notices go (e.g. "a new member is waiting for
+    | approval"). Read via config (not env()) so it survives config:cache.
+    */
+
+    'admin_address' => env('MAIL_ADMIN_ADDRESS', 'rezervacie@lodenicakvs.sk'),
+
 ];
