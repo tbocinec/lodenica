@@ -23,11 +23,10 @@ import {
   DAMAGE_STATUS_LABEL,
   RESOURCE_TYPE_LABEL,
 } from '@/i18n/labels';
-import { useAuthStore } from '@/stores/auth.store';
 import { formatDateTime, formatReservationRange } from '@/utils/format';
+import { qrDataUrl, resourceBookingUrl } from '@/utils/qr';
 
 const route = useRoute();
-const auth = useAuthStore();
 const id = computed(() => route.params.id as string);
 
 const resource = ref<Resource | null>(null);
@@ -36,38 +35,8 @@ const damages = ref<Damage[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
-// Photo upload (admin only).
-const photoUploading = ref(false);
-const photoInput = ref<HTMLInputElement | null>(null);
-
-async function onPhotoSelected(event: Event): Promise<void> {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file || !resource.value) return;
-  photoUploading.value = true;
-  error.value = null;
-  try {
-    resource.value = await resourcesApi.uploadPhoto(resource.value.id, file);
-  } catch (e) {
-    error.value = (e as Error).message;
-  } finally {
-    photoUploading.value = false;
-    if (photoInput.value) photoInput.value.value = '';
-  }
-}
-
-async function removePhoto(): Promise<void> {
-  if (!resource.value || !window.confirm('Odstrániť fotku lode?')) return;
-  photoUploading.value = true;
-  error.value = null;
-  try {
-    await resourcesApi.removePhoto(resource.value.id);
-    resource.value = { ...resource.value, photoUrl: null };
-  } catch (e) {
-    error.value = (e as Error).message;
-  } finally {
-    photoUploading.value = false;
-  }
-}
+// QR code → quick 3-hour booking of this boat.
+const qrUrl = ref<string | null>(null);
 
 async function load() {
   loading.value = true;
@@ -81,11 +50,38 @@ async function load() {
     resource.value = r;
     reservations.value = rsv.items;
     damages.value = dmg.items;
+    qrDataUrl(resourceBookingUrl(r.id)).then((u) => { qrUrl.value = u; }).catch(() => {});
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
     loading.value = false;
   }
+}
+
+function downloadQr(): void {
+  if (!qrUrl.value || !resource.value) return;
+  const a = document.createElement('a');
+  a.href = qrUrl.value;
+  a.download = `qr-${resource.value.identifier}.png`;
+  a.click();
+}
+
+function printQr(): void {
+  if (!qrUrl.value || !resource.value) return;
+  const win = window.open('', '_blank');
+  if (!win) return;
+  const label = `${resource.value.identifier} — ${resource.value.name}`;
+  win.document.write(
+    `<!DOCTYPE html><html lang="sk"><head><meta charset="utf-8"><title>QR ${resource.value.identifier}</title></head>` +
+      `<body style="margin:0;padding:32px;text-align:center;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">` +
+      `<img src="${qrUrl.value}" alt="QR" style="width:280px;height:280px;"/>` +
+      `<h2 style="margin:12px 0 4px;font-size:20px;">${label}</h2>` +
+      `<p style="margin:0;color:#475569;">Naskenuj a rezervuj túto loď</p>` +
+      `</body></html>`,
+  );
+  win.document.close();
+  win.focus();
+  win.print();
 }
 
 const now = new Date();
@@ -207,50 +203,14 @@ onMounted(load);
           </template>
         </dl>
 
-        <!-- Photo: uploaded photo takes priority over the external imageUrl. -->
-        <div class="mt-4">
-          <img
-            v-if="resource.photoUrl || resource.imageUrl"
-            :src="resource.photoUrl ?? resource.imageUrl ?? ''"
-            :alt="resource.name"
-            class="max-h-60 w-full rounded-lg object-cover"
-          />
-          <div
-            v-else-if="auth.isAdmin"
-            class="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-slate-200 text-sm text-slate-400"
-          >
-            Zatiaľ bez fotky
-          </div>
-
-          <!-- Admin photo controls -->
-          <div v-if="auth.isAdmin" class="mt-2 flex flex-wrap items-center gap-2">
-            <input
-              ref="photoInput"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              class="hidden"
-              @change="onPhotoSelected"
-            />
-            <button
-              type="button"
-              class="btn-secondary text-xs"
-              :disabled="photoUploading"
-              @click="photoInput?.click()"
-            >
-              {{ photoUploading ? 'Nahrávam…' : (resource.photoUrl ? '📷 Zmeniť fotku' : '📷 Pridať fotku') }}
-            </button>
-            <button
-              v-if="resource.photoUrl"
-              type="button"
-              class="text-xs text-rose-600 hover:underline disabled:text-slate-300"
-              :disabled="photoUploading"
-              @click="removePhoto"
-            >
-              Odstrániť fotku
-            </button>
-            <span class="text-xs text-slate-400">JPG/PNG/WEBP, max 5 MB.</span>
-          </div>
-        </div>
+        <!-- Photo: uploaded photo takes priority over the external imageUrl.
+             Upload/replace is done from the resource edit form (admin). -->
+        <img
+          v-if="resource.photoUrl || resource.imageUrl"
+          :src="resource.photoUrl ?? resource.imageUrl ?? ''"
+          :alt="resource.name"
+          class="mt-4 max-h-60 w-full rounded-lg object-cover"
+        />
       </section>
 
       <!-- Upcoming reservations -->
@@ -325,6 +285,34 @@ onMounted(load);
             </li>
           </ul>
         </details>
+      </section>
+
+      <!-- QR code → quick 3-hour booking of this boat. Printable / downloadable. -->
+      <section class="card-padded lg:col-span-2">
+        <h2 class="mb-3 text-lg font-semibold text-slate-900">QR kód na rezerváciu</h2>
+        <div class="flex flex-wrap items-center gap-5">
+          <img
+            v-if="qrUrl"
+            :src="qrUrl"
+            alt="QR kód na rezerváciu lode"
+            class="h-40 w-40 rounded-lg ring-1 ring-slate-200"
+          />
+          <div class="min-w-0 flex-1">
+            <p class="text-sm text-slate-600">
+              Naskenovaním sa otvorí rezervačný formulár tejto lode
+              s predvyplneným 3-hodinovým termínom. Vhodné na vytlačenie
+              a nalepenie priamo na loď.
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button type="button" class="btn-secondary text-sm" :disabled="!qrUrl" @click="downloadQr">
+                ⬇ Stiahnuť PNG
+              </button>
+              <button type="button" class="btn-secondary text-sm" :disabled="!qrUrl" @click="printQr">
+                🖨 Vytlačiť
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   </template>

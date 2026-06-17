@@ -29,10 +29,16 @@ const form = reactive({
 const error = ref<string | null>(null);
 const submitting = ref(false);
 
+// Photo upload — only in edit mode (needs an existing resource id).
+const photoUrl = ref<string | null>(null);
+const photoUploading = ref(false);
+const photoInput = ref<HTMLInputElement | null>(null);
+
 async function load() {
   if (!id) return;
   try {
     const r = await resourcesApi.get(id);
+    photoUrl.value = r.photoUrl;
     Object.assign(form, {
       identifier: r.identifier,
       type: r.type,
@@ -48,6 +54,36 @@ async function load() {
     });
   } catch (e) {
     error.value = (e as Error).message;
+  }
+}
+
+async function onPhotoSelected(event: Event): Promise<void> {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file || !id) return;
+  photoUploading.value = true;
+  error.value = null;
+  try {
+    const updated = await resourcesApi.uploadPhoto(id, file);
+    photoUrl.value = updated.photoUrl;
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    photoUploading.value = false;
+    if (photoInput.value) photoInput.value.value = '';
+  }
+}
+
+async function removePhoto(): Promise<void> {
+  if (!id || !window.confirm('Odstrániť fotku lode?')) return;
+  photoUploading.value = true;
+  error.value = null;
+  try {
+    await resourcesApi.removePhoto(id);
+    photoUrl.value = null;
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    photoUploading.value = false;
   }
 }
 
@@ -160,8 +196,55 @@ onMounted(load);
     </div>
 
     <div class="sm:col-span-2">
-      <label class="label" for="imageUrl">URL obrázka</label>
+      <label class="label" for="imageUrl">URL obrázka (externý odkaz)</label>
       <input id="imageUrl" v-model="form.imageUrl" class="input mt-1" type="url" />
+    </div>
+
+    <!-- Uploaded photo — only for an existing resource (needs its id).
+         Distinct from the external imageUrl above. -->
+    <div v-if="id" class="sm:col-span-2">
+      <span class="label">Fotka lode</span>
+      <div class="mt-1 flex flex-wrap items-center gap-3">
+        <img
+          v-if="photoUrl"
+          :src="photoUrl"
+          alt="Fotka lode"
+          class="h-24 w-32 rounded-lg object-cover ring-1 ring-slate-200"
+        />
+        <div
+          v-else
+          class="flex h-24 w-32 items-center justify-center rounded-lg border-2 border-dashed border-slate-200 text-xs text-slate-400"
+        >
+          Bez fotky
+        </div>
+        <div class="flex flex-col gap-2">
+          <input
+            ref="photoInput"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            class="hidden"
+            @change="onPhotoSelected"
+          />
+          <button
+            type="button"
+            class="btn-secondary text-xs"
+            :disabled="photoUploading"
+            @click="photoInput?.click()"
+          >
+            {{ photoUploading ? 'Nahrávam…' : (photoUrl ? '📷 Zmeniť fotku' : '📷 Nahrať fotku') }}
+          </button>
+          <button
+            v-if="photoUrl"
+            type="button"
+            class="text-xs text-rose-600 hover:underline disabled:text-slate-300"
+            :disabled="photoUploading"
+            @click="removePhoto"
+          >
+            Odstrániť fotku
+          </button>
+          <span class="text-xs text-slate-400">JPG/PNG/WEBP, max 5 MB.</span>
+        </div>
+      </div>
     </div>
 
     <div class="sm:col-span-2">

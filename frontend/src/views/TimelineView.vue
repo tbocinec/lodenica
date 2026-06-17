@@ -22,6 +22,7 @@ import { useRouter } from 'vue-router';
 
 import { reservationsApi } from '@/api/reservations.api';
 import { ResourceType, type Reservation, type Resource } from '@/api/types';
+import DateInput from '@/components/ui/DateInput.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
@@ -143,6 +144,14 @@ function shift(direction: 1 | -1) {
 function goToday() {
   cursor.value = todayUtc();
 }
+
+// Jump straight to a chosen date instead of clicking ‹ / › repeatedly.
+const cursorIso = computed<string>({
+  get: () => toIsoDate(cursor.value),
+  set: (iso) => {
+    if (iso) cursor.value = new Date(`${iso}T00:00:00.000Z`);
+  },
+});
 
 watch([mode, cursor, typeFilter], load, { immediate: false });
 onMounted(async () => {
@@ -399,6 +408,8 @@ async function onReservationDeleted(): Promise<void> {
       <button class="btn-secondary" type="button" @click="shift(-1)">‹</button>
       <button class="btn-secondary" type="button" @click="goToday">Dnes</button>
       <button class="btn-secondary" type="button" @click="shift(1)">›</button>
+      <!-- Jump to a specific date. -->
+      <DateInput v-model="cursorIso" class="w-40" aria-label="Vybrať dátum" />
     </template>
   </PageHeader>
 

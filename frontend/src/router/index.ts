@@ -171,6 +171,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Správa dát', auth: 'admin' },
   },
   {
+    path: '/admin/qr-codes',
+    name: 'admin-qr-codes',
+    component: () => import('@/views/AdminQrCodesView.vue'),
+    meta: { title: 'QR kódy lodí', auth: 'admin' },
+  },
+  {
     path: '/rules',
     name: 'reservation-rules',
     component: () => import('@/views/ReservationRulesView.vue'),

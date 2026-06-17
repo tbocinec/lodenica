@@ -52,10 +52,32 @@ const today = toIsoDate(new Date());
 const q = route.query;
 const initialResourceId = typeof q.resourceId === 'string' ? q.resourceId : '';
 const initialEventId = typeof q.eventId === 'string' ? q.eventId : '';
-const initialStartDate = typeof q.startDate === 'string' ? q.startDate : today;
+
+// `quick=3h` (used by the per-boat QR code): default to a 3-hour window
+// starting now (rounded up to the next 15 min), same day.
+function quickThreeHours(): { startDate: string; startTime: string; endTime: string } | null {
+  if (q.quick !== '3h') return null;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const now = new Date();
+  now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
+  let endH = now.getHours() + 3;
+  let endM = now.getMinutes();
+  if (endH > 23 || (endH === 23 && endM > 59)) {
+    endH = 23;
+    endM = 59;
+  }
+  return {
+    startDate: toIsoDate(now),
+    startTime: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    endTime: `${pad(endH)}:${pad(endM)}`,
+  };
+}
+const quick = quickThreeHours();
+
+const initialStartDate = typeof q.startDate === 'string' ? q.startDate : (quick?.startDate ?? today);
 const initialEndDate = typeof q.endDate === 'string' ? q.endDate : initialStartDate;
-const initialStartTime = typeof q.startTime === 'string' ? q.startTime : '09:00';
-const initialEndTime = typeof q.endTime === 'string' ? q.endTime : '12:00';
+const initialStartTime = typeof q.startTime === 'string' ? q.startTime : (quick?.startTime ?? '09:00');
+const initialEndTime = typeof q.endTime === 'string' ? q.endTime : (quick?.endTime ?? '12:00');
 
 const form = reactive({
   resourceId: initialResourceId,
