@@ -84,7 +84,9 @@ class CaptchaService
         // to trivial scrapers. Deterministic-ish jitter via random offsets.
         $chars = '';
         $x = 14;
-        foreach (str_split($question) as $ch) {
+        // mb_str_split — the '×' sign is multibyte (U+00D7); a byte-wise
+        // str_split would shred it into garbage in the SVG.
+        foreach (mb_str_split($question) as $ch) {
             $dy = random_int(-4, 4);
             $rot = random_int(-12, 12);
             $fill = sprintf('#%02x%02x%02x', random_int(20, 90), random_int(20, 90), random_int(60, 130));

@@ -261,9 +261,13 @@ if (( DO_BUILD )); then
         printf 'MAIL_HOST=%s\n' "${MAIL_HOST:-smtp.m1.websupport.sk}"
         printf 'MAIL_PORT=%s\n' "${MAIL_PORT:-465}"
         printf 'MAIL_USERNAME=%s\n' "${MAIL_USERNAME:-potvrdenie.rezervacie@lodenicakvs.sk}"
-        printf 'MAIL_PASSWORD=%s\n' "${MAIL_PASSWORD:-}"
+        # Double-quote values that may contain spaces or special chars.
+        # phpdotenv FATALS on an unquoted value with a space (e.g. the
+        # "Lodenica KVŠ" from-name), which breaks the whole app before the
+        # logger boots. The password is quoted defensively too.
+        printf 'MAIL_PASSWORD="%s"\n' "${MAIL_PASSWORD:-}"
         printf 'MAIL_FROM_ADDRESS=%s\n' "${MAIL_FROM_ADDRESS:-potvrdenie.rezervacie@lodenicakvs.sk}"
-        printf 'MAIL_FROM_NAME=%s\n' "${MAIL_FROM_NAME:-Lodenica KVŠ}"
+        printf 'MAIL_FROM_NAME="%s"\n' "${MAIL_FROM_NAME:-Lodenica KVŠ}"
         printf '\n'
         # OAuth (Socialite). Empty values keep the providers dormant; the
         # SPA hides the buttons and the callback routes stay inert.
