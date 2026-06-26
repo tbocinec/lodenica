@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\EventsController;
 use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\OAuthController;
 use App\Http\Controllers\Api\PaddlingTrafficLightController;
-use App\Http\Controllers\Api\PrivacyPolicyController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
@@ -82,10 +81,6 @@ Route::delete('damages/{id}/photo', [DamagesController::class, 'removePhoto']);
 // Reservation rules — public read so anonymous bookers can see them;
 // PATCH is in the admin group below.
 Route::get('reservation-rules', [ReservationRulesController::class, 'show']);
-
-// Privacy policy — public read (also the URL Facebook Login requires);
-// PATCH is in the admin group below.
-Route::get('privacy-policy', [PrivacyPolicyController::class, 'show']);
 
 // Q&A / FAQ — public read; PATCH is in the admin group below.
 Route::get('faq', [FaqController::class, 'show']);
@@ -169,7 +164,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('member-roster/{id}', [MemberRosterController::class, 'destroy']);
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
-    Route::patch('privacy-policy', [PrivacyPolicyController::class, 'update']);
     Route::patch('faq', [FaqController::class, 'update']);
 
     Route::get('admin/usage-stats', [UsageStatsController::class, 'show']);

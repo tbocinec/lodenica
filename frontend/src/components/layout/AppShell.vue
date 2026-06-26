@@ -58,7 +58,12 @@ const infoItems: NavItem[] = [
   { to: '/vodacky-semafor', label: 'Vodácky semafor', icon: '🚦' },
   { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
   { to: '/q-a', label: 'Otázky a odpovede', icon: '❓' },
-  { to: '/ochrana-udajov', label: 'Ochrana údajov', icon: '🔒' },
+  {
+    to: 'https://www.lodenicakvs.sk/?page_id=5024',
+    label: 'Ochrana údajov',
+    icon: '🔒',
+    external: true,
+  },
   {
     to: 'https://www.lodenicakvs.sk/?page_id=4578',
     label: 'Lodeničný poriadok',

@@ -201,12 +201,6 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Pravidlá rezervácie' },
   },
   {
-    path: '/ochrana-udajov',
-    name: 'privacy-policy',
-    component: () => import('@/views/PrivacyPolicyView.vue'),
-    meta: { title: 'Ochrana osobných údajov' },
-  },
-  {
     path: '/vodacky-semafor',
     name: 'paddling-traffic-light',
     component: () => import('@/views/PaddlingTrafficLightView.vue'),

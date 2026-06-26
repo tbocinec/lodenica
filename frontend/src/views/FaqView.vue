@@ -2,7 +2,7 @@
 /**
  * Q&A / FAQ page. Public read; admins get an "Upraviť" button that swaps
  * the rendered body for a TipTap WYSIWYG editor. Mirrors
- * ReservationRulesView / PrivacyPolicyView. PATCH is admin-gated.
+ * ReservationRulesView. PATCH is admin-gated.
  */
 import { onMounted, ref } from 'vue';
 

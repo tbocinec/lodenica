@@ -141,7 +141,7 @@ onMounted(load);
 <template>
   <PageHeader title="Číselník členov" subtitle="Zoznam e-mailov a členských ID pre automatické schválenie pri registrácii.">
     <template #actions>
-      <RouterLink to="/users" class="btn-secondary">← Používatelia</RouterLink>
+      <RouterLink to="/admin/users" class="btn-secondary">← Používatelia</RouterLink>
       <button type="button" class="btn-secondary" @click="showImport = !showImport">
         {{ showImport ? 'Skryť import' : '⬆ Import CSV' }}
       </button>
