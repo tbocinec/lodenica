@@ -27,6 +27,10 @@ export const damagesApi = {
     const { data } = await http.get<Paginated<Damage>>('/damages', { params });
     return data;
   },
+  async get(id: string): Promise<Damage> {
+    const { data } = await http.get<Damage>(`/damages/${id}`);
+    return data;
+  },
   async create(input: CreateDamageInput): Promise<Damage> {
     const { data } = await http.post<Damage>('/damages', input);
     return data;

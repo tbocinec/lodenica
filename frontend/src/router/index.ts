@@ -147,6 +147,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Poškodenia' },
   },
   {
+    path: '/damages/:id',
+    name: 'damage-detail',
+    component: () => import('@/views/DamageDetailView.vue'),
+    meta: { title: 'Detail poškodenia' },
+  },
+  {
     path: '/spaces',
     name: 'spaces',
     component: () => import('@/views/SpacesView.vue'),
