@@ -34,7 +34,7 @@ export const NAV_GAUGE_LABEL: Record<NavGauge, string> = {
 export const NAVIGABILITY_AREAS: NavArea[] = [
   {
     key: 'velky-okruh',
-    name: 'Veľký okruh',
+    name: 'Veľký okruh (Sihoť)',
     gauge: 'devin',
     segments: [
       { from: null, to: 334, level: 'red' },
