@@ -24,6 +24,8 @@ class UsersService
                 : UserRole::from($input['role']),
             'isActive' => $input['isActive'] ?? true,
             'memberId' => $input['memberId'] ?? null,
+            'privacyAck' => $input['privacyAck'] ?? null,
+            'dataConsent' => $input['dataConsent'] ?? null,
         ]);
 
         $this->audit->logCreate(

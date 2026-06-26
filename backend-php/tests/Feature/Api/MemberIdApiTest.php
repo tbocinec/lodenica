@@ -38,6 +38,7 @@ class MemberIdApiTest extends TestCase
     {
         $this->postJson('/api/v1/auth/register', [
             'name' => 'Reg', 'email' => 'reg-noid@example.test', 'password' => 'tajneheslo123',
+            'privacyAck' => true,
         ])->assertCreated();
         $this->assertNull(User::where('email', 'reg-noid@example.test')->first()->memberId);
     }

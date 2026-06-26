@@ -61,10 +61,15 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /** Public self-registration. The new account lands as PENDING. */
-  async function register(name: string, email: string, password: string): Promise<void> {
+  async function register(
+    name: string,
+    email: string,
+    password: string,
+    consents: { privacyAck: boolean; dataConsent: boolean },
+  ): Promise<void> {
     lastError.value = null;
     try {
-      const res = await authApi.register(name, email, password);
+      const res = await authApi.register(name, email, password, consents);
       setSession(res.token, res.user);
     } catch (e) {
       lastError.value = (e as Error).message;

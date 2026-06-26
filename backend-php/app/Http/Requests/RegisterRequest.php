@@ -22,6 +22,10 @@ class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:200'],
             'email' => ['required', 'email', 'max:200', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'max:200'],
+            // GDPR checkbox 1 — mandatory: must be ticked to register.
+            'privacyAck' => ['accepted'],
+            // GDPR checkbox 2 — optional consent; default-checked on the form.
+            'dataConsent' => ['nullable', 'boolean'],
         ];
     }
 
@@ -36,6 +40,7 @@ class RegisterRequest extends FormRequest
     {
         return [
             'email.unique' => 'Účet s týmto e-mailom už existuje.',
+            'privacyAck.accepted' => 'Pre registráciu musíte potvrdiť oboznámenie s podmienkami spracúvania osobných údajov.',
         ];
     }
 }

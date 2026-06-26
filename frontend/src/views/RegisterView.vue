@@ -16,15 +16,28 @@ const passwordConfirm = ref('');
 const submitting = ref(false);
 const error = ref<string | null>(null);
 
+// GDPR consents — both default-checked. The first is mandatory; the second
+// is optional and may be unticked.
+const privacyAck = ref(true);
+const dataConsent = ref(true);
+
 async function submit(): Promise<void> {
   error.value = null;
   if (password.value !== passwordConfirm.value) {
     error.value = 'Heslá sa nezhodujú.';
     return;
   }
+  if (!privacyAck.value) {
+    error.value =
+      'Pre registráciu musíte potvrdiť oboznámenie s podmienkami spracúvania osobných údajov.';
+    return;
+  }
   submitting.value = true;
   try {
-    await auth.register(name.value.trim(), email.value.trim(), password.value);
+    await auth.register(name.value.trim(), email.value.trim(), password.value, {
+      privacyAck: privacyAck.value,
+      dataConsent: dataConsent.value,
+    });
     // New account is PENDING — the dashboard shows the "awaiting approval"
     // banner.
     await router.replace('/');
@@ -40,7 +53,7 @@ async function submit(): Promise<void> {
   <div class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
     <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div class="mb-6 text-center">
-        <h1 class="text-2xl font-semibold text-slate-900">Lodenica KVŠ</h1>
+        <h1 class="text-2xl font-semibold text-slate-900">Rezervácie KVŠ</h1>
         <p class="mt-1 text-sm text-slate-500">Vytvorenie účtu</p>
       </div>
 
@@ -78,6 +91,35 @@ async function submit(): Promise<void> {
           />
         </div>
 
+        <!-- GDPR consents. Checkbox 1 is mandatory; checkbox 2 is optional
+             (default-checked, can be unticked). Each links to a different
+             page on the club's site. -->
+        <label class="flex items-start gap-2 text-xs text-slate-700">
+          <input v-model="privacyAck" type="checkbox" class="mt-0.5 h-4 w-4 rounded" required />
+          <span>
+            Vyhlasujem, že som bol/a oboznámený/á s
+            <a
+              href="https://www.lodenicakvs.sk/?page_id=5024"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-medium text-brand-700 hover:underline"
+            >podmienkami spracúvania osobných údajov</a>.
+            <span class="text-rose-600">*</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-2 text-xs text-slate-700">
+          <input v-model="dataConsent" type="checkbox" class="mt-0.5 h-4 w-4 rounded" />
+          <span>
+            Udeľujem
+            <a
+              href="https://www.lodenicakvs.sk/?page_id=5036"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-medium text-brand-700 hover:underline"
+            >súhlas na spracovanie osobných údajov</a>.
+          </span>
+        </label>
+
         <LoadError :message="error" />
 
         <div class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">
@@ -86,7 +128,7 @@ async function submit(): Promise<void> {
           potvrdení.
         </div>
 
-        <button type="submit" class="btn-primary mt-1" :disabled="submitting">
+        <button type="submit" class="btn-primary mt-1" :disabled="submitting || !privacyAck">
           <Spinner v-if="submitting" class="mr-2" />
           {{ submitting ? 'Registrujem…' : 'Zaregistrovať sa' }}
         </button>

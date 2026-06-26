@@ -86,6 +86,34 @@ class AdminDataApiTest extends TestCase
         $this->assertStringContainsString('K-HOT', $body);
     }
 
+    public function test_members_csv_export_has_id_registration_and_consent(): void
+    {
+        $this->actingAsAdmin();
+        \App\Models\User::create([
+            'name' => 'Člen Jeden', 'email' => 'm1@example.test', 'password' => 'password123',
+            'role' => \App\Domain\Enums\UserRole::MEMBER, 'isActive' => true,
+            'memberId' => 'KVS-321', 'privacyAck' => true, 'dataConsent' => false,
+        ]);
+        // A user WITHOUT a memberId must NOT appear.
+        \App\Models\User::create([
+            'name' => 'Bez ID', 'email' => 'noid@example.test', 'password' => 'password123',
+            'role' => \App\Domain\Enums\UserRole::MEMBER, 'isActive' => true,
+        ]);
+
+        $r = $this->get('/api/v1/admin/export/members.csv');
+        $r->assertOk()->assertHeader('content-type', 'text/csv; charset=utf-8');
+        $body = $r->streamedContent();
+        $this->assertStringContainsString('memberId,name,email,role,registeredAt,privacyAck,dataConsent', $body);
+        $this->assertStringContainsString('KVS-321', $body);
+        $this->assertStringContainsString('FALSE', $body); // dataConsent false
+        $this->assertStringNotContainsString('noid@example.test', $body);
+    }
+
+    public function test_members_export_is_admin_only(): void
+    {
+        $this->get('/api/v1/admin/export/members.csv')->assertStatus(401);
+    }
+
     /* ──────────────  Purge  ────────────── */
 
     public function test_purge_requires_confirmation(): void

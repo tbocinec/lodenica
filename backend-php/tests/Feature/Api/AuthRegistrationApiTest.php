@@ -21,6 +21,7 @@ class AuthRegistrationApiTest extends TestCase
             'name' => 'Čakateľ',
             'email' => 'waiting@example.test',
             'password' => 'tajneheslo123',
+            'privacyAck' => true,
         ])->assertCreated();
 
         Mail::assertSent(PendingMemberNotificationMail::class, fn ($m) => $m->memberEmail === 'waiting@example.test');
@@ -32,6 +33,7 @@ class AuthRegistrationApiTest extends TestCase
             'name' => 'Nový Pádlič',
             'email' => 'novy@example.test',
             'password' => 'tajneheslo123',
+            'privacyAck' => true,
         ])->assertCreated()
             ->assertJsonPath('user.role', 'PENDING')
             ->assertJsonStructure(['token', 'user' => ['id', 'email', 'role']]);
@@ -51,6 +53,7 @@ class AuthRegistrationApiTest extends TestCase
             'name' => 'Sneaky',
             'email' => 'sneaky@example.test',
             'password' => 'tajneheslo123',
+            'privacyAck' => true,
             'role' => 'ADMIN',
         ])->assertCreated()
             ->assertJsonPath('user.role', 'PENDING');
@@ -70,6 +73,7 @@ class AuthRegistrationApiTest extends TestCase
             'name' => 'Another',
             'email' => 'dup@example.test',
             'password' => 'tajneheslo123',
+            'privacyAck' => true,
         ])->assertStatus(400)
             ->assertJsonPath('code', 'VALIDATION_ERROR');
     }
@@ -80,8 +84,41 @@ class AuthRegistrationApiTest extends TestCase
             'name' => 'Case',
             'email' => 'MixedCase@Example.TEST',
             'password' => 'tajneheslo123',
+            'privacyAck' => true,
         ])->assertCreated();
 
         $this->assertDatabaseHas('users', ['email' => 'mixedcase@example.test']);
+    }
+
+    public function test_registration_requires_the_mandatory_gdpr_checkbox(): void
+    {
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'No Ack', 'email' => 'noack@example.test',
+            'password' => 'tajneheslo123', 'privacyAck' => false, 'dataConsent' => true,
+        ])->assertStatus(400)->assertJsonPath('code', 'VALIDATION_ERROR');
+
+        $this->assertDatabaseMissing('users', ['email' => 'noack@example.test']);
+    }
+
+    public function test_registration_stores_both_consents(): void
+    {
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Consent', 'email' => 'consent@example.test',
+            'password' => 'tajneheslo123', 'privacyAck' => true, 'dataConsent' => false,
+        ])->assertCreated();
+
+        $user = User::where('email', 'consent@example.test')->firstOrFail();
+        $this->assertTrue((bool) $user->privacyAck);
+        $this->assertFalse((bool) $user->dataConsent);
+    }
+
+    public function test_data_consent_defaults_to_true_when_omitted(): void
+    {
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Default', 'email' => 'default-consent@example.test',
+            'password' => 'tajneheslo123', 'privacyAck' => true,
+        ])->assertCreated();
+
+        $this->assertTrue((bool) User::where('email', 'default-consent@example.test')->firstOrFail()->dataConsent);
     }
 }

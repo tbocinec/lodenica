@@ -68,6 +68,10 @@ class AuthController extends Controller
             'password' => $data['password'],
             'role' => UserRole::PENDING,
             'isActive' => true,
+            // GDPR: checkbox 1 is required (always true here); checkbox 2 is
+            // optional and default-checked, so treat a missing value as true.
+            'privacyAck' => true,
+            'dataConsent' => (bool) ($data['dataConsent'] ?? true),
         ]);
 
         // Let an admin know someone is waiting for approval.

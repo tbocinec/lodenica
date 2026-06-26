@@ -65,6 +65,8 @@ auth.isPending         // strict PENDING
 | Q&A / FAQ page (`/q-a`) | ✅ | ✅ | ✅ | ✅ |
 | Resource photo (`GET /resources/{id}/photo`) | ✅ | ✅ | ✅ | ✅ |
 | User's internal `memberId` (incl. own) | ❌ (null) | ❌ (null) | ❌ (null) | ✅ |
+| User's GDPR consents (`privacyAck`, `dataConsent`) | ❌ (null) | ❌ (null) | ❌ (null) | ✅ |
+| Members CSV export (`/admin/export/members.csv`: id, registeredAt, consents) | ❌ | ❌ | ❌ | ✅ |
 | Event list + single-event metadata (title, description, date, location) | ✅ | ✅ | ✅ | ✅ |
 | Event participants (`GET /events/{id}/participants`) | ❌ (401) | ❌ (403) | ✅ | ✅ |
 | Boats attached to an event (shown in SPA event detail) | ❌ | ❌ | ✅ | ✅ |

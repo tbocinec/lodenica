@@ -30,6 +30,8 @@ class User extends Authenticatable
         'password' => 'hashed',
         'role' => UserRole::class,
         'isActive' => 'boolean',
+        'privacyAck' => 'boolean',
+        'dataConsent' => 'boolean',
         'createdAt' => 'datetime',
         'updatedAt' => 'datetime',
     ];

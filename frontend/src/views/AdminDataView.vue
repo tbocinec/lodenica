@@ -65,6 +65,20 @@ async function exportResourcesCsv(): Promise<void> {
     busy.value = false;
   }
 }
+async function exportMembersCsv(): Promise<void> {
+  busy.value = true;
+  error.value = null;
+  info.value = null;
+  try {
+    const blob = await adminDataApi.downloadMembersCsv();
+    saveBlobAs(blob, `lodenica-clenovia-${new Date().toISOString().slice(0, 10)}.csv`);
+    info.value = 'CSV členov stiahnuté.';
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    busy.value = false;
+  }
+}
 
 /* ─────────────────────────────  Import  ──────────────────────────── */
 
@@ -179,7 +193,15 @@ async function runPurge(): Promise<void> {
       <button type="button" class="btn-secondary" :disabled="busy" @click="exportResourcesCsv">
         🚣 Lode CSV
       </button>
+      <button type="button" class="btn-secondary" :disabled="busy" @click="exportMembersCsv">
+        👤 Členovia CSV
+      </button>
     </div>
+    <p class="mt-2 text-xs text-slate-500">
+      „Členovia CSV" obsahuje pre každé interné členské ID: meno, e-mail,
+      čas registrácie a stav GDPR súhlasov (oboznámenie + súhlas so
+      spracovaním). Vhodné na synchronizáciu s členskou databázou.
+    </p>
   </section>
 
   <!-- 2. IMPORT -->

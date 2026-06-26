@@ -30,6 +30,12 @@ export const adminDataApi = {
     });
     return data;
   },
+  async downloadMembersCsv(): Promise<Blob> {
+    const { data } = await http.get<Blob>('/admin/export/members.csv', {
+      responseType: 'blob',
+    });
+    return data;
+  },
 
   /**
    * Destructive: wipes all business tables and re-inserts from the

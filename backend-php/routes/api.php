@@ -166,6 +166,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/export/database.json', [AdminDataController::class, 'exportDatabase']);
     Route::get('admin/export/reservations.csv', [AdminDataController::class, 'exportReservationsCsv']);
     Route::get('admin/export/resources.csv', [AdminDataController::class, 'exportResourcesCsv']);
+    Route::get('admin/export/members.csv', [AdminDataController::class, 'exportMembersCsv']);
     Route::post('admin/import/database', [AdminDataController::class, 'importDatabase']);
     Route::post('admin/reservations/purge', [AdminDataController::class, 'purgeReservations']);
 });

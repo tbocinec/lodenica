@@ -12,6 +12,7 @@ use App\Models\EventParticipant;
 use App\Models\Reservation;
 use App\Models\Resource;
 use App\Models\Setting;
+use App\Models\User;
 use App\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -134,6 +135,40 @@ class AdminDataController extends Controller
                     ]);
                 }
             });
+        });
+    }
+
+    /**
+     * GET /api/v1/admin/export/members.csv
+     *
+     * The members roster keyed by internal member ID, for syncing into the
+     * club's own database: member ID, name, email, registration timestamp
+     * (createdAt) and the two GDPR consent flags. Only users that have a
+     * member ID assigned are included.
+     */
+    public function exportMembersCsv(): StreamedResponse
+    {
+        return $this->streamCsv('lodenica-clenovia-'.date('Y-m-d').'.csv', function ($out) {
+            fputcsv($out, [
+                'memberId', 'name', 'email', 'role',
+                'registeredAt', 'privacyAck', 'dataConsent',
+            ]);
+            User::query()
+                ->whereNotNull('memberId')
+                ->orderBy('memberId')
+                ->chunk(500, function ($rows) use ($out) {
+                    foreach ($rows as $u) {
+                        fputcsv($out, [
+                            $u->memberId,
+                            $u->name,
+                            $u->email,
+                            $u->role?->value,
+                            $this->iso($u->createdAt),
+                            $u->privacyAck ? 'TRUE' : 'FALSE',
+                            $u->dataConsent ? 'TRUE' : 'FALSE',
+                        ]);
+                    }
+                });
         });
     }
 

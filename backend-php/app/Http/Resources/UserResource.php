@@ -27,6 +27,9 @@ class UserResource extends JsonResource
             'isActive' => (bool) $this->isActive,
             // Only admins see it; everyone else (incl. the member) gets null.
             'memberId' => $isAdmin ? $this->memberId : null,
+            // GDPR consents recorded at registration — admin-only.
+            'privacyAck' => $isAdmin ? (bool) $this->privacyAck : null,
+            'dataConsent' => $isAdmin ? (bool) $this->dataConsent : null,
             'createdAt' => $this->createdAt?->toIso8601String(),
             'updatedAt' => $this->updatedAt?->toIso8601String(),
         ];

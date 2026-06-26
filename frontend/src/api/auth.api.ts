@@ -6,8 +6,19 @@ export const authApi = {
     const { data } = await http.post<LoginResponse>('/auth/login', { email, password });
     return data;
   },
-  async register(name: string, email: string, password: string): Promise<LoginResponse> {
-    const { data } = await http.post<LoginResponse>('/auth/register', { name, email, password });
+  async register(
+    name: string,
+    email: string,
+    password: string,
+    consents: { privacyAck: boolean; dataConsent: boolean },
+  ): Promise<LoginResponse> {
+    const { data } = await http.post<LoginResponse>('/auth/register', {
+      name,
+      email,
+      password,
+      privacyAck: consents.privacyAck,
+      dataConsent: consents.dataConsent,
+    });
     return data;
   },
   async logout(): Promise<void> {
