@@ -3,8 +3,10 @@ import { computed, onMounted } from 'vue';
 
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
+import RiverNavigability from '@/components/ui/RiverNavigability.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import TrafficLight from '@/components/ui/TrafficLight.vue';
+import { NAVIGABILITY_AREAS } from '@/config/navigability';
 import {
   hhmm,
   LEVEL_LABEL,
@@ -15,6 +17,8 @@ import {
 const { response, loading, error, load } = usePaddlingTrafficLight();
 const d = computed(() => response.value?.data ?? null);
 const devin = computed(() => response.value?.devin ?? null);
+const devinLevel = computed(() => devin.value?.water_level.value ?? null);
+const areas = NAVIGABILITY_AREAS;
 
 onMounted(load);
 </script>
@@ -81,6 +85,27 @@ onMounted(load);
         <p class="mt-1 font-medium text-slate-900">🌇 západ {{ hhmm(d.daylight.sunset) }}</p>
         <p class="text-sm text-slate-500">🌅 východ {{ hhmm(d.daylight.sunrise) }}</p>
       </div>
+    </section>
+
+    <!-- Splavnosť -->
+    <section class="mb-6">
+      <div class="mb-2 flex items-baseline justify-between gap-2">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Splavnosť</h2>
+        <span v-if="devin" class="text-xs text-slate-400">Devín: {{ devin.water_level.value }} cm</span>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <RiverNavigability
+          v-for="area in areas"
+          :key="area.key"
+          :area="area"
+          :level="devinLevel"
+        />
+      </div>
+      <p class="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+        Údaje o splavnosti sú len <strong>orientačné</strong>. Vždy je potrebné
+        zhodnotiť aktuálnu situáciu na vode tak, aby sa zachovala bezpečnosť
+        posádky aj bezpečnosť materiálu.
+      </p>
     </section>
 
     <!-- What it means -->
