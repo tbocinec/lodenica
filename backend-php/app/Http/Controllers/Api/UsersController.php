@@ -86,17 +86,17 @@ class UsersController extends Controller
     public function confirm(Request $request, string $id): UserResource
     {
         $validated = $request->validate([
-            // Admin assigns the internal member ID when confirming. Optional
-            // (can be set later via update); unique across users.
-            'memberId' => ['nullable', 'string', 'max:100'],
+            // The internal member ID is MANDATORY at approval time and must
+            // be unique across users.
+            'memberId' => ['required', 'string', 'max:100', \Illuminate\Validation\Rule::unique('users', 'memberId')->ignore($id)],
+        ], [
+            'memberId.required' => 'Pri schválení člena musíte priradiť interné členské ID.',
+            'memberId.unique' => 'Toto členské ID už má priradené iný používateľ.',
         ]);
-        $memberId = isset($validated['memberId']) && trim((string) $validated['memberId']) !== ''
-            ? trim((string) $validated['memberId'])
-            : null;
 
         /** @var User $actor */
         $actor = $request->user();
-        $user = $this->users->confirmPending($id, $actor, $memberId);
+        $user = $this->users->confirmPending($id, $actor, trim((string) $validated['memberId']));
 
         return new UserResource($user);
     }

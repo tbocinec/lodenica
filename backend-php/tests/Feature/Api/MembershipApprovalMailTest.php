@@ -23,7 +23,7 @@ class MembershipApprovalMailTest extends TestCase
             'password' => 'password123', 'role' => UserRole::PENDING, 'isActive' => true,
         ]);
 
-        $this->postJson("/api/v1/users/{$pending->id}/confirm")
+        $this->postJson("/api/v1/users/{$pending->id}/confirm", ['memberId' => 'KVS-M1'])
             ->assertOk()
             ->assertJsonPath('role', 'MEMBER');
 
@@ -40,7 +40,7 @@ class MembershipApprovalMailTest extends TestCase
             'password' => 'password123', 'role' => UserRole::MEMBER, 'isActive' => true,
         ]);
 
-        $this->postJson("/api/v1/users/{$member->id}/confirm")->assertOk();
+        $this->postJson("/api/v1/users/{$member->id}/confirm", ['memberId' => 'KVS-M2'])->assertOk();
 
         Mail::assertNothingSent();
     }

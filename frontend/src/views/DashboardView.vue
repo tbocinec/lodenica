@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
 import PaddlingTrafficLightWidget from '@/components/PaddlingTrafficLightWidget.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
@@ -25,6 +26,12 @@ const resources = useResourcesStore();
 
 // My reservations (logged-in users only).
 const myReservations = ref<Reservation[]>([]);
+const editing = ref<Reservation | null>(null);
+
+async function onMyReservationChanged(): Promise<void> {
+  editing.value = null;
+  await loadMine();
+}
 
 function resourceLabel(resourceId: string): string {
   const r = resources.items.find((x) => x.id === resourceId);
@@ -123,17 +130,36 @@ onMounted(() => {
           <p class="truncate text-sm font-medium text-slate-900">{{ resourceLabel(r.resourceId) }}</p>
           <p class="text-sm text-slate-500">{{ formatReservationRange(r.startsAt, r.endsAt) }}</p>
         </div>
-        <span
-          class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1"
-          :class="r.status === 'CANCELLED'
-            ? 'bg-slate-100 text-slate-500 ring-slate-200'
-            : 'bg-emerald-50 text-emerald-700 ring-emerald-200'"
-        >
-          {{ r.status === 'CANCELLED' ? 'Zrušená' : 'Potvrdená' }}
-        </span>
+        <div class="flex shrink-0 items-center gap-2">
+          <!-- Only cancelled bookings get a marker; confirmed ones don't
+               need a badge. -->
+          <span
+            v-if="r.status === 'CANCELLED'"
+            class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200"
+          >
+            Zrušená
+          </span>
+          <!-- Editing is confirmed-member only (the API gates it). -->
+          <button
+            v-if="auth.isMember && r.status !== 'CANCELLED'"
+            type="button"
+            class="btn-secondary text-xs"
+            @click="editing = r"
+          >
+            Upraviť
+          </button>
+        </div>
       </li>
     </ul>
   </section>
+
+  <ReservationEditDialog
+    :reservation="editing"
+    :resource-name="editing ? resourceLabel(editing.resourceId) : undefined"
+    @close="editing = null"
+    @saved="onMyReservationChanged"
+    @deleted="onMyReservationChanged"
+  />
 
   <!-- Top summary: paddling traffic light + key counts side by side on
        desktop (xl), stacked on mobile/tablet (unchanged there). The light

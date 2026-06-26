@@ -31,12 +31,24 @@ class UserConfirmationApiTest extends TestCase
         $pending = $this->makePending();
         $this->actingAsAdmin();
 
-        $this->postJson("/api/v1/users/{$pending->id}/confirm")
+        $this->postJson("/api/v1/users/{$pending->id}/confirm", ['memberId' => 'KVS-OK1'])
             ->assertOk()
             ->assertJsonPath('id', $pending->id)
             ->assertJsonPath('role', UserRole::MEMBER->value);
 
         $this->assertSame(UserRole::MEMBER, $pending->refresh()->role);
+    }
+
+    public function test_confirm_requires_member_id(): void
+    {
+        $pending = $this->makePending();
+        $this->actingAsAdmin();
+
+        $this->postJson("/api/v1/users/{$pending->id}/confirm")
+            ->assertStatus(400)
+            ->assertJsonPath('code', 'VALIDATION_ERROR');
+
+        $this->assertSame(UserRole::PENDING, $pending->refresh()->role);
     }
 
     public function test_member_cannot_confirm_pending_user(): void
@@ -65,7 +77,7 @@ class UserConfirmationApiTest extends TestCase
             'isActive' => true,
         ]);
         $this->actingAsAdmin();
-        $this->postJson("/api/v1/users/{$member->id}/confirm")
+        $this->postJson("/api/v1/users/{$member->id}/confirm", ['memberId' => 'KVS-OK2'])
             ->assertOk()
             ->assertJsonPath('role', UserRole::MEMBER->value);
     }
@@ -80,7 +92,7 @@ class UserConfirmationApiTest extends TestCase
             'isActive' => true,
         ]);
         $this->actingAsAdmin();
-        $this->postJson("/api/v1/users/{$target->id}/confirm")
+        $this->postJson("/api/v1/users/{$target->id}/confirm", ['memberId' => 'KVS-OK3'])
             ->assertStatus(409);
     }
 

@@ -169,17 +169,20 @@ async function remove(user: User): Promise<void> {
   }
 }
 
-/** Promote a PENDING account to MEMBER. Prompts the admin to assign the
- *  internal member ID at confirmation time. */
+/** Promote a PENDING account to MEMBER. The internal member ID is MANDATORY
+ *  at approval time. */
 async function confirmMember(user: User): Promise<void> {
   const memberId = window.prompt(
-    `Potvrdiť „${user.name}“ ako člena.\nZadaj interné členské ID (nepovinné, dá sa doplniť neskôr):`,
+    `Potvrdiť „${user.name}“ ako člena.\nZadaj interné členské ID (povinné):`,
     user.memberId ?? '',
   );
-  // Cancel → abort; OK with empty → confirm without an ID.
-  if (memberId === null) return;
+  if (memberId === null) return; // cancelled
+  if (memberId.trim() === '') {
+    error.value = 'Pri schválení člena musíte priradiť interné členské ID.';
+    return;
+  }
   try {
-    await usersApi.confirm(user.id, memberId.trim() || null);
+    await usersApi.confirm(user.id, memberId.trim());
     await load();
   } catch (e) {
     error.value = (e as Error).message;
