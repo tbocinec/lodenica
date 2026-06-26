@@ -288,15 +288,19 @@ function applyPreset(preset: 'threeHours' | 'morning' | 'afternoon' | 'fullDay')
       form.startTime = '14:00';
       form.endTime = '20:00';
       return;
-    case 'fullDay':
-      // Single calendar day from 00:01 to 23:59 — covers a "blocked
-      // out entire day" booking without rolling past midnight. Starts
-      // at 00:01 (not 00:00) to avoid an awkward boundary with any
-      // late-night handover from the previous day.
-      form.endDate = date;
-      form.startTime = '00:01';
-      form.endTime = '23:59';
+    case 'fullDay': {
+      // Whole day as a half-open range [00:00 today, 00:00 tomorrow). This
+      // keeps both times on the 15-min step the inputs enforce (00:01/23:59
+      // are NOT valid for step=900, which silently blocked the submit), and
+      // the half-open end at midnight means a next-day booking can start at
+      // 00:00 without overlapping.
+      form.startTime = '00:00';
+      form.endTime = '00:00';
+      const next = new Date(`${date}T00:00:00.000Z`);
+      next.setUTCDate(next.getUTCDate() + 1);
+      form.endDate = toIsoDate(next);
       return;
+    }
   }
 }
 
@@ -649,7 +653,7 @@ onMounted(async () => {
         <button type="button" class="btn-secondary text-xs" @click="applyPreset('threeHours')">+3 hodiny</button>
         <button type="button" class="btn-secondary text-xs" @click="applyPreset('morning')">Doobeda 08:00–14:00</button>
         <button type="button" class="btn-secondary text-xs" @click="applyPreset('afternoon')">Poobede 14:00–20:00</button>
-        <button type="button" class="btn-secondary text-xs" @click="applyPreset('fullDay')">Celý deň 00:01–23:59</button>
+        <button type="button" class="btn-secondary text-xs" @click="applyPreset('fullDay')">Celý deň (00:00–24:00)</button>
       </div>
 
       <div class="grid gap-3 sm:grid-cols-2">
