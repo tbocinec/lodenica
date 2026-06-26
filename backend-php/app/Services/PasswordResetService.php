@@ -65,7 +65,7 @@ class PasswordResetService
      * tokens so a leaked session can't outlive the reset. Throws
      * InvalidResetTokenException for any bad/expired/used token.
      */
-    public function reset(string $email, string $plainToken, string $newPassword): User
+    public function reset(string $email, string $plainToken, string $newPassword, array $consents = []): User
     {
         $row = DB::table('password_reset_tokens')->where('email', $email)->first();
         if ($row === null) {
@@ -88,6 +88,15 @@ class PasswordResetService
         }
 
         $user->password = $newPassword; // hashed via cast
+        // GDPR consents captured when an invited member sets their first
+        // password (the invite link's set-password screen shows the
+        // checkboxes). Only applied when supplied.
+        if (array_key_exists('privacyAck', $consents)) {
+            $user->privacyAck = (bool) $consents['privacyAck'];
+        }
+        if (array_key_exists('dataConsent', $consents)) {
+            $user->dataConsent = (bool) $consents['dataConsent'];
+        }
         $user->save();
         $user->tokens()->delete();
 

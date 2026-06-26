@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { authApi } from '@/api/auth.api';
+import { profileApi } from '@/api/profile.api';
+import type { OAuthProviderInfo } from '@/api/types';
 import LoadError from '@/components/ui/LoadError.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { useAuthStore } from '@/stores/auth.store';
@@ -19,9 +22,33 @@ const passwordConfirm = ref('');
 const submitting = ref(false);
 const error = ref<string | null>(null);
 
-const heading = computed(() => (isInvite ? 'Nastavenie hesla' : 'Obnova hesla'));
-const cta = computed(() => (isInvite ? 'Nastaviť heslo a prihlásiť sa' : 'Zmeniť heslo a prihlásiť sa'));
+// GDPR consents — only collected for invited members setting their first
+// password (mirrors registration). Checkbox 1 is mandatory, checkbox 2 is
+// optional and default-checked.
+const privacyAck = ref(true);
+const dataConsent = ref(true);
+
+// After a successful invite set-up we keep the user on the screen to offer
+// linking a social account (they're already logged in at this point).
+const linked = ref(false);
+const providers = ref<OAuthProviderInfo[]>([]);
+
+const heading = computed(() =>
+  linked.value ? 'Účet je pripravený' : isInvite ? 'Nastavenie hesla' : 'Obnova hesla',
+);
+const cta = computed(() =>
+  isInvite ? 'Nastaviť heslo a prihlásiť sa' : 'Zmeniť heslo a prihlásiť sa',
+);
 const tokenMissing = computed(() => !email || !token);
+
+onMounted(async () => {
+  if (!isInvite) return;
+  try {
+    providers.value = await authApi.providers();
+  } catch {
+    // ignore — just don't offer social linking
+  }
+});
 
 async function submit(): Promise<void> {
   error.value = null;
@@ -29,14 +56,39 @@ async function submit(): Promise<void> {
     error.value = 'Heslá sa nezhodujú.';
     return;
   }
+  if (isInvite && !privacyAck.value) {
+    error.value =
+      'Pre dokončenie musíte potvrdiť oboznámenie s podmienkami spracúvania osobných údajov.';
+    return;
+  }
   submitting.value = true;
   try {
-    await auth.resetPassword(email, token, password.value);
-    await router.replace('/');
+    await auth.resetPassword(
+      email,
+      token,
+      password.value,
+      isInvite ? { privacyAck: privacyAck.value, dataConsent: dataConsent.value } : undefined,
+    );
+    if (isInvite && providers.value.length) {
+      // Logged in now — offer optional social linking before leaving.
+      linked.value = true;
+    } else {
+      await router.replace('/');
+    }
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
     submitting.value = false;
+  }
+}
+
+async function startLink(provider: string): Promise<void> {
+  error.value = null;
+  try {
+    const url = await profileApi.linkUrl(provider);
+    window.location.assign(url);
+  } catch (e) {
+    error.value = (e as Error).message;
   }
 }
 </script>
@@ -55,6 +107,27 @@ async function submit(): Promise<void> {
       >
         Odkaz je neúplný alebo neplatný. Požiadajte o nový cez
         <RouterLink to="/forgot-password" class="font-medium underline">zabudnuté heslo</RouterLink>.
+      </div>
+
+      <!-- Step 2 (invite only): heslo nastavené, ponuka prepojiť sociálny účet. -->
+      <div v-else-if="linked" class="grid gap-3">
+        <div class="rounded-lg bg-emerald-50 px-3 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
+          Heslo je nastavené a ste prihlásený/á. Chcete si prihlásenie zjednodušiť
+          prepojením so sociálnym účtom? (nepovinné)
+        </div>
+        <a
+          v-for="p in providers"
+          :key="p.provider"
+          href="#"
+          class="btn-secondary text-center"
+          @click.prevent="startLink(p.provider)"
+        >
+          Prepojiť s {{ p.label }}
+        </a>
+        <LoadError :message="error" />
+        <button type="button" class="btn-primary mt-1" @click="router.replace('/')">
+          Pokračovať bez prepojenia
+        </button>
       </div>
 
       <form v-else class="grid gap-3" @submit.prevent="submit">
@@ -84,9 +157,52 @@ async function submit(): Promise<void> {
           />
         </div>
 
+        <!-- GDPR consents — only for invited members (first-time setup),
+             mirroring the registration screen. -->
+        <template v-if="isInvite">
+          <label class="flex items-start gap-2 text-xs text-slate-700">
+            <input v-model="privacyAck" type="checkbox" class="mt-0.5 h-4 w-4 rounded" required />
+            <span>
+              Vyhlasujem, že som bol/a oboznámený/á s
+              <a
+                href="https://www.lodenicakvs.sk/?page_id=5024"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="font-medium text-brand-700 hover:underline"
+              >podmienkami spracúvania osobných údajov</a>.
+              <span class="text-rose-600">*</span>
+            </span>
+          </label>
+          <label class="flex items-start gap-2 text-xs text-slate-700">
+            <input v-model="dataConsent" type="checkbox" class="mt-0.5 h-4 w-4 rounded" />
+            <span>
+              Udeľujem
+              <a
+                href="https://www.lodenicakvs.sk/?page_id=5036"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="font-medium text-brand-700 hover:underline"
+              >súhlas na spracovanie osobných údajov</a>.
+            </span>
+          </label>
+        </template>
+
         <LoadError :message="error" />
 
-        <button type="submit" class="btn-primary mt-1" :disabled="submitting">
+        <!-- A failed token (expired / already used) — point to forgot-password
+             so the user can request a fresh link instead of being stuck. -->
+        <p v-if="error" class="text-xs text-slate-500">
+          Odkaz už neplatí?
+          <RouterLink to="/forgot-password" class="font-medium text-brand-700 hover:underline">
+            Požiadať o nový
+          </RouterLink>.
+        </p>
+
+        <button
+          type="submit"
+          class="btn-primary mt-1"
+          :disabled="submitting || (isInvite && !privacyAck)"
+        >
           <Spinner v-if="submitting" class="mr-2" />
           {{ submitting ? 'Ukladám…' : cta }}
         </button>

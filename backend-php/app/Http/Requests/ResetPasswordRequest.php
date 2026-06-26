@@ -21,6 +21,11 @@ class ResetPasswordRequest extends FormRequest
             'email' => ['required', 'email', 'max:200'],
             'token' => ['required', 'string', 'max:200'],
             'password' => ['required', 'string', 'min:8', 'max:200'],
+            // Optional GDPR consents — sent by the invite (set-first-password)
+            // screen. privacyAck is the mandatory one (enforced client-side
+            // in invite mode); both are simply stored when present.
+            'privacyAck' => ['nullable', 'boolean'],
+            'dataConsent' => ['nullable', 'boolean'],
         ];
     }
 

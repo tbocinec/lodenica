@@ -78,8 +78,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /** Consume a reset/invitation token + log in with the new password. */
-  async function resetPassword(email: string, resetToken: string, password: string): Promise<void> {
-    const res = await authApi.resetPassword(email, resetToken, password);
+  async function resetPassword(
+    email: string,
+    resetToken: string,
+    password: string,
+    consents?: { privacyAck: boolean; dataConsent: boolean },
+  ): Promise<void> {
+    const res = await authApi.resetPassword(email, resetToken, password, consents);
     setSession(res.token, res.user);
   }
 

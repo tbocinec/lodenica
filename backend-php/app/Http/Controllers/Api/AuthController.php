@@ -155,7 +155,14 @@ class AuthController extends Controller
     public function resetPassword(ResetPasswordRequest $request, PasswordResetService $passwordReset): JsonResponse
     {
         $data = $request->validated();
-        $user = $passwordReset->reset($data['email'], $data['token'], $data['password']);
+        $consents = [];
+        if (array_key_exists('privacyAck', $data)) {
+            $consents['privacyAck'] = (bool) $data['privacyAck'];
+        }
+        if (array_key_exists('dataConsent', $data)) {
+            $consents['dataConsent'] = (bool) $data['dataConsent'];
+        }
+        $user = $passwordReset->reset($data['email'], $data['token'], $data['password'], $consents);
 
         return $this->tokenResponse($user, $request);
     }

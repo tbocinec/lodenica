@@ -220,6 +220,39 @@ const selectedResource = computed(() =>
   resources.items.find((r) => r.id === form.resourceId),
 );
 
+/**
+ * Global full-text search at the type-tile level — search across ALL active
+ * resources (any type) without first picking a category. When the box has
+ * text we show matching resources directly instead of the type tiles.
+ */
+const globalSearch = ref('');
+const globalResults = computed(() => {
+  const q = globalSearch.value.trim().toLowerCase();
+  if (!q) return [];
+  return resources.items
+    .filter((r) => r.isActive)
+    .filter(
+      (r) =>
+        r.identifier.toLowerCase().includes(q) ||
+        r.name.toLowerCase().includes(q) ||
+        (r.model ?? '').toLowerCase().includes(q) ||
+        (r.color ?? '').toLowerCase().includes(q) ||
+        (RESOURCE_TYPE_LABEL[r.type] ?? '').toLowerCase().includes(q) ||
+        (RESOURCE_TYPE_LABEL_PLURAL[r.type] ?? '').toLowerCase().includes(q),
+    )
+    .sort((a, b) => {
+      if (a.type !== b.type) return a.type.localeCompare(b.type);
+      return a.identifier.localeCompare(b.identifier);
+    })
+    .slice(0, 50);
+});
+
+function pickResourceGlobal(id: string, type: ResourceType): void {
+  pickedType.value = type;
+  form.resourceId = id;
+  globalSearch.value = '';
+}
+
 function pickType(t: ResourceType): void {
   pickedType.value = t;
   // Clear any previously-picked resource so the user has to make a fresh
@@ -518,19 +551,66 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Step 1: pick TYPE. -->
-      <div v-else-if="!pickedType" class="grid gap-3 sm:grid-cols-3">
-        <button
-          v-for="tile in typeTiles"
-          :key="tile.type"
-          type="button"
-          class="flex flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-5 text-center transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
-          @click="pickType(tile.type)"
-        >
-          <span class="text-3xl" aria-hidden="true">{{ tile.icon }}</span>
-          <span class="text-sm font-medium text-slate-900">{{ tile.label }}</span>
-          <span class="text-xs text-slate-500">{{ tile.count }} k dispozícii</span>
-        </button>
+      <!-- Step 1: search across everything OR pick a TYPE. -->
+      <div v-else-if="!pickedType" class="space-y-3">
+        <!-- Global full-text search across all resources (any type). -->
+        <div class="relative">
+          <span aria-hidden="true" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+          <input
+            v-model="globalSearch"
+            type="search"
+            class="input pl-8"
+            placeholder="Hľadať loď naprieč všetkými kategóriami — ID, názov, model, farba, typ…"
+            maxlength="60"
+          />
+        </div>
+
+        <!-- Search results (across all types). -->
+        <template v-if="globalSearch.trim()">
+          <p
+            v-if="globalResults.length === 0"
+            class="rounded-lg bg-slate-50 px-3 py-3 text-center text-sm text-slate-500"
+          >
+            Nič nezodpovedá hľadaniu „<strong>{{ globalSearch }}</strong>“.
+          </p>
+          <div v-else class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <button
+              v-for="r in globalResults"
+              :key="r.id"
+              type="button"
+              class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
+              @click="pickResourceGlobal(r.id, r.type)"
+            >
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium text-slate-900">
+                  <span aria-hidden="true">{{ TYPE_ICON[r.type] ?? '📦' }}</span>
+                  {{ r.identifier }}
+                </p>
+                <p class="truncate text-xs text-slate-500">{{ r.name }}</p>
+                <p class="flex items-center gap-1 truncate text-xs text-slate-400">
+                  <span>{{ RESOURCE_TYPE_LABEL[r.type] }}</span>
+                  <template v-if="r.color"><span>·</span><ColorDot :color="r.color" :size="11" /></template>
+                </p>
+              </div>
+              <span aria-hidden="true" class="text-slate-300">›</span>
+            </button>
+          </div>
+        </template>
+
+        <!-- Type tiles (when not searching). -->
+        <div v-else class="grid gap-3 sm:grid-cols-3">
+          <button
+            v-for="tile in typeTiles"
+            :key="tile.type"
+            type="button"
+            class="flex flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-5 text-center transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
+            @click="pickType(tile.type)"
+          >
+            <span class="text-3xl" aria-hidden="true">{{ tile.icon }}</span>
+            <span class="text-sm font-medium text-slate-900">{{ tile.label }}</span>
+            <span class="text-xs text-slate-500">{{ tile.count }} k dispozícii</span>
+          </button>
+        </div>
       </div>
 
       <!-- Step 2: pick CONCRETE resource. -->

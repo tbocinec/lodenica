@@ -44,11 +44,19 @@ export const authApi = {
     });
     return data;
   },
-  async resetPassword(email: string, token: string, password: string): Promise<LoginResponse> {
+  async resetPassword(
+    email: string,
+    token: string,
+    password: string,
+    consents?: { privacyAck: boolean; dataConsent: boolean },
+  ): Promise<LoginResponse> {
     const { data } = await http.post<LoginResponse>('/auth/reset-password', {
       email,
       token,
       password,
+      ...(consents
+        ? { privacyAck: consents.privacyAck, dataConsent: consents.dataConsent }
+        : {}),
     });
     return data;
   },
