@@ -59,15 +59,26 @@ class AuthController extends Controller
      * SPA can show the "awaiting approval" dashboard immediately.
      * Duplicate emails are rejected by RegisterRequest's unique rule.
      */
-    public function register(RegisterRequest $request, UsersService $users, AdminNotifier $notifier): JsonResponse
-    {
+    public function register(
+        RegisterRequest $request,
+        UsersService $users,
+        AdminNotifier $notifier,
+        \App\Services\MemberRosterService $roster,
+    ): JsonResponse {
         $data = $request->validated();
+
+        // Member roster ("číselník"): if this email is pre-listed, the account
+        // is auto-approved as a MEMBER and inherits the roster's member ID —
+        // no manual approval needed. Otherwise it lands PENDING as usual.
+        $match = $roster->findMatch($data['email']);
+
         $user = $users->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => $data['password'],
-            'role' => UserRole::PENDING,
+            'role' => $match !== null ? UserRole::MEMBER : UserRole::PENDING,
             'isActive' => true,
+            'memberId' => $match?->memberId,
             // GDPR: checkbox 1 is required (always true here); checkbox 2 is
             // optional and default-checked, so treat a missing value as true.
             'privacyAck' => true,
@@ -77,8 +88,13 @@ class AuthController extends Controller
             'passwordSetAt' => now(),
         ]);
 
-        // Let an admin know someone is waiting for approval.
-        $notifier->pendingMemberAwaitingApproval($user);
+        if ($match !== null) {
+            // Record who claimed the roster entry.
+            $roster->markRegistered($match, $user);
+        } else {
+            // Let an admin know someone is waiting for approval.
+            $notifier->pendingMemberAwaitingApproval($user);
+        }
 
         return $this->tokenResponse($user, $request, 201);
     }

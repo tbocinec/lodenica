@@ -210,6 +210,15 @@ be MEMBER/ADMIN directly):
    CSV (`POST /users/import`). Admin-invited accounts are **auto-confirmed
    as MEMBER** (the admin vetted them) and emailed a set-your-password
    link (same token mechanism as reset, 30-day TTL). They are NOT PENDING.
+   They start **inactive** and are activated when they set their password.
+
+> **Member roster ("číselník")** — admin-only `/member-roster` (CRUD + CSV
+> import `id,meno,email`; `MemberRosterService`). On self-registration AND
+> first OAuth registration the email is looked up here: a hit **auto-approves
+> the account as MEMBER** and assigns the roster's `memberId` (the roster
+> name is ignored — the registrant's own name is kept), skipping the admin
+> notification. The matched row is stamped with `registeredUserId` +
+> `registeredAt`. A miss falls through to PENDING as above.
 
 ## Password reset & invitations
 

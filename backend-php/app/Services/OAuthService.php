@@ -31,6 +31,7 @@ class OAuthService
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly AdminNotifier $notifier,
+        private readonly MemberRosterService $roster,
     ) {}
 
     /**
@@ -92,13 +93,18 @@ class OAuthService
             return $existing;
         }
 
-        return DB::transaction(function () use ($provider, $providerUserId, $email, $name, $consents) {
+        // Member roster ("číselník"): a pre-listed email is auto-approved as a
+        // MEMBER with the roster's member ID; otherwise the account is PENDING.
+        $match = $email ? $this->roster->findMatch($email) : null;
+
+        return DB::transaction(function () use ($provider, $providerUserId, $email, $name, $consents, $match) {
             $user = User::create([
                 'name' => $name ?: ($email ?: 'Nový člen'),
                 'email' => $email ?: $provider->value.'_'.$providerUserId.'@oauth.local',
                 'password' => Str::random(40), // unusable until they set one
-                'role' => UserRole::PENDING,
+                'role' => $match !== null ? UserRole::MEMBER : UserRole::PENDING,
                 'isActive' => true,
+                'memberId' => $match?->memberId,
                 'privacyAck' => $consents['privacyAck'] ?? true,
                 'dataConsent' => $consents['dataConsent'] ?? true,
                 'gdprConsentAt' => now(),
@@ -113,8 +119,12 @@ class OAuthService
                 ['name' => $user->name, 'email' => $user->email, 'role' => $user->role->value],
             );
 
-            // New OAuth account is PENDING — notify an admin it's waiting.
-            $this->notifier->pendingMemberAwaitingApproval($user);
+            if ($match !== null) {
+                $this->roster->markRegistered($match, $user);
+            } else {
+                // New OAuth account is PENDING — notify an admin it's waiting.
+                $this->notifier->pendingMemberAwaitingApproval($user);
+            }
 
             return $user;
         });

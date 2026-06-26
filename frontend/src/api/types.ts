@@ -188,6 +188,17 @@ export interface LoginResponse {
   user: User;
 }
 
+/** A member-roster ("číselník") entry — drives self-registration approval. */
+export interface MemberRosterEntry {
+  id: string;
+  email: string;
+  memberId: string | null;
+  name: string | null;
+  registeredUserId: string | null;
+  registeredAt: string | null;
+  createdAt: string;
+}
+
 /** A social login linked to the current account (profile screen). */
 export interface UserIdentity {
   provider: string;

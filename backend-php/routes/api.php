@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuditLogsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\DamagesController;
+use App\Http\Controllers\Api\MemberRosterController;
 use App\Http\Controllers\Api\EventsController;
 use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\OAuthController;
@@ -159,6 +160,13 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('users/invite', [UsersController::class, 'invite']);
     Route::post('users/import', [UsersController::class, 'import']);
     Route::delete('users/{id}/identities/{provider}', [UsersController::class, 'unlinkIdentity']);
+
+    // Member roster ("číselník") — drives self-registration auto-approval.
+    Route::get('member-roster', [MemberRosterController::class, 'index']);
+    Route::post('member-roster', [MemberRosterController::class, 'store']);
+    Route::post('member-roster/import', [MemberRosterController::class, 'import']);
+    Route::patch('member-roster/{id}', [MemberRosterController::class, 'update']);
+    Route::delete('member-roster/{id}', [MemberRosterController::class, 'destroy']);
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
     Route::patch('privacy-policy', [PrivacyPolicyController::class, 'update']);

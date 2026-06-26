@@ -171,6 +171,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Používatelia', auth: 'admin' },
   },
   {
+    path: '/member-roster',
+    name: 'member-roster',
+    component: () => import('@/views/MemberRosterView.vue'),
+    meta: { title: 'Číselník členov', auth: 'admin' },
+  },
+  {
     path: '/admin/usage',
     name: 'admin-usage',
     component: () => import('@/views/AdminUsageView.vue'),

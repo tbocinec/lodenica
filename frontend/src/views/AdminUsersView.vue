@@ -252,6 +252,7 @@ onMounted(load);
     subtitle="Manažment členov a administrátorov klubu."
   >
     <template #actions>
+      <RouterLink to="/member-roster" class="btn-secondary">📇 Číselník členov</RouterLink>
       <button type="button" class="btn-secondary" @click="showInvite = !showInvite">
         {{ showInvite ? 'Skryť pozvánku' : '✉ Pozvať člena' }}
       </button>
