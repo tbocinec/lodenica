@@ -24,6 +24,13 @@ const error = ref<string | null>(null);
 const auth = useAuthStore();
 const resources = useResourcesStore();
 
+// Scroll-to targets for the clickable stat cards.
+const todayRef = ref<HTMLElement | null>(null);
+const damagesRef = ref<HTMLElement | null>(null);
+function scrollTo(el: HTMLElement | null): void {
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 // My reservations (logged-in users only).
 const myReservations = ref<Reservation[]>([]);
 const editing = ref<Reservation | null>(null);
@@ -167,13 +174,13 @@ onMounted(() => {
        dashboard snapshot. -->
   <div class="mb-6 grid items-stretch gap-4 xl:grid-cols-2">
     <PaddlingTrafficLightWidget />
-    <section v-if="snapshot" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      <StatCard label="Dnes obsadené" :value="snapshot.occupiedToday.length" tone="amber" />
-      <StatCard
-        label="Nadchádzajúcich rezervácií"
-        :value="snapshot.totals.upcomingReservations"
-      />
-      <StatCard label="Aktuálne poškodenia" :value="snapshot.totals.openDamages" tone="red" />
+    <section v-if="snapshot" class="grid grid-cols-2 gap-3">
+      <button type="button" class="block w-full text-left" @click="scrollTo(todayRef)">
+        <StatCard label="Dnes obsadené" :value="snapshot.occupiedToday.length" tone="amber" />
+      </button>
+      <button type="button" class="block w-full text-left" @click="scrollTo(damagesRef)">
+        <StatCard label="Aktuálne poškodenia" :value="snapshot.totals.openDamages" tone="red" />
+      </button>
     </section>
   </div>
 
@@ -181,7 +188,7 @@ onMounted(() => {
 
   <template v-if="snapshot">
     <section class="grid gap-6 lg:grid-cols-2">
-      <div class="card-padded">
+      <div ref="todayRef" class="card-padded scroll-mt-24">
         <h2 class="mb-3 text-lg font-semibold">Dnes obsadené</h2>
         <EmptyState
           v-if="snapshot.occupiedToday.length === 0"
@@ -279,7 +286,7 @@ onMounted(() => {
         </ul>
       </div>
 
-      <div class="card-padded lg:col-span-2">
+      <div ref="damagesRef" class="card-padded scroll-mt-24 lg:col-span-2">
         <h2 class="mb-3 text-lg font-semibold">Aktuálne poškodenia</h2>
         <EmptyState v-if="snapshot.damaged.length === 0" title="Žiadne aktuálne poškodenia" />
         <ul v-else class="divide-y divide-slate-100">
