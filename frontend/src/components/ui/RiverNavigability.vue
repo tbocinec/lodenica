@@ -114,7 +114,8 @@ const legend = computed(() =>
       v-if="!hasLimits"
       class="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500 ring-1 ring-slate-200"
     >
-      Limity splavnosti sa doplnia.
+      Limity splavnosti zatiaľ nie sú stanovené. Ak ich poznáš,
+      <a href="mailto:rezervacie@lodenicakvs.sk?subject=Limity%20splavnosti" class="font-medium text-brand-700 hover:underline">pošli nám ich</a>.
     </p>
 
     <template v-else>
