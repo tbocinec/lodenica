@@ -21,12 +21,15 @@ class ReservationsController extends Controller
     public function store(CreateReservationRequest $request): JsonResponse
     {
         $cmd = $request->validated();
-        // Stamp the booking with its creator when made by a logged-in user
-        // (public route → resolve the sanctum guard explicitly). Anonymous
-        // bookings stay ownerless. See docs/AUTH-AND-PERMISSIONS.md.
+        // Stamp the booking with its creator AND their internal member ID
+        // when made by a logged-in user (public route → resolve the sanctum
+        // guard explicitly). Anonymous bookings stay ownerless. The memberId
+        // snapshot lets "my reservations" follow the member identity. See
+        // docs/AUTH-AND-PERMISSIONS.md.
         $user = $request->user('sanctum');
         if ($user !== null) {
             $cmd['createdById'] = $user->id;
+            $cmd['memberId'] = $user->memberId;
         }
 
         $reservation = $this->reservations->create($cmd);
@@ -46,8 +49,10 @@ class ReservationsController extends Controller
         $page = (int) ($request->query('page') ?? 1);
         $pageSize = (int) ($request->query('pageSize') ?? 50);
 
+        $user = $request->user();
         $result = $this->reservations->list([
-            'createdById' => $request->user()->id,
+            'mineUserId' => $user->id,
+            'mineMemberId' => $user->memberId,
             'skip' => ($page - 1) * $pageSize,
             'take' => $pageSize,
             'orderByLatest' => true,

@@ -44,6 +44,7 @@ class ReservationsService
             'resourceId' => $cmd['resourceId'],
             'eventId' => $cmd['eventId'] ?? null,
             'createdById' => $cmd['createdById'] ?? null,
+            'memberId' => $cmd['memberId'] ?? null,
             'customerName' => $cmd['customerName'],
             'customerContact' => $cmd['customerContact'] ?? null,
             'startsAt' => $range->startsAt,
@@ -172,6 +173,18 @@ class ReservationsService
         }
         if (!empty($options['createdById'])) {
             $query->where('createdById', $options['createdById']);
+        }
+        // "My reservations": everything I created OR everything tagged with
+        // my internal member ID (so history follows the member identity even
+        // if the ID is later bound to a different account).
+        if (!empty($options['mineUserId'])) {
+            $memberId = $options['mineMemberId'] ?? null;
+            $query->where(function ($q) use ($options, $memberId) {
+                $q->where('createdById', $options['mineUserId']);
+                if ($memberId !== null && $memberId !== '') {
+                    $q->orWhere('memberId', $memberId);
+                }
+            });
         }
         if (!empty($options['status'])) {
             $status = $options['status'] instanceof ReservationStatus

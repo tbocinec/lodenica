@@ -6,6 +6,7 @@ use App\Domain\Enums\AuditEntityType;
 use App\Domain\Enums\UserRole;
 use App\Exceptions\ForbiddenException;
 use App\Exceptions\NotFoundDomainException;
+use App\Models\Reservation;
 use App\Models\User;
 
 class UsersService
@@ -79,6 +80,10 @@ class UsersService
             $after,
         );
 
+        if (array_key_exists('memberId', $updates)) {
+            $this->linkReservationsToMember($user);
+        }
+
         return $user;
     }
 
@@ -142,6 +147,7 @@ class UsersService
         }
         $user->save();
         $user->refresh();
+        $this->linkReservationsToMember($user);
 
         $this->audit->logUpdate(
             AuditEntityType::USER,
@@ -211,6 +217,24 @@ class UsersService
         $user->memberId = $memberId;
         $user->save();
         $user->refresh();
+        $this->linkReservationsToMember($user);
+    }
+
+    /**
+     * Tag the user's own reservations (the ones they created) with their
+     * current member ID, so "my reservations" follows the member identity.
+     * No-op when the user has no ID. We never clear it back to null — when
+     * an ID later moves to a different account, the old reservations keep
+     * the ID so the new holder inherits the history.
+     */
+    private function linkReservationsToMember(User $user): void
+    {
+        if ($user->memberId === null || $user->memberId === '') {
+            return;
+        }
+        Reservation::query()
+            ->where('createdById', $user->id)
+            ->update(['memberId' => $user->memberId]);
     }
 
     private function snapshot(User $u): array
