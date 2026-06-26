@@ -45,8 +45,8 @@ export const NAVIGABILITY_AREAS: NavArea[] = [
     ],
   },
   { key: 'rakuske-rameno', name: 'Rakúske rameno', gauge: 'devin', segments: [] },
-  { key: 'rameno-lido', name: 'Rameno Lido', gauge: 'devin', segments: [] },
-  { key: 'rameno-zuzana', name: 'Rameno Zuzana', gauge: 'devin', segments: [] },
+  { key: 'rameno-lido', name: 'Rameno Lido', gauge: 'bratislava', segments: [] },
+  { key: 'rameno-zuzana', name: 'Rameno Zuzana', gauge: 'bratislava', segments: [] },
   // Limity doplň do `segments` pri každej oblasti, keď budú známe.
 ];
 
