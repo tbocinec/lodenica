@@ -47,6 +47,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Prihlasovanie…', auth: 'public', layout: 'blank' },
   },
   {
+    path: '/oauth/consent',
+    name: 'oauth-consent',
+    component: () => import('@/views/OAuthConsentView.vue'),
+    meta: { title: 'Dokončenie registrácie', auth: 'public', layout: 'blank' },
+  },
+  {
     path: '/profil',
     name: 'profile',
     component: () => import('@/views/ProfileView.vue'),

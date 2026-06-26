@@ -194,9 +194,13 @@ be MEMBER/ADMIN directly):
 1. **Self-registration** — `POST /auth/register` (email + password). Role
    is forced to PENDING server-side; the client cannot pick it. Auto-logs
    in so the user immediately sees the "waiting" dashboard.
-2. **Social login** — first OAuth login with an unknown identity creates a
-   PENDING account (`OAuthService::resolveLogin`). If the provider email
-   matches an existing account, the identity is linked to it instead.
+2. **Social login** — a known identity (or a provider email matching an
+   existing account) logs straight in (`OAuthService::attemptLogin`). A
+   brand-new person is NOT created at the callback: they're routed to the
+   SPA GDPR-consent screen (`/oauth/consent`) carrying a short-lived
+   HMAC-signed profile token, and the PENDING account is created only after
+   they accept the consents (`POST /auth/oauth/complete` →
+   `OAuthService::completeRegistration`, storing privacyAck + dataConsent).
 
 > Self-registration and a new OAuth PENDING account both fire an admin
 > notification email (`AdminNotifier::pendingMemberAwaitingApproval`) to

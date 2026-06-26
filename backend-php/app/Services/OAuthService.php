@@ -34,11 +34,13 @@ class OAuthService
     ) {}
 
     /**
-     * Find-or-create the local user for a social login.
-     *
-     * @return array{user: User, created: bool}
+     * Log in an EXISTING social user without creating anything. Returns the
+     * user when the identity is already known, or when the provider's email
+     * matches an existing account (auto-linking the identity). Returns null
+     * for a brand-new person — the controller then routes them through the
+     * GDPR consent gate before `completeRegistration` creates the account.
      */
-    public function resolveLogin(OAuthProvider $provider, SocialiteUser $oauth): array
+    public function attemptLogin(OAuthProvider $provider, SocialiteUser $oauth): ?User
     {
         $providerUserId = (string) $oauth->getId();
 
@@ -47,7 +49,7 @@ class OAuthService
             ->where('providerUserId', $providerUserId)
             ->first();
         if ($identity !== null) {
-            return ['user' => $identity->user, 'created' => false];
+            return $identity->user;
         }
 
         $email = $oauth->getEmail();
@@ -55,16 +57,50 @@ class OAuthService
         if ($existing !== null) {
             $this->createIdentity($existing, $provider, $providerUserId, $email);
 
-            return ['user' => $existing, 'created' => false];
+            return $existing;
         }
 
-        return DB::transaction(function () use ($provider, $providerUserId, $oauth, $email) {
+        return null;
+    }
+
+    /**
+     * Create the PENDING account for a first-time social user AFTER they've
+     * accepted the GDPR consents. Idempotent: if the identity or a matching
+     * email already exists (e.g. a double submit), returns that user without
+     * creating a duplicate.
+     *
+     * @param  array{privacyAck: bool, dataConsent: bool}  $consents
+     */
+    public function completeRegistration(
+        OAuthProvider $provider,
+        string $providerUserId,
+        ?string $email,
+        ?string $name,
+        array $consents,
+    ): User {
+        $identity = UserIdentity::query()
+            ->where('provider', $provider->value)
+            ->where('providerUserId', $providerUserId)
+            ->first();
+        if ($identity !== null) {
+            return $identity->user;
+        }
+        $existing = $email ? User::query()->where('email', $email)->first() : null;
+        if ($existing !== null) {
+            $this->createIdentity($existing, $provider, $providerUserId, $email);
+
+            return $existing;
+        }
+
+        return DB::transaction(function () use ($provider, $providerUserId, $email, $name, $consents) {
             $user = User::create([
-                'name' => $oauth->getName() ?: ($oauth->getNickname() ?: ($email ?: 'Nový člen')),
+                'name' => $name ?: ($email ?: 'Nový člen'),
                 'email' => $email ?: $provider->value.'_'.$providerUserId.'@oauth.local',
                 'password' => Str::random(40), // unusable until they set one
                 'role' => UserRole::PENDING,
                 'isActive' => true,
+                'privacyAck' => $consents['privacyAck'] ?? true,
+                'dataConsent' => $consents['dataConsent'] ?? true,
             ]);
 
             $this->createIdentity($user, $provider, $providerUserId, $email);
@@ -79,7 +115,7 @@ class OAuthService
             // New OAuth account is PENDING — notify an admin it's waiting.
             $this->notifier->pendingMemberAwaitingApproval($user);
 
-            return ['user' => $user, 'created' => true];
+            return $user;
         });
     }
 

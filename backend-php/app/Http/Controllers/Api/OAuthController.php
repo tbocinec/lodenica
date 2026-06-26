@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Enums\OAuthProvider;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\OAuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -70,11 +72,73 @@ class OAuthController extends Controller
             return redirect()->away($spa.'/profil?linked='.$resolved->value);
         }
 
-        // Login / registration flow.
-        $result = $oauth->resolveLogin($resolved, $oauthUser);
-        $token = $result['user']->createToken('spa:oauth:'.$resolved->value)->plainTextToken;
+        // Login flow: existing social user (known identity or matching
+        // email) → straight in.
+        $user = $oauth->attemptLogin($resolved, $oauthUser);
+        if ($user !== null) {
+            $token = $user->createToken('spa:oauth:'.$resolved->value)->plainTextToken;
 
-        return redirect()->away($spa.'/oauth/callback?token='.urlencode($token));
+            return redirect()->away($spa.'/oauth/callback?token='.urlencode($token));
+        }
+
+        // Brand-new person → DO NOT create the account yet. Carry the
+        // (provider-verified) profile in a short-lived signed token to the
+        // SPA's GDPR consent screen; the account is created only after the
+        // consents are accepted (POST /auth/oauth/complete).
+        $profile = $this->signProfile([
+            'provider' => $resolved->value,
+            'pid' => (string) $oauthUser->getId(),
+            'email' => $oauthUser->getEmail(),
+            'name' => $oauthUser->getName() ?: $oauthUser->getNickname(),
+        ]);
+
+        return redirect()->away($spa.'/oauth/consent?profile='.urlencode($profile));
+    }
+
+    /**
+     * POST /api/v1/auth/oauth/complete
+     *
+     * Finalises a first-time social registration after the user accepted the
+     * GDPR consents. Body: { profile (signed token from the callback),
+     * privacyAck (must be accepted), dataConsent (optional) }. Creates the
+     * PENDING account + identity and logs the user in.
+     */
+    public function complete(Request $request, OAuthService $oauth): JsonResponse
+    {
+        $data = $request->validate([
+            'profile' => ['required', 'string'],
+            'privacyAck' => ['accepted'],
+            'dataConsent' => ['nullable', 'boolean'],
+        ], [
+            'privacyAck.accepted' => 'Pre registráciu musíte potvrdiť oboznámenie s podmienkami spracúvania osobných údajov.',
+        ]);
+
+        $profile = $this->verifyProfile($data['profile']);
+        if ($profile === null) {
+            throw ValidationException::withMessages([
+                'profile' => 'Registrácia cez sociálnu sieť vypršala. Skúste sa prihlásiť znova.',
+            ]);
+        }
+
+        $provider = OAuthProvider::tryFrom((string) ($profile['provider'] ?? ''));
+        if ($provider === null) {
+            throw ValidationException::withMessages(['profile' => 'Neplatný poskytovateľ.']);
+        }
+
+        $user = $oauth->completeRegistration(
+            $provider,
+            (string) $profile['pid'],
+            $profile['email'] ?? null,
+            $profile['name'] ?? null,
+            ['privacyAck' => true, 'dataConsent' => (bool) ($data['dataConsent'] ?? true)],
+        );
+
+        $token = $user->createToken('spa:oauth:'.$provider->value)->plainTextToken;
+
+        return new JsonResponse([
+            'token' => $token,
+            'user' => (new UserResource($user))->toArray($request),
+        ], 201);
     }
 
     /**
@@ -127,6 +191,34 @@ class OAuthController extends Controller
         }
 
         return isset($data['uid']) ? (string) $data['uid'] : null;
+    }
+
+    /** Sign a first-time OAuth profile (15-min TTL) for the consent gate. */
+    private function signProfile(array $profile): string
+    {
+        $profile['exp'] = time() + 900;
+        $payload = $this->b64url((string) json_encode($profile));
+
+        return $payload.'.'.hash_hmac('sha256', $payload, (string) config('app.key'));
+    }
+
+    /** @return array<string,mixed>|null */
+    private function verifyProfile(string $token): ?array
+    {
+        if ($token === '' || !str_contains($token, '.')) {
+            return null;
+        }
+        [$payload, $sig] = explode('.', $token, 2);
+        $expected = hash_hmac('sha256', $payload, (string) config('app.key'));
+        if (!hash_equals($expected, $sig)) {
+            return null;
+        }
+        $data = json_decode($this->b64urlDecode($payload), true);
+        if (!is_array($data) || (int) ($data['exp'] ?? 0) < time() || empty($data['pid'])) {
+            return null;
+        }
+
+        return $data;
     }
 
     private function b64url(string $raw): string

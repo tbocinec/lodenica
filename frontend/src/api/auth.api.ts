@@ -52,6 +52,22 @@ export const authApi = {
     });
     return data;
   },
+  /**
+   * Finalise a first-time social registration: the OAuth callback parked the
+   * provider-verified profile in `profile`; the user accepts GDPR consents
+   * here and the account is created + logged in.
+   */
+  async oauthComplete(
+    profile: string,
+    consents: { privacyAck: boolean; dataConsent: boolean },
+  ): Promise<LoginResponse> {
+    const { data } = await http.post<LoginResponse>('/auth/oauth/complete', {
+      profile,
+      privacyAck: consents.privacyAck,
+      dataConsent: consents.dataConsent,
+    });
+    return data;
+  },
   /** Live social-login providers. Empty while OAuth is dormant. */
   async providers(): Promise<OAuthProviderInfo[]> {
     const { data } = await http.get<{ providers: OAuthProviderInfo[] }>('/auth/providers');

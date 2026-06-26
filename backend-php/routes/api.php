@@ -38,6 +38,8 @@ Route::get('auth/providers', [AuthController::class, 'providers']);
 // the provider is unconfigured. See docs/AUTH-AND-PERMISSIONS.md.
 Route::get('auth/oauth/{provider}/redirect', [OAuthController::class, 'redirect']);
 Route::get('auth/oauth/{provider}/callback', [OAuthController::class, 'callback']);
+// Finalises a first-time social registration after GDPR consents.
+Route::post('auth/oauth/complete', [OAuthController::class, 'complete']);
 
 Route::get('availability/dashboard', [AvailabilityController::class, 'dashboard']);
 

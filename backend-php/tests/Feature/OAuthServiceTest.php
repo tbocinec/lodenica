@@ -28,33 +28,47 @@ class OAuthServiceTest extends TestCase
         };
     }
 
-    public function test_first_login_creates_pending_user_and_identity(): void
+    public function test_first_time_login_returns_null_and_creates_nothing(): void
     {
-        $service = app(OAuthService::class);
-
-        $result = $service->resolveLogin(
+        // Brand-new person → no account yet; they must pass the consent gate.
+        $user = app(OAuthService::class)->attemptLogin(
             OAuthProvider::GOOGLE,
             $this->socialite('google-123', 'new@example.test', 'New Person'),
         );
 
-        $this->assertTrue($result['created']);
-        $this->assertSame(UserRole::PENDING, $result['user']->role);
+        $this->assertNull($user);
+        $this->assertSame(0, User::count());
+        $this->assertDatabaseMissing('user_identities', ['provider' => 'google']);
+    }
+
+    public function test_complete_registration_creates_pending_user_with_consents(): void
+    {
+        $user = app(OAuthService::class)->completeRegistration(
+            OAuthProvider::GOOGLE,
+            'google-123',
+            'new@example.test',
+            'New Person',
+            ['privacyAck' => true, 'dataConsent' => false],
+        );
+
+        $this->assertSame(UserRole::PENDING, $user->role);
+        $this->assertTrue((bool) $user->privacyAck);
+        $this->assertFalse((bool) $user->dataConsent);
         $this->assertDatabaseHas('user_identities', [
             'provider' => 'google',
             'providerUserId' => 'google-123',
         ]);
     }
 
-    public function test_second_login_with_same_identity_returns_same_user(): void
+    public function test_login_after_registration_returns_same_user(): void
     {
         $service = app(OAuthService::class);
         $oauth = $this->socialite('google-xyz', 'same@example.test');
 
-        $first = $service->resolveLogin(OAuthProvider::GOOGLE, $oauth);
-        $second = $service->resolveLogin(OAuthProvider::GOOGLE, $oauth);
+        $service->completeRegistration(OAuthProvider::GOOGLE, 'google-xyz', 'same@example.test', 'X', ['privacyAck' => true, 'dataConsent' => true]);
+        $again = $service->attemptLogin(OAuthProvider::GOOGLE, $oauth);
 
-        $this->assertSame($first['user']->id, $second['user']->id);
-        $this->assertFalse($second['created']);
+        $this->assertNotNull($again);
         $this->assertSame(1, User::count());
     }
 
@@ -65,13 +79,14 @@ class OAuthServiceTest extends TestCase
             'password' => 'password123', 'role' => UserRole::MEMBER, 'isActive' => true,
         ]);
 
-        $result = app(OAuthService::class)->resolveLogin(
+        $user = app(OAuthService::class)->attemptLogin(
             OAuthProvider::FACEBOOK,
             $this->socialite('fb-1', 'match@example.test'),
         );
 
-        $this->assertSame($existing->id, $result['user']->id);
-        $this->assertSame(UserRole::MEMBER, $result['user']->role); // unchanged
+        $this->assertNotNull($user);
+        $this->assertSame($existing->id, $user->id);
+        $this->assertSame(UserRole::MEMBER, $user->role); // unchanged, no consent gate
         $this->assertDatabaseHas('user_identities', [
             'userId' => $existing->id,
             'provider' => 'facebook',
@@ -79,14 +94,20 @@ class OAuthServiceTest extends TestCase
         $this->assertSame(1, User::count());
     }
 
+    public function test_complete_registration_is_idempotent(): void
+    {
+        $service = app(OAuthService::class);
+        $a = $service->completeRegistration(OAuthProvider::GOOGLE, 'g-dup', 'dup@example.test', 'Dup', ['privacyAck' => true, 'dataConsent' => true]);
+        $b = $service->completeRegistration(OAuthProvider::GOOGLE, 'g-dup', 'dup@example.test', 'Dup', ['privacyAck' => true, 'dataConsent' => true]);
+
+        $this->assertSame($a->id, $b->id);
+        $this->assertSame(1, User::count());
+    }
+
     public function test_unlink_removes_identity(): void
     {
         $service = app(OAuthService::class);
-        $result = $service->resolveLogin(
-            OAuthProvider::GOOGLE,
-            $this->socialite('g-unlink', 'unlink@example.test'),
-        );
-        $user = $result['user'];
+        $user = $service->completeRegistration(OAuthProvider::GOOGLE, 'g-unlink', 'unlink@example.test', 'U', ['privacyAck' => true, 'dataConsent' => true]);
 
         $service->unlink($user, OAuthProvider::GOOGLE);
 
