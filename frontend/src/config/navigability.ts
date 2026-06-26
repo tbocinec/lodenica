@@ -35,7 +35,7 @@ export const NAVIGABILITY_AREAS: NavArea[] = [
   {
     key: 'velky-okruh',
     name: 'Veľký okruh',
-    gauge: 'bratislava',
+    gauge: 'devin',
     segments: [
       { from: null, to: 334, level: 'red' },
       { from: 335, to: 349, level: 'orange' },
