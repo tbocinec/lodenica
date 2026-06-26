@@ -21,6 +21,8 @@ class InviteUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:200'],
             'email' => ['required', 'email', 'max:200', 'unique:users,email'],
+            // Optional internal member ID assigned right at invite time.
+            'memberId' => ['nullable', 'string', 'max:100', 'unique:users,memberId'],
         ];
     }
 
@@ -29,12 +31,16 @@ class InviteUserRequest extends FormRequest
         if (is_string($this->input('email'))) {
             $this->merge(['email' => strtolower(trim($this->input('email')))]);
         }
+        if ($this->exists('memberId') && trim((string) $this->input('memberId')) === '') {
+            $this->merge(['memberId' => null]);
+        }
     }
 
     public function messages(): array
     {
         return [
             'email.unique' => 'Účet s týmto e-mailom už existuje.',
+            'memberId.unique' => 'Toto členské ID už má priradené iný používateľ.',
         ];
     }
 }

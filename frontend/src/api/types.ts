@@ -166,6 +166,9 @@ export interface User {
   email: string;
   role: UserRole;
   isActive: boolean;
+  /** Internal club member ID. Admin-only — null for non-admin viewers
+   *  (backend strips it at the API boundary). */
+  memberId: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -338,7 +338,10 @@ set net:max-retries 3
 set net:timeout 30
 set net:reconnect-interval-base 5
 set xfer:clobber yes
-set mirror:parallel-transfer-count 4
+# Serial (1) transfer — parallel SFTP on this host has silently skipped
+# individual files (a missed migration + stale SPA chunk both bit us).
+# Slower but reliable; the bundles are small enough that it's fine.
+set mirror:parallel-transfer-count 1
 
 # 1. Laravel app — uploaded to /laravel/ (inside docroot, denied via .htaccess).
 # Protects server-side .env, storage/* and bootstrap cache from --delete.

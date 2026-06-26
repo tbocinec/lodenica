@@ -21,6 +21,15 @@ class CreateUserRequest extends FormRequest
             'password' => ['required', 'string', 'min:8', 'max:200'],
             'role' => ['required', Rule::enum(UserRole::class)],
             'isActive' => ['nullable', 'boolean'],
+            // Internal club member ID (admin-only), unique across users.
+            'memberId' => ['nullable', 'string', 'max:100', 'unique:users,memberId'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'memberId.unique' => 'Toto členské ID už má priradené iný používateľ.',
         ];
     }
 }

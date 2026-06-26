@@ -28,11 +28,12 @@ const newUser = reactive({
   email: '',
   password: '',
   role: 'MEMBER' as UserRole,
+  memberId: '',
 });
 
 // Invite a single member (auto-confirmed, emailed a set-password link).
 const showInvite = ref(false);
-const inviteForm = reactive({ name: '', email: '' });
+const inviteForm = reactive({ name: '', email: '', memberId: '' });
 const inviting = ref(false);
 const inviteSuccess = ref<string | null>(null);
 
@@ -41,10 +42,15 @@ async function invite(): Promise<void> {
   inviteSuccess.value = null;
   inviting.value = true;
   try {
-    const u = await usersApi.invite(inviteForm.name.trim(), inviteForm.email.trim());
+    const u = await usersApi.invite(
+      inviteForm.name.trim(),
+      inviteForm.email.trim(),
+      inviteForm.memberId.trim(),
+    );
     inviteSuccess.value = `Pozvánka odoslaná na ${u.email}.`;
     inviteForm.name = '';
     inviteForm.email = '';
+    inviteForm.memberId = '';
     await load();
   } catch (e) {
     error.value = (e as Error).message;
@@ -111,9 +117,10 @@ async function create(): Promise<void> {
       email: newUser.email.trim(),
       password: newUser.password,
       role: newUser.role,
+      memberId: newUser.memberId.trim() || null,
     });
     showCreate.value = false;
-    Object.assign(newUser, { name: '', email: '', password: '', role: 'MEMBER' });
+    Object.assign(newUser, { name: '', email: '', password: '', role: 'MEMBER', memberId: '' });
     await load();
   } catch (e) {
     error.value = (e as Error).message;
@@ -162,12 +169,29 @@ async function remove(user: User): Promise<void> {
   }
 }
 
-/** Promote a PENDING account to MEMBER. Surfaced as a green
- *  "Potvrdiť člena" button next to the role pill. */
+/** Promote a PENDING account to MEMBER. Prompts the admin to assign the
+ *  internal member ID at confirmation time. */
 async function confirmMember(user: User): Promise<void> {
-  if (!window.confirm(`Potvrdiť „${user.name}“ ako riadneho člena klubu?`)) return;
+  const memberId = window.prompt(
+    `Potvrdiť „${user.name}“ ako člena.\nZadaj interné členské ID (nepovinné, dá sa doplniť neskôr):`,
+    user.memberId ?? '',
+  );
+  // Cancel → abort; OK with empty → confirm without an ID.
+  if (memberId === null) return;
   try {
-    await usersApi.confirm(user.id);
+    await usersApi.confirm(user.id, memberId.trim() || null);
+    await load();
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+}
+
+/** Assign / change a member's internal ID (admin-only). */
+async function editMemberId(user: User): Promise<void> {
+  const value = window.prompt(`Interné členské ID pre „${user.name}“:`, user.memberId ?? '');
+  if (value === null) return;
+  try {
+    await usersApi.update(user.id, { memberId: value.trim() || null });
     await load();
   } catch (e) {
     error.value = (e as Error).message;
@@ -237,7 +261,7 @@ onMounted(load);
        MEMBER and emailed a set-your-password link (valid 30 days). -->
   <form
     v-if="showInvite"
-    class="mb-6 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 sm:grid-cols-[1fr_1fr_auto]"
+    class="mb-6 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 sm:grid-cols-[1fr_1fr_1fr_auto]"
     @submit.prevent="invite"
   >
     <div>
@@ -248,17 +272,22 @@ onMounted(load);
       <label class="label" for="inv-email">Email *</label>
       <input id="inv-email" v-model="inviteForm.email" type="email" class="input mt-1" required />
     </div>
+    <div>
+      <label class="label" for="inv-mid">Členské ID</label>
+      <input id="inv-mid" v-model="inviteForm.memberId" class="input mt-1" maxlength="100" placeholder="napr. KVS-001" />
+    </div>
     <div class="flex items-end">
       <button type="submit" class="btn-primary" :disabled="inviting || !inviteForm.name.trim() || !inviteForm.email.trim()">
         <Spinner v-if="inviting" class="mr-2" />
         {{ inviting ? 'Pozývam…' : 'Pozvať' }}
       </button>
     </div>
-    <p class="sm:col-span-3 text-xs text-slate-500">
+    <p class="sm:col-span-4 text-xs text-slate-500">
       Člen dostane e-mail s odkazom na nastavenie hesla (platný 30 dní) a je
-      rovno potvrdený — nemusíte ho potvrdzovať zvlášť.
+      rovno potvrdený — nemusíte ho potvrdzovať zvlášť. Členské ID je interné
+      a vidia ho iba administrátori.
     </p>
-    <p v-if="inviteSuccess" class="sm:col-span-3 text-sm text-emerald-700">{{ inviteSuccess }}</p>
+    <p v-if="inviteSuccess" class="sm:col-span-4 text-sm text-emerald-700">{{ inviteSuccess }}</p>
   </form>
 
   <!-- Bulk CSV import: name,email rows. Each new account is PENDING and is
@@ -270,10 +299,11 @@ onMounted(load);
     <div>
       <h2 class="text-sm font-semibold text-slate-800">Hromadný import používateľov</h2>
       <p class="mt-1 text-xs text-slate-500">
-        Vlož CSV so stĺpcami <code>meno,email</code> (jeden na riadok), alebo
+        Vlož CSV so stĺpcami <code>meno,email,id</code> (ID je nepovinné), alebo
         nahraj súbor. Každý nový kontakt dostane e-mail s odkazom na
         nastavenie hesla (platný 30 dní) a je rovno potvrdený ako člen.
-        Duplicitné e-maily sa preskočia.
+        Duplicitné e-maily sa preskočia; už použité členské ID sa nahlási ako
+        chybné.
       </p>
     </div>
     <input type="file" accept=".csv,text/csv,text/plain" class="text-sm" @change="onCsvFile" />
@@ -281,7 +311,7 @@ onMounted(load);
       v-model="csvText"
       class="input font-mono text-xs"
       rows="6"
-      placeholder="Ján Novák,jan@example.com&#10;Eva Malá,eva@example.com"
+      placeholder="Ján Novák,jan@example.com,KVS-001&#10;Eva Malá,eva@example.com,KVS-002"
     ></textarea>
     <div class="flex items-center justify-end gap-2">
       <button type="button" class="btn-secondary" @click="showImport = false">Zavrieť</button>
@@ -338,6 +368,10 @@ onMounted(load);
         <option value="MEMBER">Člen</option>
         <option value="ADMIN">Administrátor</option>
       </select>
+    </div>
+    <div>
+      <label class="label" for="nu-mid">Členské ID</label>
+      <input id="nu-mid" v-model="newUser.memberId" class="input mt-1" maxlength="100" placeholder="napr. KVS-001" />
     </div>
     <div class="sm:col-span-4 flex justify-end gap-2">
       <button type="button" class="btn-secondary" @click="showCreate = false">Zrušiť</button>
@@ -445,6 +479,7 @@ onMounted(load);
         <tr>
           <th class="px-4 py-2.5">Meno</th>
           <th class="px-4 py-2.5">Email</th>
+          <th class="px-4 py-2.5">Členské ID</th>
           <th class="px-4 py-2.5">Rola</th>
           <th class="px-4 py-2.5">Stav</th>
           <th class="px-4 py-2.5">Vytvorený</th>
@@ -458,6 +493,18 @@ onMounted(load);
             <span v-if="isSelf(user)" class="ml-1 text-xs font-normal text-slate-500">(ja)</span>
           </td>
           <td class="px-4 py-2 text-slate-700">{{ user.email }}</td>
+          <td class="px-4 py-2">
+            <button
+              type="button"
+              class="group inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-xs hover:bg-slate-100"
+              :class="user.memberId ? 'text-slate-800' : 'text-slate-400'"
+              title="Upraviť interné členské ID"
+              @click="editMemberId(user)"
+            >
+              {{ user.memberId ?? '—' }}
+              <span aria-hidden="true" class="opacity-0 transition group-hover:opacity-100">✏️</span>
+            </button>
+          </td>
           <td class="px-4 py-2">
             <div class="flex items-center gap-2">
               <select

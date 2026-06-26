@@ -35,12 +35,13 @@ class BulkUserImportService
         $invalid = [];
 
         foreach ($this->rows($csv) as $row) {
-            [$name, $email] = $row;
+            [$name, $email, $memberId] = $row;
             $email = strtolower(trim($email));
             $name = trim($name);
+            $memberId = trim($memberId);
 
             if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $invalid[] = $row[1] !== '' ? $row[1] : '(prázdny riadok)';
+                $invalid[] = $email !== '' ? $email : '(prázdny riadok)';
                 continue;
             }
             if ($name === '') {
@@ -52,13 +53,29 @@ class BulkUserImportService
                 continue;
             }
 
-            $user = $this->users->create([
-                'name' => $name,
-                'email' => $email,
-                'password' => Str::random(40), // placeholder; set via invite link
-                'role' => UserRole::MEMBER, // admin-invited → auto-confirmed
-                'isActive' => true,
-            ]);
+            // Member ID must be unique across users; report a clash instead
+            // of failing the whole batch.
+            if ($memberId !== '' && User::query()->where('memberId', $memberId)->exists()) {
+                $invalid[] = "{$email} (členské ID „{$memberId}“ je už použité)";
+                continue;
+            }
+
+            try {
+                $user = $this->users->create([
+                    'name' => $name,
+                    'email' => $email,
+                    'password' => Str::random(40), // placeholder; set via invite link
+                    'role' => UserRole::MEMBER, // admin-invited → auto-confirmed
+                    'isActive' => true,
+                    'memberId' => $memberId !== '' ? $memberId : null,
+                ]);
+            } catch (\Throwable $e) {
+                // e.g. a race on the unique memberId/email — skip this row,
+                // keep the rest of the batch going.
+                Log::warning('Bulk import: create failed for '.$email.': '.$e->getMessage());
+                $invalid[] = "{$email} (nepodarilo sa vytvoriť)";
+                continue;
+            }
 
             try {
                 $this->passwordReset->sendInvitation($user);
@@ -75,12 +92,13 @@ class BulkUserImportService
     }
 
     /**
-     * Parse CSV into [name, email] pairs. Accepts comma or semicolon
-     * separators, an optional header row, and "email" or "name,email"
-     * column orders (best-effort: the cell that looks like an email is the
-     * email, the other is the name).
+     * Parse CSV into [name, email, memberId] triples. Accepts comma or
+     * semicolon separators and an optional header row. The cell that looks
+     * like an email is the email; of the remaining cells (in order) the first
+     * is the name and the second is the internal member ID — so the natural
+     * layout is `meno,email,id`, but order is forgiving.
      *
-     * @return array<int,array{0:string,1:string}>
+     * @return array<int,array{0:string,1:string,2:string}>
      */
     private function rows(string $csv): array
     {
@@ -105,20 +123,24 @@ class BulkUserImportService
             }
 
             $email = '';
-            $name = '';
+            $others = [];
             foreach ($cells as $cell) {
                 if ($email === '' && filter_var($cell, FILTER_VALIDATE_EMAIL)) {
                     $email = $cell;
-                } elseif ($name === '') {
-                    $name = $cell;
+                } else {
+                    $others[] = $cell;
                 }
             }
             // Single-column "email only" files.
             if ($email === '' && count($cells) === 1) {
                 $email = $cells[0];
+                $others = [];
             }
 
-            $rows[] = [$name, $email];
+            $name = $others[0] ?? '';
+            $memberId = $others[1] ?? '';
+
+            $rows[] = [$name, $email, $memberId];
         }
 
         return $rows;

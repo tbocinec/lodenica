@@ -85,9 +85,18 @@ class UsersController extends Controller
      */
     public function confirm(Request $request, string $id): UserResource
     {
+        $validated = $request->validate([
+            // Admin assigns the internal member ID when confirming. Optional
+            // (can be set later via update); unique across users.
+            'memberId' => ['nullable', 'string', 'max:100'],
+        ]);
+        $memberId = isset($validated['memberId']) && trim((string) $validated['memberId']) !== ''
+            ? trim((string) $validated['memberId'])
+            : null;
+
         /** @var User $actor */
         $actor = $request->user();
-        $user = $this->users->confirmPending($id, $actor);
+        $user = $this->users->confirmPending($id, $actor, $memberId);
 
         return new UserResource($user);
     }
@@ -126,6 +135,7 @@ class UsersController extends Controller
             'password' => Str::random(40), // placeholder; set via invite link
             'role' => UserRole::MEMBER,     // admin-invited → auto-confirmed
             'isActive' => true,
+            'memberId' => $data['memberId'] ?? null,
         ]);
 
         $passwordReset->sendInvitation($user);

@@ -64,6 +64,7 @@ auth.isPending         // strict PENDING
 | Privacy policy page (`/ochrana-udajov`) | ✅ | ✅ | ✅ | ✅ |
 | Q&A / FAQ page (`/q-a`) | ✅ | ✅ | ✅ | ✅ |
 | Resource photo (`GET /resources/{id}/photo`) | ✅ | ✅ | ✅ | ✅ |
+| User's internal `memberId` (incl. own) | ❌ (null) | ❌ (null) | ❌ (null) | ✅ |
 | Event list + single-event metadata (title, description, date, location) | ✅ | ✅ | ✅ | ✅ |
 | Event participants (`GET /events/{id}/participants`) | ❌ (401) | ❌ (403) | ✅ | ✅ |
 | Boats attached to an event (shown in SPA event detail) | ❌ | ❌ | ✅ | ✅ |
@@ -94,7 +95,8 @@ auth.isPending         // strict PENDING
 | Edit privacy policy HTML | ❌ | ❌ | ❌ | ✅ |
 | Edit Q&A / FAQ HTML | ❌ | ❌ | ❌ | ✅ |
 | Upload / remove a resource photo (`POST/DELETE /resources/{id}/photo`) | ❌ | ❌ | ❌ | ✅ |
-| Confirm a pending user → MEMBER (sends approval email) | ❌ | ❌ | ❌ | ✅ |
+| Confirm a pending user → MEMBER (sends approval email; admin assigns `memberId`) | ❌ | ❌ | ❌ | ✅ |
+| Assign / change a user's internal `memberId` (unique; via confirm, update, invite, CSV) | ❌ | ❌ | ❌ | ✅ |
 | Edit user roles + active flag | ❌ | ❌ | ❌ | ✅ |
 | Reset ANY user's password (`PATCH /users/{id}`) | ❌ | ❌ | ❌ | ✅ |
 | Invite a member — single (`POST /users/invite`) or bulk CSV (`POST /users/import`); both auto-confirm as MEMBER | ❌ | ❌ | ❌ | ✅ |

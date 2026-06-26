@@ -22,6 +22,7 @@ class UsersService
                 ? $input['role']
                 : UserRole::from($input['role']),
             'isActive' => $input['isActive'] ?? true,
+            'memberId' => $input['memberId'] ?? null,
         ]);
 
         $this->audit->logCreate(
@@ -50,7 +51,7 @@ class UsersService
             }
         }
 
-        $updates = array_intersect_key($input, array_flip(['name', 'email', 'role', 'isActive']));
+        $updates = array_intersect_key($input, array_flip(['name', 'email', 'role', 'isActive', 'memberId']));
         if (!empty($input['password'])) {
             $updates['password'] = $input['password']; // hashed via cast
         }
@@ -113,7 +114,7 @@ class UsersService
      * attempts — admin role transitions go via the full update endpoint
      * with audit context.
      */
-    public function confirmPending(string $id, User $actor): User
+    public function confirmPending(string $id, User $actor, ?string $memberId = null): User
     {
         $user = $this->requireExisting($id);
         if ($user->role === UserRole::ADMIN) {
@@ -122,6 +123,11 @@ class UsersService
             );
         }
         if ($user->role === UserRole::MEMBER) {
+            // Already a member — still allow assigning/updating the member ID.
+            if ($memberId !== null && $memberId !== '' && $memberId !== $user->memberId) {
+                $this->assignMemberId($user, $memberId);
+            }
+
             return $user;
         }
 
@@ -129,6 +135,10 @@ class UsersService
         $user->role = UserRole::MEMBER;
         if (!$user->isActive) {
             $user->isActive = true;
+        }
+        // Admin assigns the internal member ID at confirmation time.
+        if ($memberId !== null && $memberId !== '') {
+            $user->memberId = $memberId;
         }
         $user->save();
         $user->refresh();
@@ -183,6 +193,26 @@ class UsersService
         return ['items' => $items, 'total' => $total];
     }
 
+    /**
+     * Assign a member ID to an already-saved user, rejecting a value held by
+     * someone else with a clear message (rather than a raw DB error).
+     */
+    private function assignMemberId(User $user, string $memberId): void
+    {
+        $clash = User::query()
+            ->where('memberId', $memberId)
+            ->where('id', '!=', $user->id)
+            ->exists();
+        if ($clash) {
+            throw new \App\Exceptions\ConflictDomainException(
+                'Toto členské ID už má priradené iný používateľ.',
+            );
+        }
+        $user->memberId = $memberId;
+        $user->save();
+        $user->refresh();
+    }
+
     private function snapshot(User $u): array
     {
         return [
@@ -190,6 +220,7 @@ class UsersService
             'email' => $u->email,
             'role' => $u->role?->value,
             'isActive' => (bool) $u->isActive,
+            'memberId' => $u->memberId,
         ];
     }
 

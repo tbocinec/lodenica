@@ -14,10 +14,13 @@ export interface CreateUserInput {
   password: string;
   role: UserRole;
   isActive?: boolean;
+  /** Internal club member ID (admin-only), unique across users. */
+  memberId?: string | null;
 }
 
 export type UpdateUserInput = Partial<Omit<CreateUserInput, 'password'>> & {
   password?: string;
+  memberId?: string | null;
 };
 
 export const usersApi = {
@@ -40,8 +43,8 @@ export const usersApi = {
    * Admin-only: promote a PENDING account to MEMBER. Idempotent for
    * accounts that are already MEMBER; 409 when the target is ADMIN.
    */
-  async confirm(id: string): Promise<User> {
-    const { data } = await http.post<User>(`/users/${id}/confirm`);
+  async confirm(id: string, memberId?: string | null): Promise<User> {
+    const { data } = await http.post<User>(`/users/${id}/confirm`, { memberId: memberId ?? null });
     return data;
   },
   /**
@@ -57,8 +60,12 @@ export const usersApi = {
    * Admin-only: invite a single member by name + email (no password — they
    * set it via the emailed link). Auto-confirmed as MEMBER.
    */
-  async invite(name: string, email: string): Promise<User> {
-    const { data } = await http.post<User>('/users/invite', { name, email });
+  async invite(name: string, email: string, memberId?: string | null): Promise<User> {
+    const { data } = await http.post<User>('/users/invite', {
+      name,
+      email,
+      memberId: memberId || null,
+    });
     return data;
   },
 };
