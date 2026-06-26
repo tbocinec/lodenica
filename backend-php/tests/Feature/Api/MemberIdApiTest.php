@@ -102,9 +102,9 @@ class MemberIdApiTest extends TestCase
         // Pre-existing holder of KVS-100.
         User::create(['name' => 'X', 'email' => 'x@example.test', 'password' => 'password123', 'role' => UserRole::MEMBER, 'isActive' => true, 'memberId' => 'KVS-100']);
 
-        $csv = "meno,email,id\n"
-            ."Ján Nový,jan-new@example.test,KVS-101\n"
-            ."Eva Dup,eva-dup@example.test,KVS-100\n"; // dup id → invalid
+        $csv = "id,meno,email\n"
+            ."KVS-101,Ján Nový,jan-new@example.test\n"
+            ."KVS-100,Eva Dup,eva-dup@example.test\n"; // dup id → invalid
 
         $this->postJson('/api/v1/users/import', ['csv' => $csv])
             ->assertCreated()

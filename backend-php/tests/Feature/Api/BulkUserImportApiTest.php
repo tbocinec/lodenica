@@ -33,6 +33,28 @@ class BulkUserImportApiTest extends TestCase
         Mail::assertSent(AccountInvitationMail::class, 2);
     }
 
+    public function test_bulk_import_parses_id_name_email_order_and_creates_inactive(): void
+    {
+        Mail::fake();
+        $this->actingAsAdmin();
+
+        // Documented order: id, meno, email.
+        $csv = "id,meno,email\nKVS-7,Ján Novák,jan7@example.test\n";
+
+        $this->postJson('/api/v1/users/import', ['csv' => $csv])
+            ->assertCreated()
+            ->assertJsonPath('createdCount', 1);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'jan7@example.test',
+            'name' => 'Ján Novák',
+            'memberId' => 'KVS-7',
+            'role' => UserRole::MEMBER->value,
+            // Inactive until they accept the invite + set a password.
+            'isActive' => false,
+        ]);
+    }
+
     public function test_bulk_import_skips_existing_emails_and_flags_invalid_rows(): void
     {
         Mail::fake();
@@ -82,6 +104,8 @@ class BulkUserImportApiTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'pozvany@example.test',
             'role' => UserRole::MEMBER->value,
+            // Invited members start inactive until they set a password.
+            'isActive' => false,
         ]);
         Mail::assertSent(AccountInvitationMail::class, fn ($m) => $m->hasTo('pozvany@example.test'));
     }

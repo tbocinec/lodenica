@@ -28,6 +28,15 @@ export const usersApi = {
     const { data } = await http.get<Paginated<User>>('/users', { params });
     return data;
   },
+  /** Admin-only: full user detail incl. linked identities + lifecycle dates. */
+  async get(id: string): Promise<User> {
+    const { data } = await http.get<User>(`/users/${id}`);
+    return data;
+  },
+  /** Admin-only: unlink a social login (Google/Facebook) from a member. */
+  async unlinkIdentity(id: string, provider: string): Promise<void> {
+    await http.delete(`/users/${id}/identities/${provider}`);
+  },
   async create(input: CreateUserInput): Promise<User> {
     const { data } = await http.post<User>('/users', input);
     return data;

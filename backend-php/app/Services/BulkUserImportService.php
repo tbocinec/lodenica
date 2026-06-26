@@ -66,7 +66,8 @@ class BulkUserImportService
                     'email' => $email,
                     'password' => Str::random(40), // placeholder; set via invite link
                     'role' => UserRole::MEMBER, // admin-invited → auto-confirmed
-                    'isActive' => true,
+                    // Inactive until they set a password via the invite link.
+                    'isActive' => false,
                     'memberId' => $memberId !== '' ? $memberId : null,
                 ]);
             } catch (\Throwable $e) {
@@ -95,8 +96,9 @@ class BulkUserImportService
      * Parse CSV into [name, email, memberId] triples. Accepts comma or
      * semicolon separators and an optional header row. The cell that looks
      * like an email is the email; of the remaining cells (in order) the first
-     * is the name and the second is the internal member ID — so the natural
-     * layout is `meno,email,id`, but order is forgiving.
+     * is the internal member ID and the second is the full name — so the
+     * documented layout is `id,meno,email`, but order is forgiving (the email
+     * is matched by shape, not position).
      *
      * @return array<int,array{0:string,1:string,2:string}>
      */
@@ -117,7 +119,8 @@ class BulkUserImportService
             // Skip an obvious header row.
             if ($i === 0) {
                 $lower = strtolower(implode(',', $cells));
-                if (str_contains($lower, 'email') || str_contains($lower, 'meno') || str_contains($lower, 'name')) {
+                if (str_contains($lower, 'email') || str_contains($lower, 'meno')
+                    || str_contains($lower, 'name') || str_contains($lower, 'id')) {
                     continue;
                 }
             }
@@ -137,8 +140,18 @@ class BulkUserImportService
                 $others = [];
             }
 
-            $name = $others[0] ?? '';
-            $memberId = $others[1] ?? '';
+            // Documented column order is `id, meno, email`. The email is
+            // detected by shape and removed, leaving the rest in order:
+            //  - 2+ remaining cells → [id, name] (full `id,meno,email` row)
+            //  - 1 remaining cell  → it's the name (`meno,email` shorthand,
+            //    no ID yet — admin assigns it later)
+            if (count($others) >= 2) {
+                $memberId = $others[0];
+                $name = $others[1];
+            } else {
+                $memberId = '';
+                $name = $others[0] ?? '';
+            }
 
             $rows[] = [$name, $email, $memberId];
         }

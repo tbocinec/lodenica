@@ -101,6 +101,7 @@ class OAuthService
                 'isActive' => true,
                 'privacyAck' => $consents['privacyAck'] ?? true,
                 'dataConsent' => $consents['dataConsent'] ?? true,
+                'gdprConsentAt' => now(),
             ]);
 
             $this->createIdentity($user, $provider, $providerUserId, $email);

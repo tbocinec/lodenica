@@ -158,6 +158,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('users/{id}/confirm', [UsersController::class, 'confirm']);
     Route::post('users/invite', [UsersController::class, 'invite']);
     Route::post('users/import', [UsersController::class, 'import']);
+    Route::delete('users/{id}/identities/{provider}', [UsersController::class, 'unlinkIdentity']);
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
     Route::patch('privacy-policy', [PrivacyPolicyController::class, 'update']);

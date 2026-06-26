@@ -30,8 +30,16 @@ class UserResource extends JsonResource
             // GDPR consents recorded at registration — admin-only.
             'privacyAck' => $isAdmin ? (bool) $this->privacyAck : null,
             'dataConsent' => $isAdmin ? (bool) $this->dataConsent : null,
+            // Lifecycle timestamps for the admin user detail — admin-only.
+            'passwordSetAt' => $isAdmin ? $this->passwordSetAt?->toIso8601String() : null,
+            'gdprConsentAt' => $isAdmin ? $this->gdprConsentAt?->toIso8601String() : null,
             'createdAt' => $this->createdAt?->toIso8601String(),
             'updatedAt' => $this->updatedAt?->toIso8601String(),
+            // Linked social logins — only when eager-loaded (user detail) and
+            // the viewer is an admin.
+            'identities' => $isAdmin && $this->relationLoaded('identities')
+                ? UserIdentityResource::collection($this->identities)
+                : null,
         ];
     }
 }

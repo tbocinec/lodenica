@@ -26,6 +26,8 @@ class UsersService
             'memberId' => $input['memberId'] ?? null,
             'privacyAck' => $input['privacyAck'] ?? null,
             'dataConsent' => $input['dataConsent'] ?? null,
+            'passwordSetAt' => $input['passwordSetAt'] ?? null,
+            'gdprConsentAt' => $input['gdprConsentAt'] ?? null,
         ]);
 
         $this->audit->logCreate(

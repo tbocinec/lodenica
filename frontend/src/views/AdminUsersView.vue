@@ -14,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Spinner from '@/components/ui/Spinner.vue';
+import UserDetailDialog from '@/components/ui/UserDetailDialog.vue';
 import { useAuthStore } from '@/stores/auth.store';
 import { formatDate } from '@/utils/format';
 
@@ -22,6 +23,9 @@ const items = ref<User[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const showCreate = ref(false);
+
+// Admin user-detail modal (timestamps, identities, edit name/ID).
+const detailUserId = ref<string | null>(null);
 
 const newUser = reactive({
   name: '',
@@ -287,8 +291,9 @@ onMounted(load);
     </div>
     <p class="sm:col-span-4 text-xs text-slate-500">
       Člen dostane e-mail s odkazom na nastavenie hesla (platný 30 dní) a je
-      rovno potvrdený — nemusíte ho potvrdzovať zvlášť. Členské ID je interné
-      a vidia ho iba administrátori.
+      rovno potvrdený — nemusíte ho potvrdzovať zvlášť. Účet sa
+      <strong>aktivuje až po nastavení hesla</strong>. Členské ID je interné a
+      vidia ho iba administrátori.
     </p>
     <p v-if="inviteSuccess" class="sm:col-span-4 text-sm text-emerald-700">{{ inviteSuccess }}</p>
   </form>
@@ -302,9 +307,10 @@ onMounted(load);
     <div>
       <h2 class="text-sm font-semibold text-slate-800">Hromadný import používateľov</h2>
       <p class="mt-1 text-xs text-slate-500">
-        Vlož CSV so stĺpcami <code>meno,email,id</code> (ID je nepovinné), alebo
-        nahraj súbor. Každý nový kontakt dostane e-mail s odkazom na
-        nastavenie hesla (platný 30 dní) a je rovno potvrdený ako člen.
+        Vlož CSV so stĺpcami <code>id,meno,email</code> (ID je nepovinné — bez
+        neho stačí <code>meno,email</code>), alebo nahraj súbor. Každý nový
+        kontakt dostane e-mail s odkazom na nastavenie hesla (platný 30 dní) a
+        je rovno člen — účet sa <strong>aktivuje až po nastavení hesla</strong>.
         Duplicitné e-maily sa preskočia; už použité členské ID sa nahlási ako
         chybné.
       </p>
@@ -314,7 +320,7 @@ onMounted(load);
       v-model="csvText"
       class="input font-mono text-xs"
       rows="6"
-      placeholder="Ján Novák,jan@example.com,KVS-001&#10;Eva Malá,eva@example.com,KVS-002"
+      placeholder="KVS-001,Ján Novák,jan@example.com&#10;KVS-002,Eva Malá,eva@example.com"
     ></textarea>
     <div class="flex items-center justify-end gap-2">
       <button type="button" class="btn-secondary" @click="showImport = false">Zavrieť</button>
@@ -552,6 +558,13 @@ onMounted(load);
           <td class="px-4 py-2 text-right space-x-2 whitespace-nowrap">
             <button
               type="button"
+              class="text-slate-700 hover:underline"
+              @click="detailUserId = user.id"
+            >
+              Detail
+            </button>
+            <button
+              type="button"
               class="text-sky-700 hover:underline"
               @click="resetPassword(user)"
             >
@@ -571,4 +584,10 @@ onMounted(load);
     </table>
     </div>
   </template>
+
+  <UserDetailDialog
+    :user-id="detailUserId"
+    @close="detailUserId = null"
+    @updated="load"
+  />
 </template>

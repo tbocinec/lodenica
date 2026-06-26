@@ -88,14 +88,26 @@ class PasswordResetService
         }
 
         $user->password = $newPassword; // hashed via cast
+        // First time the user sets their own password — record it and (for an
+        // invited member who started inactive) activate the account. Existing
+        // active users doing a normal reset are unaffected; inactive accounts
+        // can't reach here via forgot-password (requestReset gates on active),
+        // so only invitees get activated by this.
+        $user->passwordSetAt = now();
+        if (!$user->isActive) {
+            $user->isActive = true;
+        }
         // GDPR consents captured when an invited member sets their first
         // password (the invite link's set-password screen shows the
         // checkboxes). Only applied when supplied.
-        if (array_key_exists('privacyAck', $consents)) {
-            $user->privacyAck = (bool) $consents['privacyAck'];
-        }
-        if (array_key_exists('dataConsent', $consents)) {
-            $user->dataConsent = (bool) $consents['dataConsent'];
+        if (array_key_exists('privacyAck', $consents) || array_key_exists('dataConsent', $consents)) {
+            if (array_key_exists('privacyAck', $consents)) {
+                $user->privacyAck = (bool) $consents['privacyAck'];
+            }
+            if (array_key_exists('dataConsent', $consents)) {
+                $user->dataConsent = (bool) $consents['dataConsent'];
+            }
+            $user->gdprConsentAt = now();
         }
         $user->save();
         $user->tokens()->delete();

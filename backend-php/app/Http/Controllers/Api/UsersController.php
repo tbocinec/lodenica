@@ -55,7 +55,8 @@ class UsersController extends Controller
 
     public function show(string $id): UserResource
     {
-        return new UserResource($this->users->findById($id));
+        // Eager-load social identities so the admin user detail can list them.
+        return new UserResource($this->users->findById($id)->load('identities'));
     }
 
     public function update(UpdateUserRequest $request, string $id): UserResource
@@ -102,6 +103,25 @@ class UsersController extends Controller
     }
 
     /**
+     * DELETE /api/v1/users/{id}/identities/{provider}
+     *
+     * Admin: unlink a social login (Google/Facebook) from a member's account.
+     * Idempotent — removing an absent identity is a no-op. Admin-only (route
+     * is in the admin group).
+     */
+    public function unlinkIdentity(string $id, string $provider, \App\Services\OAuthService $oauth): JsonResponse
+    {
+        $user = $this->users->findById($id);
+        $resolved = \App\Domain\Enums\OAuthProvider::tryFrom($provider);
+        if ($resolved === null) {
+            return new JsonResponse(null, Response::HTTP_NOT_FOUND);
+        }
+        $oauth->unlink($user, $resolved);
+
+        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
      * POST /api/v1/users/import — bulk-create PENDING accounts from a CSV
      * of "name,email" rows. Each new account gets an invitation email with
      * a set-your-password link. Duplicates are skipped, malformed rows are
@@ -134,7 +154,10 @@ class UsersController extends Controller
             'email' => $data['email'],
             'password' => Str::random(40), // placeholder; set via invite link
             'role' => UserRole::MEMBER,     // admin-invited → auto-confirmed
-            'isActive' => true,
+            // Inactive until they set their own password via the invite link;
+            // reset-password flips this on. So an un-activated invitee can't
+            // log in yet (and the admin sees it as "pozvánka neprijatá").
+            'isActive' => false,
             'memberId' => $data['memberId'] ?? null,
         ]);
 

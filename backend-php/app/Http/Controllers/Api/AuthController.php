@@ -72,6 +72,9 @@ class AuthController extends Controller
             // optional and default-checked, so treat a missing value as true.
             'privacyAck' => true,
             'dataConsent' => (bool) ($data['dataConsent'] ?? true),
+            'gdprConsentAt' => now(),
+            // Self-registration sets a real password right away.
+            'passwordSetAt' => now(),
         ]);
 
         // Let an admin know someone is waiting for approval.

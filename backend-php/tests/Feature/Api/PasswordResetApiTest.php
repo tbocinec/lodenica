@@ -107,6 +107,37 @@ class PasswordResetApiTest extends TestCase
         $this->assertTrue(Hash::check('brandnewpass1', $user->password));
     }
 
+    public function test_reset_password_activates_invited_member_and_records_consents(): void
+    {
+        // An invited member starts inactive with no password-set timestamp.
+        $user = User::create([
+            'name' => 'Invited', 'email' => 'inv@example.test',
+            'password' => 'placeholder-random', 'role' => UserRole::MEMBER,
+            'isActive' => false,
+        ]);
+
+        // Invitation tokens go through the same table as resets.
+        $reset = app(PasswordResetService::class);
+        $ref = new \ReflectionMethod($reset, 'issueToken');
+        $ref->setAccessible(true);
+        $plain = $ref->invoke($reset, $user->email, 3600);
+
+        $this->postJson('/api/v1/auth/reset-password', [
+            'email' => 'inv@example.test',
+            'token' => $plain,
+            'password' => 'memberpass123',
+            'privacyAck' => true,
+            'dataConsent' => false,
+        ])->assertOk();
+
+        $user->refresh();
+        $this->assertTrue($user->isActive);          // activated
+        $this->assertNotNull($user->passwordSetAt);  // stamped
+        $this->assertTrue($user->privacyAck);
+        $this->assertFalse($user->dataConsent);
+        $this->assertNotNull($user->gdprConsentAt);
+    }
+
     public function test_reset_password_with_bad_token_fails(): void
     {
         User::create([

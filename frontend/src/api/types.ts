@@ -169,6 +169,16 @@ export interface User {
   /** Internal club member ID. Admin-only — null for non-admin viewers
    *  (backend strips it at the API boundary). */
   memberId: string | null;
+  /** GDPR consents — admin-only (null otherwise). */
+  privacyAck?: boolean | null;
+  dataConsent?: boolean | null;
+  /** When the user first set their own password. Null = invitation not yet
+   *  accepted. Admin-only. */
+  passwordSetAt?: string | null;
+  /** When the GDPR consents were recorded. Admin-only. */
+  gdprConsentAt?: string | null;
+  /** Linked social logins — present only on the admin user-detail fetch. */
+  identities?: UserIdentity[] | null;
   createdAt: string;
   updatedAt: string;
 }
