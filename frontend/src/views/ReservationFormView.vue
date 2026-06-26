@@ -10,6 +10,7 @@ import {
 } from '@/api/reservations.api';
 import { ResourceType, type Event, type Reservation } from '@/api/types';
 import AvailabilityHints from '@/components/ui/AvailabilityHints.vue';
+import ColorDot from '@/components/ui/ColorDot.vue';
 import DateInput from '@/components/ui/DateInput.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -580,10 +581,10 @@ onMounted(async () => {
             <div class="min-w-0">
               <p class="truncate text-sm font-medium text-slate-900">{{ r.identifier }}</p>
               <p class="truncate text-xs text-slate-500">{{ r.name }}</p>
-              <p v-if="r.seats || r.color" class="truncate text-xs text-slate-400">
+              <p v-if="r.seats || r.color" class="flex items-center gap-1 truncate text-xs text-slate-400">
                 <span v-if="r.seats">{{ r.seats }}-miestny</span>
-                <span v-if="r.seats && r.color"> · </span>
-                <span v-if="r.color">{{ r.color }}</span>
+                <span v-if="r.seats && r.color">·</span>
+                <ColorDot v-if="r.color" :color="r.color" :size="11" />
               </p>
             </div>
             <span aria-hidden="true" class="text-slate-300">›</span>

@@ -7,6 +7,7 @@ import { RESOURCE_TYPE_VALUES, ResourceType } from '@/api/types';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import { RESOURCE_TYPE_LABEL } from '@/i18n/labels';
+import { BOAT_COLORS, colorHex } from '@/utils/colors';
 
 const route = useRoute();
 const router = useRouter();
@@ -154,9 +155,42 @@ onMounted(load);
       <input id="model" v-model="form.model" class="input mt-1" maxlength="200" />
     </div>
 
-    <div>
-      <label class="label" for="color">Farba</label>
-      <input id="color" v-model="form.color" class="input mt-1" maxlength="50" />
+    <div class="sm:col-span-2">
+      <span class="label">Farba</span>
+      <div class="mt-1 flex flex-wrap items-center gap-2">
+        <button
+          v-for="c in BOAT_COLORS"
+          :key="c.value"
+          type="button"
+          class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm transition"
+          :class="form.color.trim().toLowerCase() === c.value
+            ? 'border-brand-500 bg-brand-50 text-brand-900 ring-1 ring-brand-300'
+            : 'border-slate-200 text-slate-600 hover:bg-slate-50'"
+          @click="form.color = c.value"
+        >
+          <span
+            class="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-slate-300"
+            :style="{ backgroundColor: c.hex }"
+          />
+          {{ c.label }}
+        </button>
+        <button
+          type="button"
+          class="rounded-full border px-2.5 py-1 text-sm transition"
+          :class="form.color.trim() === ''
+            ? 'border-brand-500 bg-brand-50 text-brand-900 ring-1 ring-brand-300'
+            : 'border-slate-200 text-slate-500 hover:bg-slate-50'"
+          @click="form.color = ''"
+        >
+          Bez farby
+        </button>
+      </div>
+      <p
+        v-if="form.color.trim() && !colorHex(form.color)"
+        class="mt-1 text-xs text-slate-400"
+      >
+        Aktuálna hodnota „{{ form.color }}" nie je v palete — vyber farbu vyššie alebo nechaj tak.
+      </p>
     </div>
 
     <div>

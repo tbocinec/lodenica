@@ -15,6 +15,7 @@ import {
 } from '@/api/types';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
+import ColorDot from '@/components/ui/ColorDot.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
@@ -177,7 +178,7 @@ onMounted(load);
 
           <template v-if="resource.color">
             <dt class="text-slate-500">Farba</dt>
-            <dd class="col-span-2 text-slate-800">{{ resource.color }}</dd>
+            <dd class="col-span-2"><ColorDot :color="resource.color" show-label /></dd>
           </template>
 
           <template v-if="resource.seats">
