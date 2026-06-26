@@ -61,7 +61,7 @@ onMounted(load);
           {{ d.danube.water_level.value }} {{ d.danube.water_level.unit }}
         </p>
         <p class="text-sm text-slate-500">
-          {{ Math.round(d.danube.water_temperature.value) }} °C vody · {{ d.danube.source }}
+          {{ Math.round(d.danube.water_temperature.value) }} °C vody
         </p>
       </div>
       <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
@@ -70,11 +70,8 @@ onMounted(load);
           <p class="mt-1 font-medium text-slate-900">
             {{ devin.water_level.value }} {{ devin.water_level.unit }}
           </p>
-          <p class="text-sm text-slate-500">
-            <template v-if="devin.water_temperature">
-              {{ Math.round(devin.water_temperature.value) }} °C vody ·
-            </template>
-            {{ devin.source }}
+          <p v-if="devin.water_temperature" class="text-sm text-slate-500">
+            {{ Math.round(devin.water_temperature.value) }} °C vody
           </p>
         </template>
         <p v-else class="mt-1 text-sm text-slate-400">Momentálne nedostupné</p>
