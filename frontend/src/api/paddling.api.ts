@@ -33,8 +33,18 @@ export interface PaddlingTrafficLight {
   };
 }
 
+/** A single Danube gauge reading (used for the Devín card, sourced from SHMÚ). */
+export interface DanubeReading {
+  water_level: { value: number; unit: string };
+  water_temperature: { value: number; unit: string } | null;
+  measured_at: string;
+  source: string;
+}
+
 export interface PaddlingTrafficLightResponse {
   data: PaddlingTrafficLight;
+  /** Devín gauge (SHMÚ), or null when unavailable. dunajcik covers Bratislava. */
+  devin?: DanubeReading | null;
   source: string;
   sourceUrl: string;
 }

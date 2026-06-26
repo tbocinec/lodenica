@@ -14,6 +14,7 @@ import {
 
 const { response, loading, error, load } = usePaddlingTrafficLight();
 const d = computed(() => response.value?.data ?? null);
+const devin = computed(() => response.value?.devin ?? null);
 
 onMounted(load);
 </script>
@@ -45,11 +46,6 @@ onMounted(load);
     <!-- Current conditions -->
     <section class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-        <p class="text-xs uppercase tracking-wide text-slate-400">Miesto</p>
-        <p class="mt-1 font-medium text-slate-900">{{ d.location.name }}</p>
-        <p class="text-sm text-slate-500">{{ d.location.river }}</p>
-      </div>
-      <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
         <p class="text-xs uppercase tracking-wide text-slate-400">Počasie</p>
         <p class="mt-1 flex items-center gap-1 font-medium text-slate-900">
           <img :src="weatherIconUrl(d.weather.icon)" alt="" width="32" height="32" class="-my-1" />
@@ -60,13 +56,28 @@ onMounted(load);
         </p>
       </div>
       <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-        <p class="text-xs uppercase tracking-wide text-slate-400">Dunaj</p>
+        <p class="text-xs uppercase tracking-wide text-slate-400">Dunaj Bratislava</p>
         <p class="mt-1 font-medium text-slate-900">
           {{ d.danube.water_level.value }} {{ d.danube.water_level.unit }}
         </p>
         <p class="text-sm text-slate-500">
           {{ Math.round(d.danube.water_temperature.value) }} °C vody · {{ d.danube.source }}
         </p>
+      </div>
+      <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+        <p class="text-xs uppercase tracking-wide text-slate-400">Dunaj Devín</p>
+        <template v-if="devin">
+          <p class="mt-1 font-medium text-slate-900">
+            {{ devin.water_level.value }} {{ devin.water_level.unit }}
+          </p>
+          <p class="text-sm text-slate-500">
+            <template v-if="devin.water_temperature">
+              {{ Math.round(devin.water_temperature.value) }} °C vody ·
+            </template>
+            {{ devin.source }}
+          </p>
+        </template>
+        <p v-else class="mt-1 text-sm text-slate-400">Momentálne nedostupné</p>
       </div>
       <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
         <p class="text-xs uppercase tracking-wide text-slate-400">Slnko</p>
