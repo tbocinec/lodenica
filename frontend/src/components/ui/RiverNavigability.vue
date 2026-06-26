@@ -8,6 +8,7 @@
 import { computed } from 'vue';
 
 import {
+  NAV_GAUGE_LABEL,
   NAV_LEVEL_HEX,
   NAV_LEVEL_LABEL,
   type NavArea,
@@ -91,7 +92,7 @@ const legend = computed(() =>
     <div class="flex items-start justify-between gap-2">
       <div>
         <p class="font-medium text-slate-900">{{ area.name }}</p>
-        <p class="text-xs text-slate-400">podľa stavu v {{ area.gauge }}</p>
+        <p class="text-xs text-slate-400">podľa stavu v {{ NAV_GAUGE_LABEL[area.gauge] }}</p>
       </div>
       <span
         v-if="hasLimits && current"
@@ -138,7 +139,7 @@ const legend = computed(() =>
           </span>
         </div>
       </div>
-      <p v-else class="mt-1 text-xs text-slate-400">Aktuálny stav ({{ area.gauge }}) je nedostupný.</p>
+      <p v-else class="mt-1 text-xs text-slate-400">Aktuálny stav ({{ NAV_GAUGE_LABEL[area.gauge] }}) je nedostupný.</p>
 
       <!-- Numeric limits -->
       <ul class="mt-3 space-y-1 text-xs text-slate-600">

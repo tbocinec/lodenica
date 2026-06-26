@@ -17,8 +17,13 @@ import {
 const { response, loading, error, load } = usePaddlingTrafficLight();
 const d = computed(() => response.value?.data ?? null);
 const devin = computed(() => response.value?.devin ?? null);
-const devinLevel = computed(() => devin.value?.water_level.value ?? null);
 const areas = NAVIGABILITY_AREAS;
+
+/** Current level for an area's gauge: Bratislava (dunajcik) or Devín (SHMÚ). */
+function levelFor(gauge: 'bratislava' | 'devin'): number | null {
+  if (gauge === 'bratislava') return d.value?.danube.water_level.value ?? null;
+  return devin.value?.water_level.value ?? null;
+}
 
 onMounted(load);
 </script>
@@ -89,23 +94,15 @@ onMounted(load);
 
     <!-- Splavnosť -->
     <section class="mb-6">
-      <div class="mb-2 flex items-baseline justify-between gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Splavnosť</h2>
-        <span v-if="devin" class="text-xs text-slate-400">Devín: {{ devin.water_level.value }} cm</span>
-      </div>
+      <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Splavnosť</h2>
       <div class="grid gap-3 sm:grid-cols-2">
         <RiverNavigability
           v-for="area in areas"
           :key="area.key"
           :area="area"
-          :level="devinLevel"
+          :level="levelFor(area.gauge)"
         />
       </div>
-      <p class="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
-        Údaje o splavnosti sú len <strong>orientačné</strong>. Vždy je potrebné
-        zhodnotiť aktuálnu situáciu na vode tak, aby sa zachovala bezpečnosť
-        posádky aj bezpečnosť materiálu.
-      </p>
     </section>
 
     <!-- What it means -->
@@ -145,6 +142,12 @@ onMounted(load);
           </p>
         </li>
       </ul>
+
+      <p class="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+        Údaje o splavnosti sú len <strong>orientačné</strong>. Vždy je potrebné
+        zhodnotiť aktuálnu situáciu na vode tak, aby sa zachovala bezpečnosť
+        posádky aj bezpečnosť materiálu.
+      </p>
     </section>
   </template>
 </template>

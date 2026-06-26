@@ -9,6 +9,9 @@
  */
 export type NavLevel = 'green' | 'orange' | 'red';
 
+/** Which gauge the area's thresholds are read against. */
+export type NavGauge = 'bratislava' | 'devin';
+
 export interface NavSegment {
   from: number | null;
   to: number | null;
@@ -18,28 +21,32 @@ export interface NavSegment {
 export interface NavArea {
   key: string;
   name: string;
-  /** Which gauge the thresholds are read against (shown to the user). */
-  gauge: string;
+  gauge: NavGauge;
   /** Colour bands; empty = limits not defined yet ("Limity sa doplnia"). */
   segments: NavSegment[];
 }
 
+export const NAV_GAUGE_LABEL: Record<NavGauge, string> = {
+  bratislava: 'Bratislave',
+  devin: 'Devíne',
+};
+
 export const NAVIGABILITY_AREAS: NavArea[] = [
   {
-    key: 'rakuske-rameno',
-    name: 'Rakúske rameno',
-    gauge: 'Devín',
-    // Limity zatiaľ neznáme — doplnia sa. Keď budú, vlož pásma napr. takto:
-    //   { from: null, to: 334, level: 'red' },
-    //   { from: 335, to: 349, level: 'orange' },
-    //   { from: 350, to: 449, level: 'green' },
-    //   { from: 450, to: 599, level: 'orange' },
-    //   { from: 600, to: null, level: 'red' },
-    segments: [],
+    key: 'velky-okruh',
+    name: 'Veľký okruh',
+    gauge: 'bratislava',
+    segments: [
+      { from: null, to: 334, level: 'red' },
+      { from: 335, to: 349, level: 'orange' },
+      { from: 350, to: 449, level: 'green' },
+      { from: 450, to: 599, level: 'orange' },
+      { from: 600, to: null, level: 'red' },
+    ],
   },
-  { key: 'velky-okruh', name: 'Veľký okruh', gauge: 'Devín', segments: [] },
-  { key: 'rameno-lido', name: 'Rameno Lido', gauge: 'Devín', segments: [] },
-  { key: 'rameno-zuzana', name: 'Rameno Zuzana', gauge: 'Devín', segments: [] },
+  { key: 'rakuske-rameno', name: 'Rakúske rameno', gauge: 'devin', segments: [] },
+  { key: 'rameno-lido', name: 'Rameno Lido', gauge: 'devin', segments: [] },
+  { key: 'rameno-zuzana', name: 'Rameno Zuzana', gauge: 'devin', segments: [] },
   // Limity doplň do `segments` pri každej oblasti, keď budú známe.
 ];
 
