@@ -43,6 +43,7 @@ const navItems = computed<NavItem[]>(() => {
     // Lode posledné v "každodennej" sekcii — je to encyklopédia výbavy,
     // nie operatívna obrazovka.
     { to: '/resources', label: NAV_LABELS.resources, icon: '🛶' },
+    { to: '/profil', label: 'Môj profil', icon: '👤', requires: 'member' },
     { to: '/audit', label: NAV_LABELS.audit, icon: '📜', requires: 'member' },
     { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },
     { to: '/admin/usage', label: 'Štatistiky', icon: '📈', requires: 'admin' },
