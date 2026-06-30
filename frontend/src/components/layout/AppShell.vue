@@ -15,7 +15,7 @@ interface NavItem {
   label: string;
   icon: string;
   /** Visibility gate. `undefined` = always visible. */
-  requires?: 'member' | 'admin';
+  requires?: 'member' | 'confirmed' | 'admin';
   /** External URL — rendered as a regular <a target="_blank"> instead of a RouterLink. */
   external?: boolean;
 }
@@ -23,6 +23,7 @@ interface NavItem {
 function visible(item: NavItem): boolean {
   if (!item.requires) return true;
   if (item.requires === 'member') return auth.isAuthenticated;
+  if (item.requires === 'confirmed') return auth.isMember;
   if (item.requires === 'admin') return auth.isAdmin;
   return true;
 }
@@ -43,6 +44,7 @@ const navItems = computed<NavItem[]>(() => {
     // Lode posledné v "každodennej" sekcii — je to encyklopédia výbavy,
     // nie operatívna obrazovka.
     { to: '/resources', label: NAV_LABELS.resources, icon: '🛶' },
+    { to: '/expeditions', label: 'Expedície', icon: '🗺️', requires: 'confirmed' },
     { to: '/profil', label: 'Môj profil', icon: '👤', requires: 'member' },
     { to: '/audit', label: NAV_LABELS.audit, icon: '📜', requires: 'member' },
     { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },

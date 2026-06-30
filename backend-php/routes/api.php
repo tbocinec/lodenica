@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\DamagesController;
 use App\Http\Controllers\Api\MemberRosterController;
 use App\Http\Controllers\Api\EventsController;
+use App\Http\Controllers\Api\ExpeditionsController;
 use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\OAuthController;
 use App\Http\Controllers\Api\PaddlingTrafficLightController;
@@ -46,6 +47,11 @@ Route::get('availability/dashboard', [AvailabilityController::class, 'dashboard'
 
 // Paddling traffic light (proxied + cached from dunajcik.sk). Public.
 Route::get('paddling-traffic-light', [PaddlingTrafficLightController::class, 'show']);
+
+// Expedition photo streaming is public-by-URL (UUIDs) so <img> tags can load
+// it without the bearer token, like damage/resource photos. The expedition
+// data itself stays member-gated (see the member group below).
+Route::get('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'showPhoto']);
 
 // Anonymous usage beacon (pageview / visit). No PII collected. Tightly
 // throttled — a real client pings ~once per page load, so 20/min/IP is
@@ -137,6 +143,16 @@ Route::middleware(['auth:sanctum', 'member'])->group(function () {
     Route::post('events/{id}/participants', [EventsController::class, 'addParticipant']);
     Route::delete('events/{id}/participants/{participantId}', [EventsController::class, 'removeParticipant']);
     Route::post('events/{id}/reservations', [EventsController::class, 'attachResources']);
+
+    // Expedície — members' world map of paddled places. Read + create for any
+    // member; edit/delete an entry or its photos is author-or-admin (enforced
+    // in the controller).
+    Route::get('expeditions', [ExpeditionsController::class, 'index']);
+    Route::post('expeditions', [ExpeditionsController::class, 'store']);
+    Route::patch('expeditions/{id}', [ExpeditionsController::class, 'update']);
+    Route::delete('expeditions/{id}', [ExpeditionsController::class, 'destroy']);
+    Route::post('expeditions/{id}/photos', [ExpeditionsController::class, 'addPhoto']);
+    Route::delete('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'removePhoto']);
 });
 
 /*

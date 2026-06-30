@@ -153,6 +153,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Detail poškodenia' },
   },
   {
+    path: '/expeditions',
+    name: 'expeditions',
+    component: () => import('@/views/ExpeditionsView.vue'),
+    meta: { title: 'Expedície', auth: 'confirmed' },
+  },
+  {
     path: '/spaces',
     name: 'spaces',
     component: () => import('@/views/SpacesView.vue'),
