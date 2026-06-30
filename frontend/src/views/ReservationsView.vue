@@ -30,7 +30,6 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
-import { RESERVATION_STATUS_LABEL } from '@/i18n/labels';
 import { useResourcesStore } from '@/stores/resources.store';
 import { formatReservationRange, toIsoDate } from '@/utils/format';
 
@@ -317,7 +316,6 @@ onMounted(load);
               <th>Zdroj</th>
               <th>Rezervácia pre</th>
               <th class="hidden lg:table-cell">Kontakt</th>
-              <th>Stav</th>
               <th class="text-right">Akcie</th>
             </tr>
           </thead>
@@ -350,11 +348,6 @@ onMounted(load);
               <td class="hidden lg:table-cell text-slate-500">
                 <template v-if="auth.isMember">{{ r.customerContact ?? '—' }}</template>
                 <span v-else aria-label="Kontakt je viditeľný len pre registrovaných členov">**</span>
-              </td>
-              <td>
-                <span :class="r.status === 'CONFIRMED' ? 'pill-green' : 'pill-slate'">
-                  {{ RESERVATION_STATUS_LABEL[r.status] }}
-                </span>
               </td>
               <td class="text-right">
                 <button
@@ -406,9 +399,6 @@ onMounted(load);
               {{ formatReservationRange(r.startsAt, r.endsAt) }}
             </p>
           </div>
-          <span :class="r.status === 'CONFIRMED' ? 'pill-green' : 'pill-slate'">
-            {{ RESERVATION_STATUS_LABEL[r.status] }}
-          </span>
         </div>
       </li>
     </ul>
