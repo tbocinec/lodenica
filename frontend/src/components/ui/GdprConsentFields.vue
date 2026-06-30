@@ -18,10 +18,10 @@ const rulesAck = defineModel<boolean>('rulesAck', { default: false });
 
 defineProps<{ showErrors?: boolean }>();
 
-// TODO: nahradiť skutočným odkazom na kompletné Oznámenie o spracúvaní OÚ.
-const NOTICE = 'https://www.google.com/search?q=odkaz_na_web';
-// Podmienky súhlasu so zverejňovaním fotografií/videí.
-const PROMO = 'https://www.lodenicakvs.sk/?page_id=5024';
+// Kompletné Oznámenie o spracúvaní osobných údajov.
+const NOTICE = 'https://www.lodenicakvs.sk/?page_id=5024';
+// TODO: nahradiť skutočným odkazom na podmienky GDPR súhlasu dotknutej osoby.
+const PROMO = 'https://www.google.com/search?q=odkaz_na_web';
 const STATUTES = 'https://www.lodenicakvs.sk/?page_id=4698';
 const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
 </script>
@@ -49,8 +49,8 @@ const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
       <h3 class="text-xs font-semibold text-slate-700">GDPR súhlas dotknutej osoby</h3>
       <p class="mt-1 text-xs leading-relaxed text-slate-600">
         Súhlasím so zverejňovaním fotografií a videí mojej osoby z klubových akcií na
-        účely propagácie KVŠ (web, sociálne siete, materiály klubu) podľa podmienok na
-        <a :href="PROMO" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">webovej stránke klubu</a>.
+        účely propagácie KVŠ (web, sociálne siete, materiály klubu) podľa podmienok
+        <a :href="PROMO" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">GDPR súhlasu dotknutej osoby</a>.
         Súhlas je odvolateľný.
       </p>
       <div class="mt-2 grid grid-cols-2 gap-2">
