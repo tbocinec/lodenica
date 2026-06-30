@@ -136,12 +136,58 @@ onMounted(async () => {
   <LoadError :message="error" />
 
   <div class="card overflow-hidden">
-    <div class="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <!-- Weekday header: shown for month always, and for week only on md+
+         (on mobile the week view stacks into rows that carry their own day). -->
+    <div
+      class="grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-semibold uppercase tracking-wide text-slate-500"
+      :class="view === 'week' ? 'hidden md:grid' : 'grid'"
+    >
       <div v-for="d in days.slice(0, 7)" :key="d.toISOString()" class="px-2 py-2">
         {{ format(d, 'EEE', { locale: sk }) }}
       </div>
     </div>
-    <div class="grid grid-cols-7">
+
+    <!-- Week view on mobile: one full-width row per day (columns are too
+         narrow to read on a phone). -->
+    <div v-if="view === 'week'" class="divide-y divide-slate-100 md:hidden">
+      <div
+        v-for="d in days"
+        :key="'m' + d.toISOString()"
+        class="p-3"
+        :class="{ 'bg-brand-50/60': isSameDay(d, new Date()) }"
+      >
+        <div class="mb-1 flex items-center justify-between">
+          <span class="text-sm font-semibold capitalize text-slate-700">
+            {{ format(d, 'EEEE d.M.', { locale: sk }) }}
+          </span>
+          <span
+            v-if="(reservationsByDay.get(format(d, 'yyyy-MM-dd'))?.length ?? 0) > 0"
+            class="rounded-full bg-brand-600 px-1.5 text-[10px] font-bold text-white"
+          >
+            {{ reservationsByDay.get(format(d, 'yyyy-MM-dd'))!.length }}
+          </span>
+        </div>
+        <ul v-if="(reservationsByDay.get(format(d, 'yyyy-MM-dd'))?.length ?? 0) > 0" class="space-y-1">
+          <li
+            v-for="r in reservationsByDay.get(format(d, 'yyyy-MM-dd')) ?? []"
+            :key="r.id + 'm' + d.toISOString()"
+            class="truncate rounded bg-brand-100 px-2 py-1 text-xs text-brand-900"
+            :title="`${r.customerName ?? '** rezervácia'} · ${resources.byId.get(r.resourceId)?.name ?? ''}`"
+          >
+            <span class="font-medium text-brand-700">{{ formatTime(r.startsAt) }}</span>
+            {{ resources.byId.get(r.resourceId)?.identifier ?? '?' }} ·
+            {{ r.customerName ?? '** rezervácia' }}
+          </li>
+        </ul>
+        <p v-else class="text-xs text-slate-400">Žiadne rezervácie</p>
+      </div>
+    </div>
+
+    <!-- Month view (all sizes) + week view on md+: the 7-column grid. -->
+    <div
+      class="grid-cols-7"
+      :class="view === 'week' ? 'hidden md:grid' : 'grid'"
+    >
       <div
         v-for="d in days"
         :key="d.toISOString()"
