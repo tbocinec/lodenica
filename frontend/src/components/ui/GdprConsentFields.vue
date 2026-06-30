@@ -20,8 +20,8 @@ defineProps<{ showErrors?: boolean }>();
 
 // Kompletné Oznámenie o spracúvaní osobných údajov.
 const NOTICE = 'https://www.lodenicakvs.sk/?page_id=5024';
-// TODO: nahradiť skutočným odkazom na podmienky GDPR súhlasu dotknutej osoby.
-const PROMO = 'https://www.google.com/search?q=odkaz_na_web';
+// Podmienky GDPR súhlasu dotknutej osoby.
+const PROMO = 'https://www.lodenicakvs.sk/?page_id=5036';
 const STATUTES = 'https://www.lodenicakvs.sk/?page_id=4698';
 const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
 </script>
