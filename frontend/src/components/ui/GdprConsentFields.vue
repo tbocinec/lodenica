@@ -18,8 +18,10 @@ const rulesAck = defineModel<boolean>('rulesAck', { default: false });
 
 defineProps<{ showErrors?: boolean }>();
 
-const NOTICE = 'https://www.lodenicakvs.sk/?page_id=5024';
-const PROMO = 'https://www.lodenicakvs.sk/?page_id=5036';
+// TODO: nahradiť skutočným odkazom na kompletné Oznámenie o spracúvaní OÚ.
+const NOTICE = 'https://www.google.com/search?q=odkaz_na_web';
+// Podmienky súhlasu so zverejňovaním fotografií/videí.
+const PROMO = 'https://www.lodenicakvs.sk/?page_id=5024';
 const STATUTES = 'https://www.lodenicakvs.sk/?page_id=4698';
 const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
 </script>
@@ -33,39 +35,23 @@ const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
       <h3 class="text-xs font-semibold text-slate-700">
         Oznámenie o spracúvaní osobných údajov – Informačná povinnosť
       </h3>
-      <p class="mt-1 text-xs leading-relaxed text-slate-500">
-        Prevádzkovateľ: Klub vodných športov, Karlova Ves (ďalej KVŠ), Botanická 59,
-        841 04 Bratislava, IČO: 17315115. V súlade s Nariadením Európskeho parlamentu
-        a Rady (EÚ) 2016/679 (GDPR) a zákonom č. 18/2018 Z. z. o ochrane osobných
-        údajov Vás informujeme o spracúvaní osobných údajov na účely spojené s
-        členstvom v KVŠ. Účely spracúvania, rozsah spracúvaných údajov, doba
-        uchovávania údajov, príjemcovia údajov a práva člena ako dotknutej osoby sú
-        uvedené na
-        <a :href="NOTICE" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">webovej stránke klubu</a>.
-      </p>
-      <p class="mt-2 text-xs leading-relaxed text-slate-600">
-        Vytvorením registrácie potvrdzujem, že som sa oboznámil s
-        <a :href="NOTICE" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">Oznámením o spracúvaní osobných údajov klubu KVŠ</a>,
-        textu som porozumel/a a nebol na mňa vyvíjaný nátlak alebo dávané podmienky.
+      <p class="mt-1 text-xs leading-relaxed text-slate-600">
+        Prevádzkovateľ: Klub vodných športov, Karlova Ves (KVŠ), Botanická 59,
+        841 04 Bratislava, IČO: 17315115. Odoslaním prihlášky potvrdzujem, že som sa
+        oboznámil/a s kompletným
+        <a :href="NOTICE" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">Oznámením o spracúvaní osobných údajov</a>
+        na účely spojené s členstvom v KVŠ.
       </p>
     </div>
 
     <!-- 2) GDPR súhlas dotknutej osoby -->
     <div class="mt-4 border-t border-slate-200 pt-3">
       <h3 class="text-xs font-semibold text-slate-700">GDPR súhlas dotknutej osoby</h3>
-      <p class="mt-1 text-xs leading-relaxed text-slate-500">
-        Súhlas so spracúvaním osobných údajov pre účely propagácie klubu (Čl. 6 ods. 1
-        písm. a) GDPR). Účel spracúvania, rozsah údajov a podmienky súhlasu sú uvedené
-        na
+      <p class="mt-1 text-xs leading-relaxed text-slate-600">
+        Súhlasím so zverejňovaním fotografií a videí mojej osoby z klubových akcií na
+        účely propagácie KVŠ (web, sociálne siete, materiály klubu) podľa podmienok na
         <a :href="PROMO" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">webovej stránke klubu</a>.
-      </p>
-      <p class="mt-2 text-xs leading-relaxed text-slate-600">
-        Zaškrtnutím tohto políčka udeľujem dobrovoľný súhlas občianskemu združeniu Klub
-        vodných športov, Karlova Ves na vyhotovovanie a zverejňovanie fotografií a
-        audiovizuálnych záznamov mojej osoby z klubových akcií na účely propagácie
-        aktivít združenia, a to najmä ich zverejnením na oficiálnej webovej stránke
-        združenia, na klubových profiloch na sociálnych sieťach (napr. Facebook,
-        Instagram) alebo v klubových informačných materiáloch.
+        Súhlas je odvolateľný.
       </p>
       <div class="mt-2 grid grid-cols-2 gap-2">
         <button
