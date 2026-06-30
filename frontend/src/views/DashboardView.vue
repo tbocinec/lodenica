@@ -195,21 +195,23 @@ onMounted(() => {
           title="Žiadne rezervácie na dnes"
         />
         <ul v-else class="divide-y divide-slate-100">
-          <li
-            v-for="r in snapshot.occupiedToday"
-            :key="r.id"
-            class="flex items-start justify-between gap-3 py-3"
-          >
-            <div>
-              <div class="flex items-center gap-2">
-                <ResourceTypeBadge :type="r.resource.type" />
-                <span class="font-mono text-sm font-semibold text-slate-900">{{ r.resource.identifier }}</span>
-                <span class="text-slate-600">{{ r.resource.name }}</span>
+          <li v-for="r in snapshot.occupiedToday" :key="r.id">
+            <RouterLink
+              :to="`/resources/${r.resource.id}`"
+              class="-mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-3 transition hover:bg-slate-50"
+            >
+              <div>
+                <div class="flex items-center gap-2">
+                  <ResourceTypeBadge :type="r.resource.type" />
+                  <span class="font-mono text-sm font-semibold text-slate-900">{{ r.resource.identifier }}</span>
+                  <span class="text-slate-600">{{ r.resource.name }}</span>
+                </div>
+                <p class="mt-1 text-sm text-slate-500">
+                  {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
+                </p>
               </div>
-              <p class="mt-1 text-sm text-slate-500">
-                {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
-              </p>
-            </div>
+              <span aria-hidden="true" class="text-slate-300">›</span>
+            </RouterLink>
           </li>
         </ul>
       </div>
@@ -221,21 +223,23 @@ onMounted(() => {
           title="Žiadne rezervácie na zajtra"
         />
         <ul v-else class="divide-y divide-slate-100">
-          <li
-            v-for="r in snapshot.occupiedTomorrow"
-            :key="r.id"
-            class="flex items-start justify-between gap-3 py-3"
-          >
-            <div>
-              <div class="flex items-center gap-2">
-                <ResourceTypeBadge :type="r.resource.type" />
-                <span class="font-mono text-sm font-semibold text-slate-900">{{ r.resource.identifier }}</span>
-                <span class="text-slate-600">{{ r.resource.name }}</span>
+          <li v-for="r in snapshot.occupiedTomorrow" :key="r.id">
+            <RouterLink
+              :to="`/resources/${r.resource.id}`"
+              class="-mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-3 transition hover:bg-slate-50"
+            >
+              <div>
+                <div class="flex items-center gap-2">
+                  <ResourceTypeBadge :type="r.resource.type" />
+                  <span class="font-mono text-sm font-semibold text-slate-900">{{ r.resource.identifier }}</span>
+                  <span class="text-slate-600">{{ r.resource.name }}</span>
+                </div>
+                <p class="mt-1 text-sm text-slate-500">
+                  {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
+                </p>
               </div>
-              <p class="mt-1 text-sm text-slate-500">
-                {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
-              </p>
-            </div>
+              <span aria-hidden="true" class="text-slate-300">›</span>
+            </RouterLink>
           </li>
         </ul>
       </div>
@@ -271,17 +275,19 @@ onMounted(() => {
           title="Žiadne nadchádzajúce rezervácie priestorov"
         />
         <ul v-else class="divide-y divide-slate-100">
-          <li
-            v-for="r in snapshot.spaceReservations"
-            :key="r.id"
-            class="flex items-start justify-between gap-3 py-3"
-          >
-            <div>
-              <p class="font-medium text-slate-800">{{ r.resource.name }}</p>
-              <p class="mt-1 text-sm text-slate-500">
-                {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
-              </p>
-            </div>
+          <li v-for="r in snapshot.spaceReservations" :key="r.id">
+            <RouterLink
+              :to="`/resources/${r.resource.id}`"
+              class="-mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-3 transition hover:bg-slate-50"
+            >
+              <div>
+                <p class="font-medium text-slate-800">{{ r.resource.name }}</p>
+                <p class="mt-1 text-sm text-slate-500">
+                  {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
+                </p>
+              </div>
+              <span aria-hidden="true" class="text-slate-300">›</span>
+            </RouterLink>
           </li>
         </ul>
       </div>

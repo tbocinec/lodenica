@@ -41,6 +41,7 @@ const expandedId = ref<string | null>(null);
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let markerGroup: L.LayerGroup | null = null;
+let resizeObs: ResizeObserver | null = null;
 const markers = new Map<string, L.Marker>();
 
 const stats = computed(() => {
@@ -167,14 +168,21 @@ onMounted(() => {
       maxZoom: 19,
     }).addTo(map);
     markerGroup = L.layerGroup().addTo(map);
-    // Leaflet renders blank/grey if the container wasn't fully laid out at
-    // init time — nudge it once the browser has painted.
-    setTimeout(() => map?.invalidateSize(), 200);
+    // Leaflet shows blank tiles if the container wasn't fully laid out at init
+    // time (it requests tiles for a 0-size viewport). A ResizeObserver fires
+    // once the element gets its real size — that reliably triggers the tile
+    // load, plus a couple of explicit nudges as a belt-and-braces fallback.
+    resizeObs = new ResizeObserver(() => map?.invalidateSize());
+    resizeObs.observe(mapEl.value);
+    requestAnimationFrame(() => map?.invalidateSize());
+    setTimeout(() => map?.invalidateSize(), 300);
   }
   void load();
 });
 
 onBeforeUnmount(() => {
+  resizeObs?.disconnect();
+  resizeObs = null;
   if (map) {
     map.remove();
     map = null;

@@ -64,7 +64,13 @@ onMounted(load);
     <section v-for="space in resources.spaces" :key="space.id" class="card-padded">
       <header class="mb-3 flex items-center justify-between">
         <div>
-          <h2 class="text-lg font-semibold text-slate-900">{{ space.name }}</h2>
+          <RouterLink
+            :to="`/resources/${space.id}`"
+            class="group inline-flex items-center gap-1 text-lg font-semibold text-slate-900 hover:text-brand-700"
+          >
+            {{ space.name }}
+            <span aria-hidden="true" class="text-slate-300 transition group-hover:text-brand-400">›</span>
+          </RouterLink>
           <p v-if="space.note" class="text-sm text-slate-500">{{ space.note }}</p>
         </div>
         <span class="pill-blue">{{ reservationsFor(space.id).length }} rezervácií</span>
