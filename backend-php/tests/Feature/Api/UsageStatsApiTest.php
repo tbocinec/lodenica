@@ -39,7 +39,14 @@ class UsageStatsApiTest extends TestCase
                 'monthlyTrend' => [['monthIso', 'count']],
                 'peakHours' => ['counts', 'max'],
                 'damagesByType',
+                'usage' => [
+                    'days',
+                    'daily' => [['date', 'logins', 'loginUsers', 'visits', 'pageViews', 'registrations']],
+                    'last7' => ['logins', 'visits', 'pageViews', 'registrations'],
+                ],
             ]);
+        $this->assertSame(30, $response->json('usage.days'));
+        $this->assertCount(30, $response->json('usage.daily'));
 
         // Top resource is the one we booked 3 times.
         $this->assertSame('K-HOT', $response->json('topResources.0.identifier'));
@@ -58,6 +65,35 @@ class UsageStatsApiTest extends TestCase
         foreach ($counts as $day) {
             $this->assertCount(24, $day);
         }
+    }
+
+    public function test_visit_beacon_records_pageview_and_visit(): void
+    {
+        $this->postJson('/api/v1/usage/visit', ['firstInSession' => true])->assertNoContent();
+        $this->postJson('/api/v1/usage/visit', ['firstInSession' => false])->assertNoContent();
+
+        // Two pageviews, one visit (only the first-in-session one).
+        $this->assertSame(2, \App\Models\UsageEvent::where('type', 'pageview')->count());
+        $this->assertSame(1, \App\Models\UsageEvent::where('type', 'visit')->count());
+    }
+
+    public function test_login_is_recorded_and_surfaced_in_stats(): void
+    {
+        $user = \App\Models\User::create([
+            'name' => 'Loginer', 'email' => 'loginer@example.test',
+            'password' => 'password123', 'role' => \App\Domain\Enums\UserRole::MEMBER, 'isActive' => true,
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'loginer@example.test', 'password' => 'password123',
+        ])->assertOk();
+
+        $this->assertSame(1, \App\Models\UsageEvent::where('type', 'login')->where('userId', $user->id)->count());
+
+        $this->actingAsAdmin();
+        $today = $this->getJson('/api/v1/admin/usage-stats')->json('usage.today');
+        $this->assertSame(1, $today['logins']);
+        $this->assertSame(1, $today['loginUsers']);
     }
 
     private function seedFixture(): void

@@ -9,6 +9,26 @@ export interface UsageStats {
     activeResources: number;
     openDamages: number;
   };
+  usage: {
+    days: number;
+    daily: Array<{
+      date: string;
+      logins: number;
+      loginUsers: number;
+      visits: number;
+      pageViews: number;
+      registrations: number;
+    }>;
+    today: {
+      date: string;
+      logins: number;
+      loginUsers: number;
+      visits: number;
+      pageViews: number;
+      registrations: number;
+    } | null;
+    last7: { logins: number; visits: number; pageViews: number; registrations: number };
+  };
   topResources: Array<{
     resourceId: string;
     identifier: string;

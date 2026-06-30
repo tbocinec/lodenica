@@ -43,12 +43,102 @@ class UsageStatsController extends Controller
                 'days' => 90,
             ],
             'totals' => $this->totals(),
+            'usage' => $this->usage(),
             'topResources' => $this->topResources($cutoff),
             'coldResources' => $this->coldResources($cutoff),
             'monthlyTrend' => $this->monthlyTrend($sixMonthsAgo),
             'peakHours' => $this->peakHours($cutoff),
             'damagesByType' => $this->damagesByType(),
         ]);
+    }
+
+    /**
+     * Per-day activity for the last 30 days: logins (total + distinct users),
+     * visits (first-in-session loads), pageviews (all loads), and new
+     * registrations (derived from users.createdAt). Bucketed in PHP to stay
+     * driver-agnostic (the SQLite test driver lacks Postgres date SQL).
+     *
+     * @return array{days:int, daily:list<array{date:string,logins:int,loginUsers:int,visits:int,pageViews:int,registrations:int}>, today:array<string,mixed>|null, last7:array<string,int>}
+     */
+    private function usage(): array
+    {
+        $days = 30;
+        $now = CarbonImmutable::now('UTC');
+        $from = $now->subDays($days - 1)->startOfDay();
+
+        // Pre-seed a zeroed bucket per calendar day so gaps render as 0.
+        $bucket = [];
+        for ($d = $from; $d <= $now->startOfDay(); $d = $d->addDay()) {
+            $bucket[$d->format('Y-m-d')] = [
+                'logins' => 0, 'visits' => 0, 'pageViews' => 0, 'registrations' => 0, 'users' => [],
+            ];
+        }
+
+        $dayKey = static function ($value): string {
+            $dt = $value instanceof \DateTimeInterface
+                ? CarbonImmutable::instance($value)->utc()
+                : CarbonImmutable::parse((string) $value)->utc();
+
+            return $dt->format('Y-m-d');
+        };
+
+        // Bucketed in PHP (driver-agnostic). Capped so a spammed beacon can't
+        // OOM the admin endpoint — the cap is far above any real club volume.
+        $events = DB::table('usage_events')
+            ->where('occurredAt', '>=', $from)
+            ->orderByDesc('occurredAt')
+            ->limit(200000)
+            ->get(['type', 'userId', 'occurredAt']);
+        foreach ($events as $e) {
+            $key = $dayKey($e->occurredAt);
+            if (!isset($bucket[$key])) {
+                continue;
+            }
+            if ($e->type === 'login') {
+                $bucket[$key]['logins']++;
+                if ($e->userId !== null) {
+                    $bucket[$key]['users'][$e->userId] = true;
+                }
+            } elseif ($e->type === 'visit') {
+                $bucket[$key]['visits']++;
+            } elseif ($e->type === 'pageview') {
+                $bucket[$key]['pageViews']++;
+            }
+        }
+
+        foreach (DB::table('users')->where('createdAt', '>=', $from)->get(['createdAt']) as $u) {
+            $key = $dayKey($u->createdAt);
+            if (isset($bucket[$key])) {
+                $bucket[$key]['registrations']++;
+            }
+        }
+
+        $daily = [];
+        foreach ($bucket as $date => $b) {
+            $daily[] = [
+                'date' => $date,
+                'logins' => $b['logins'],
+                'loginUsers' => count($b['users']),
+                'visits' => $b['visits'],
+                'pageViews' => $b['pageViews'],
+                'registrations' => $b['registrations'],
+            ];
+        }
+
+        $last7 = array_slice($daily, -7);
+        $sum = static fn (string $k): int => array_sum(array_map(static fn ($r) => $r[$k], $last7));
+
+        return [
+            'days' => $days,
+            'daily' => $daily,
+            'today' => $daily[count($daily) - 1] ?? null,
+            'last7' => [
+                'logins' => $sum('logins'),
+                'visits' => $sum('visits'),
+                'pageViews' => $sum('pageViews'),
+                'registrations' => $sum('registrations'),
+            ],
+        ];
     }
 
     /** @return array<string, int> */

@@ -45,7 +45,7 @@ class OAuthController extends Controller
     }
 
     /** GET /api/v1/auth/oauth/{provider}/callback — handle the provider's reply. */
-    public function callback(Request $request, string $provider, OAuthService $oauth): RedirectResponse
+    public function callback(Request $request, string $provider, OAuthService $oauth, \App\Services\UsageTracker $usage): RedirectResponse
     {
         $resolved = $this->resolveConfigured($provider);
         $spa = rtrim((string) config('app.url'), '/');
@@ -76,6 +76,7 @@ class OAuthController extends Controller
         // email) → straight in.
         $user = $oauth->attemptLogin($resolved, $oauthUser);
         if ($user !== null) {
+            $usage->recordLogin($user->id);
             $token = $user->createToken('spa:oauth:'.$resolved->value)->plainTextToken;
 
             return redirect()->away($spa.'/oauth/callback?token='.urlencode($token));

@@ -24,6 +24,7 @@ import {
   BarElement,
   CategoryScale,
   Chart,
+  Filler,
   Legend,
   LinearScale,
   LineController,
@@ -53,6 +54,7 @@ Chart.register(
   Title,
   Tooltip,
   Legend,
+  Filler,
 );
 
 const stats = ref<UsageStats | null>(null);
@@ -154,6 +156,33 @@ const trendChartOptions = {
 const damagesTotal = computed(() =>
   (stats.value?.damagesByType ?? []).reduce((sum, x) => sum + x.count, 0),
 );
+
+// User-activity (logins / visits / pageviews / registrations) over 30 days.
+const dayLabel = (iso: string): string => {
+  const p = iso.split('-');
+  return `${Number(p[2])}.${Number(p[1])}.`;
+};
+
+const activityChartData = computed(() => {
+  if (!stats.value) return null;
+  const u = stats.value.usage;
+  return {
+    labels: u.daily.map((x) => dayLabel(x.date)),
+    datasets: [
+      { label: 'Prihlásenia', data: u.daily.map((x) => x.logins), borderColor: 'rgb(21, 91, 193)', backgroundColor: 'rgba(21, 91, 193, 0.12)', tension: 0.3, pointRadius: 2 },
+      { label: 'Návštevy', data: u.daily.map((x) => x.visits), borderColor: 'rgb(22, 163, 74)', backgroundColor: 'rgba(22, 163, 74, 0.10)', tension: 0.3, pointRadius: 2 },
+      { label: 'Zobrazenia', data: u.daily.map((x) => x.pageViews), borderColor: 'rgb(234, 88, 12)', backgroundColor: 'rgba(234, 88, 12, 0.10)', tension: 0.3, pointRadius: 2 },
+      { label: 'Registrácie', data: u.daily.map((x) => x.registrations), borderColor: 'rgb(147, 51, 234)', backgroundColor: 'rgba(147, 51, 234, 0.10)', tension: 0.3, pointRadius: 2 },
+    ],
+  };
+});
+
+const activityChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: true, position: 'bottom' as const } },
+  scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+};
 </script>
 
 <template>
@@ -174,6 +203,28 @@ const damagesTotal = computed(() =>
       <StatCard label="Rezervácie celkom" :value="stats.totals.reservationsAllTime" hint="CONFIRMED za celý čas" />
       <StatCard label="Aktívne zdroje" :value="stats.totals.activeResources" hint="Lode, prívesy, priestory" />
       <StatCard label="Otvorené poškodenia" :value="stats.totals.openDamages" hint="Nahlásené / v oprave" />
+    </section>
+
+    <!-- 1b. User activity (last 30 days) -->
+    <section class="card-padded">
+      <h2 class="mb-3 text-lg font-semibold">Aktivita používateľov · {{ stats.usage.days }} dní</h2>
+      <div class="mb-4 grid gap-4 sm:grid-cols-4">
+        <StatCard
+          label="Prihlásenia dnes"
+          :value="stats.usage.today?.logins ?? 0"
+          :hint="`${stats.usage.today?.loginUsers ?? 0} rôznych účtov`"
+        />
+        <StatCard label="Návštevy dnes" :value="stats.usage.today?.visits ?? 0" hint="Otvorenia stránky (relácia)" />
+        <StatCard label="Zobrazenia dnes" :value="stats.usage.today?.pageViews ?? 0" hint="Načítania stránky" />
+        <StatCard label="Registrácie (7 dní)" :value="stats.usage.last7.registrations" hint="Nové účty" />
+      </div>
+      <div class="h-64">
+        <Line :data="activityChartData!" :options="activityChartOptions" />
+      </div>
+      <p class="mt-2 text-xs text-slate-400">
+        Návštevy = prvé načítanie v rámci relácie prehliadača (bez trvalého
+        identifikátora a bez IP). Zobrazenia = každé načítanie stránky.
+      </p>
     </section>
 
     <!-- 2. Top resources -->

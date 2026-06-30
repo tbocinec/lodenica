@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
 use App\Http\Controllers\Api\ResourcesController;
+use App\Http\Controllers\Api\UsageController;
 use App\Http\Controllers\Api\UsageStatsController;
 use App\Http\Controllers\Api\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +46,11 @@ Route::get('availability/dashboard', [AvailabilityController::class, 'dashboard'
 
 // Paddling traffic light (proxied + cached from dunajcik.sk). Public.
 Route::get('paddling-traffic-light', [PaddlingTrafficLightController::class, 'show']);
+
+// Anonymous usage beacon (pageview / visit). No PII collected. Tightly
+// throttled — a real client pings ~once per page load, so 20/min/IP is
+// generous while limiting how much a script can inflate the counters.
+Route::post('usage/visit', [UsageController::class, 'visit'])->middleware('throttle:20,1');
 
 // Read-only resource browsing is public; writes are admin-only (see group below).
 Route::get('resources', [ResourcesController::class, 'index']);

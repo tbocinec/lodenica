@@ -290,18 +290,20 @@ onMounted(() => {
         <h2 class="mb-3 text-lg font-semibold">Aktuálne poškodenia</h2>
         <EmptyState v-if="snapshot.damaged.length === 0" title="Žiadne aktuálne poškodenia" />
         <ul v-else class="divide-y divide-slate-100">
-          <li
-            v-for="d in snapshot.damaged"
-            :key="d.damageId"
-            class="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-4"
-          >
-            <div class="flex items-center gap-2">
-              <span class="pill-amber">{{ DAMAGE_STATUS_LABEL[d.status] }}</span>
-              <span class="text-sm font-medium text-slate-800">
-                {{ RESOURCE_TYPE_LABEL[d.resource.type] }} · {{ d.resource.name }}
-              </span>
-            </div>
-            <p class="text-sm text-slate-600 sm:flex-1">{{ d.description }}</p>
+          <li v-for="d in snapshot.damaged" :key="d.damageId">
+            <RouterLink
+              :to="`/damages/${d.damageId}`"
+              class="-mx-2 flex flex-col gap-1 rounded-lg px-2 py-3 transition hover:bg-slate-50 sm:flex-row sm:items-center sm:gap-4"
+            >
+              <div class="flex items-center gap-2">
+                <span class="pill-amber">{{ DAMAGE_STATUS_LABEL[d.status] }}</span>
+                <span class="text-sm font-medium text-slate-800">
+                  {{ RESOURCE_TYPE_LABEL[d.resource.type] }} · {{ d.resource.name }}
+                </span>
+              </div>
+              <p class="text-sm text-slate-600 sm:flex-1">{{ d.description }}</p>
+              <span aria-hidden="true" class="hidden text-slate-300 sm:inline">›</span>
+            </RouterLink>
           </li>
         </ul>
       </div>

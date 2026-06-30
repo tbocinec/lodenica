@@ -37,7 +37,7 @@ class AuthController extends Controller
      * error in all three cases so an attacker can't enumerate which
      * emails exist.
      */
-    public function login(LoginRequest $request): JsonResponse
+    public function login(LoginRequest $request, \App\Services\UsageTracker $usage): JsonResponse
     {
         $credentials = $request->validated();
 
@@ -46,6 +46,8 @@ class AuthController extends Controller
         if ($user === null || !Hash::check($credentials['password'], $user->password) || !$user->isActive) {
             throw new InvalidCredentialsException();
         }
+
+        $usage->recordLogin($user->id);
 
         return $this->tokenResponse($user, $request);
     }
