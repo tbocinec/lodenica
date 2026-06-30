@@ -19,6 +19,8 @@ export interface Expedition {
   country: string | null;
   participants: string | null;
   distanceKm: number | null;
+  /** Optional route polyline: ordered [lat, lng] pairs. */
+  route: [number, number][] | null;
   detail: string | null;
   createdById: string | null;
   createdByName: string | null;

@@ -29,6 +29,7 @@ class ExpeditionResource extends JsonResource
             'country' => $this->country,
             'participants' => $this->participants,
             'distanceKm' => $this->distanceKm !== null ? (float) $this->distanceKm : null,
+            'route' => $this->route,
             'detail' => $this->detail,
             'createdById' => $this->createdById,
             'createdByName' => $this->relationLoaded('creator') ? $this->creator?->name : null,

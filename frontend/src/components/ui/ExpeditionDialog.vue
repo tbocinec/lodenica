@@ -7,13 +7,15 @@
  * Opens when `open` is true. With `expedition` set it edits; otherwise it
  * creates, then stays open in edit mode so photos can be attached right away.
  */
-import { nextTick, reactive, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import { expeditionsApi, type Expedition, type WaterType } from '@/api/expeditions.api';
 import { WATER_TYPES, WATER_TYPE_LABEL, waterColor } from '@/utils/expeditions';
+import { parseGpx } from '@/utils/gpx';
+import { snapToRiver } from '@/utils/riverRoute';
 
 import LoadError from './LoadError.vue';
 import Spinner from './Spinner.vue';
@@ -36,7 +38,27 @@ const form = reactive({
   distanceKm: null as number | null,
   detail: '',
   publishConsent: false,
+  route: [] as [number, number][],
 });
+
+const placeLabel = computed(() => {
+  switch (form.waterType) {
+    case 'river':
+      return 'Názov rieky *';
+    case 'lake':
+      return 'Názov jazera *';
+    case 'sea':
+      return 'Názov mora *';
+    default:
+      return 'Miesto *';
+  }
+});
+
+const traceMode = ref(false);
+const routeError = ref<string | null>(null);
+const snapping = ref(false);
+const gpxInput = ref<HTMLInputElement | null>(null);
+let routeLayer: L.Polyline | null = null;
 
 const working = ref<Expedition | null>(null); // the saved entity (drives the photo gallery)
 const error = ref<string | null>(null);
@@ -112,10 +134,86 @@ function setPoint(lat: number, lng: number): void {
   else marker = L.marker([lat, lng], { icon }).addTo(map);
 }
 
+function drawRoute(): void {
+  if (!map) return;
+  if (routeLayer) {
+    routeLayer.remove();
+    routeLayer = null;
+  }
+  if (form.route.length >= 2) {
+    routeLayer = L.polyline(form.route, {
+      color: waterColor(form.waterType || null),
+      weight: 4,
+      opacity: 0.85,
+    }).addTo(map);
+  }
+}
+
+function appendRoutePoint(lat: number, lng: number): void {
+  form.route.push([Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6]);
+  if (form.route.length === 1) setPoint(lat, lng); // first point doubles as the pin
+  drawRoute();
+}
+
+function undoRoutePoint(): void {
+  form.route.pop();
+  drawRoute();
+}
+
+function clearRoute(): void {
+  form.route = [];
+  routeError.value = null;
+  drawRoute();
+}
+
+function fitRoute(): void {
+  if (map && form.route.length >= 2) {
+    map.fitBounds(L.latLngBounds(form.route as L.LatLngExpression[]).pad(0.2));
+  }
+}
+
+async function onGpx(event: Event): Promise<void> {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  routeError.value = null;
+  try {
+    const text = await file.text();
+    const pts = parseGpx(text);
+    form.route = pts;
+    if (pts.length) setPoint(pts[0][0], pts[0][1]);
+    drawRoute();
+    fitRoute();
+  } catch (e) {
+    routeError.value = (e as Error).message;
+  } finally {
+    if (gpxInput.value) gpxInput.value.value = '';
+  }
+}
+
+async function snapRiver(): Promise<void> {
+  routeError.value = null;
+  if (form.route.length < 2) {
+    routeError.value = 'Vyznač aspoň 2 body (začiatok a koniec) kliknutím do mapy.';
+    return;
+  }
+  snapping.value = true;
+  try {
+    const path = await snapToRiver(form.route[0], form.route[form.route.length - 1]);
+    form.route = path;
+    if (path.length) setPoint(path[0][0], path[0][1]);
+    drawRoute();
+    fitRoute();
+  } catch (e) {
+    routeError.value = (e as Error).message;
+  } finally {
+    snapping.value = false;
+  }
+}
+
 function initMap(): void {
   if (!pickerEl.value || map) return;
   const hasPoint = form.latitude !== null && form.longitude !== null;
-  map = L.map(pickerEl.value, { worldCopyJump: true }).setView(
+  map = L.map(pickerEl.value, { worldCopyJump: true, fadeAnimation: false }).setView(
     hasPoint ? [form.latitude as number, form.longitude as number] : [30, 10],
     hasPoint ? 6 : 2,
   );
@@ -124,7 +222,12 @@ function initMap(): void {
     maxZoom: 19,
   }).addTo(map);
   if (hasPoint) setPoint(form.latitude as number, form.longitude as number);
-  map.on('click', (e: L.LeafletMouseEvent) => setPoint(e.latlng.lat, e.latlng.lng));
+  drawRoute();
+  fitRoute();
+  map.on('click', (e: L.LeafletMouseEvent) => {
+    if (traceMode.value) appendRoutePoint(e.latlng.lat, e.latlng.lng);
+    else setPoint(e.latlng.lat, e.latlng.lng);
+  });
   // The dialog animates/sizes after mount — Leaflet needs a nudge.
   setTimeout(() => map?.invalidateSize(), 60);
 }
@@ -134,6 +237,7 @@ function destroyMap(): void {
     map.remove();
     map = null;
     marker = null;
+    routeLayer = null;
   }
 }
 
@@ -149,6 +253,9 @@ watch(
     geoQuery.value = '';
     geoResults.value = [];
     geoError.value = null;
+    traceMode.value = false;
+    routeError.value = null;
+    snapping.value = false;
     const e = props.expedition;
     working.value = e ? { ...e } : null;
     Object.assign(form, {
@@ -163,6 +270,7 @@ watch(
       distanceKm: e?.distanceKm ?? null,
       detail: e?.detail ?? '',
       publishConsent: !!e, // existing entries are already published
+      route: e?.route ? e.route.map((p) => [p[0], p[1]] as [number, number]) : [],
     });
     await nextTick();
     initMap();
@@ -197,6 +305,7 @@ async function submit(): Promise<void> {
       participants: form.participants.trim() || null,
       distanceKm: form.distanceKm ?? null,
       detail: form.detail.trim() || null,
+      route: form.route.length >= 2 ? form.route : null,
     };
     const saved = working.value
       ? await expeditionsApi.update(working.value.id, payload)
@@ -266,7 +375,7 @@ async function removePhoto(photoId: string): Promise<void> {
             <input id="exp-title" v-model="form.title" class="input mt-1" required maxlength="200" placeholder="napr. Dunajský maratón" />
           </div>
           <div>
-            <label class="label" for="exp-place">Miesto *</label>
+            <label class="label" for="exp-place">{{ placeLabel }}</label>
             <input id="exp-place" v-model="form.place" class="input mt-1" required maxlength="200" placeholder="napr. Vltava, Česko" />
           </div>
           <div class="grid grid-cols-2 gap-3">
@@ -346,6 +455,38 @@ async function removePhoto(photoId: string): Promise<void> {
             </span>
             <span v-else class="text-rose-600">zatiaľ nevybrané</span>
           </p>
+
+          <!-- Route (optional): trace, GPX import, or snap to river -->
+          <div class="mt-4 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-700">
+                Trasa <span class="font-normal text-slate-400">(nepovinné)</span>
+              </span>
+              <span v-if="form.route.length" class="text-xs text-slate-500">{{ form.route.length }} bodov</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                class="btn-secondary text-xs"
+                :class="traceMode ? 'ring-2 ring-brand-400' : ''"
+                @click="traceMode = !traceMode"
+              >
+                {{ traceMode ? '✓ Kreslím… klikaj do mapy' : '✏️ Kresliť trasu' }}
+              </button>
+              <button type="button" class="btn-secondary text-xs" :disabled="!form.route.length" @click="undoRoutePoint">↶ Späť</button>
+              <button type="button" class="btn-secondary text-xs" :disabled="!form.route.length" @click="clearRoute">🗑 Vymazať</button>
+              <button type="button" class="btn-secondary text-xs" :disabled="snapping || form.route.length < 2" @click="snapRiver">
+                <Spinner v-if="snapping" class="mr-1" />🌊 Prichytiť na rieku
+              </button>
+              <input ref="gpxInput" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" class="hidden" @change="onGpx" />
+              <button type="button" class="btn-secondary text-xs" @click="gpxInput?.click()">⬆ GPX</button>
+            </div>
+            <p v-if="routeError" class="mt-1 text-xs text-rose-600">{{ routeError }}</p>
+            <p class="mt-1 text-xs text-slate-400">
+              „Kresliť trasu" → klikaj po mape (napr. pozdĺž rieky). „Prichytiť na rieku" z 2 bodov skúsi
+              dopočítať úsek rieky (OSM). GPX = presná trasa z hodiniek/appky.
+            </p>
+          </div>
 
           <!-- Photo gallery — only once the entry exists -->
           <div v-if="working" class="mt-4">

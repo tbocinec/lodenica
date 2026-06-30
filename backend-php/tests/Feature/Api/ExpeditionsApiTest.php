@@ -51,6 +51,25 @@ class ExpeditionsApiTest extends TestCase
             ->assertJsonCount(1);
     }
 
+    public function test_create_stores_route_polyline(): void
+    {
+        $this->actingAsMember();
+
+        $this->postJson('/api/v1/expeditions', $this->payload([
+            'route' => [[48.14, 17.10], [48.20, 17.20], [48.25, 17.28]],
+        ]))->assertCreated()
+            ->assertJsonCount(3, 'route')
+            ->assertJsonPath('route.0.0', 48.14);
+    }
+
+    public function test_route_rejects_malformed_points(): void
+    {
+        $this->actingAsMember();
+        $this->postJson('/api/v1/expeditions', $this->payload([
+            'route' => [[48.14], [999, 17.2]], // wrong size + out of range
+        ]))->assertStatus(400);
+    }
+
     public function test_create_requires_publish_consent(): void
     {
         $this->actingAsMember();

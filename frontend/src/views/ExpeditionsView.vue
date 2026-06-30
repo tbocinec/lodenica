@@ -102,20 +102,31 @@ function renderMarkers(): void {
   markerGroup.clearLayers();
   markers.clear();
   for (const e of items.value) {
+    if (e.route && e.route.length >= 2) {
+      L.polyline(e.route as L.LatLngExpression[], {
+        color: waterColor(e.waterType),
+        weight: 4,
+        opacity: 0.7,
+      }).addTo(markerGroup);
+    }
     const m = L.marker([e.latitude, e.longitude], { icon: pinIcon(e) }).bindPopup(popupHtml(e));
     m.addTo(markerGroup);
     markers.set(e.id, m);
   }
-  // Frame all pins on first render.
+  // Frame all pins + routes on first render.
   if (items.value.length > 0) {
-    const group = L.featureGroup([...markers.values()]);
+    const group = L.featureGroup(markerGroup.getLayers() as L.Layer[]);
     map.fitBounds(group.getBounds().pad(0.2), { maxZoom: 6 });
   }
 }
 
 function flyTo(e: Expedition): void {
   if (!map) return;
-  map.flyTo([e.latitude, e.longitude], 7, { duration: 0.6 });
+  if (e.route && e.route.length >= 2) {
+    map.fitBounds(L.latLngBounds(e.route as L.LatLngExpression[]).pad(0.2));
+  } else {
+    map.flyTo([e.latitude, e.longitude], 7, { duration: 0.6 });
+  }
   markers.get(e.id)?.openPopup();
 }
 
@@ -288,6 +299,7 @@ onBeforeUnmount(() => {
                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                       <span v-if="e.participants">👥 {{ e.participants }}</span>
                       <span v-if="e.distanceKm != null">📏 {{ e.distanceKm }} km</span>
+                      <span v-if="e.route && e.route.length >= 2">🛟 trasa: {{ e.route.length }} bodov</span>
                       <span>🧭 {{ e.latitude.toFixed(3) }}, {{ e.longitude.toFixed(3) }}</span>
                     </div>
                     <div v-if="e.photos.length" class="flex flex-wrap gap-2 pt-1">

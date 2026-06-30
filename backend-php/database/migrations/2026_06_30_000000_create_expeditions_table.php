@@ -25,6 +25,9 @@ return new class extends Migration
             $table->string('country', 120)->nullable();
             $table->string('participants', 500)->nullable();
             $table->decimal('distanceKm', 8, 1)->nullable();
+            // Optional route polyline: ordered [lat, lng] pairs (traced on the
+            // map or imported from GPX). For rivers/seas — "from here to there".
+            $table->json('route')->nullable();
             $table->text('detail')->nullable();
             // The submitter confirmed (on create) that the entry — including any
             // named participants, given voluntarily + with their consent — may be

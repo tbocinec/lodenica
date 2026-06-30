@@ -26,6 +26,11 @@ class CreateExpeditionRequest extends FormRequest
             'participants' => ['nullable', 'string', 'max:500'],
             'distanceKm' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'detail' => ['nullable', 'string', 'max:5000'],
+            // Optional route polyline: ordered [lat, lng] pairs.
+            'route' => ['nullable', 'array', 'max:5000'],
+            'route.*' => ['array', 'size:2'],
+            'route.*.0' => ['numeric', 'between:-90,90'],
+            'route.*.1' => ['numeric', 'between:-180,180'],
             // Mandatory at creation: the submitter consents to publishing the
             // entry to all club members.
             'publishConsent' => ['accepted'],

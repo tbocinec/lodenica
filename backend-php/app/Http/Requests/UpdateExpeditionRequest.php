@@ -26,6 +26,10 @@ class UpdateExpeditionRequest extends FormRequest
             'participants' => ['sometimes', 'nullable', 'string', 'max:500'],
             'distanceKm' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100000'],
             'detail' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'route' => ['sometimes', 'nullable', 'array', 'max:5000'],
+            'route.*' => ['array', 'size:2'],
+            'route.*.0' => ['numeric', 'between:-90,90'],
+            'route.*.1' => ['numeric', 'between:-180,180'],
         ];
     }
 }
