@@ -172,11 +172,15 @@ export interface User {
   /** GDPR consents — admin-only (null otherwise). */
   privacyAck?: boolean | null;
   dataConsent?: boolean | null;
+  /** Prevádzkový poriadok + stanovy acknowledgement — admin-only. */
+  rulesAck?: boolean | null;
   /** When the user first set their own password. Null = invitation not yet
    *  accepted. Admin-only. */
   passwordSetAt?: string | null;
   /** When the GDPR consents were recorded. Admin-only. */
   gdprConsentAt?: string | null;
+  /** When the prevádzkový poriadok acknowledgement was recorded. Admin-only. */
+  rulesAckAt?: string | null;
   /** Linked social logins — present only on the admin user-detail fetch. */
   identities?: UserIdentity[] | null;
   createdAt: string;

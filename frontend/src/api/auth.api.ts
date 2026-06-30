@@ -10,14 +10,14 @@ export const authApi = {
     name: string,
     email: string,
     password: string,
-    consents: { privacyAck: boolean; dataConsent: boolean },
+    consents: { dataConsent: boolean; rulesAck: boolean },
   ): Promise<LoginResponse> {
     const { data } = await http.post<LoginResponse>('/auth/register', {
       name,
       email,
       password,
-      privacyAck: consents.privacyAck,
       dataConsent: consents.dataConsent,
+      rulesAck: consents.rulesAck,
     });
     return data;
   },
@@ -48,14 +48,14 @@ export const authApi = {
     email: string,
     token: string,
     password: string,
-    consents?: { privacyAck: boolean; dataConsent: boolean },
+    consents?: { dataConsent: boolean; rulesAck: boolean },
   ): Promise<LoginResponse> {
     const { data } = await http.post<LoginResponse>('/auth/reset-password', {
       email,
       token,
       password,
       ...(consents
-        ? { privacyAck: consents.privacyAck, dataConsent: consents.dataConsent }
+        ? { dataConsent: consents.dataConsent, rulesAck: consents.rulesAck }
         : {}),
     });
     return data;
@@ -67,12 +67,12 @@ export const authApi = {
    */
   async oauthComplete(
     profile: string,
-    consents: { privacyAck: boolean; dataConsent: boolean },
+    consents: { dataConsent: boolean; rulesAck: boolean },
   ): Promise<LoginResponse> {
     const { data } = await http.post<LoginResponse>('/auth/oauth/complete', {
       profile,
-      privacyAck: consents.privacyAck,
       dataConsent: consents.dataConsent,
+      rulesAck: consents.rulesAck,
     });
     return data;
   },

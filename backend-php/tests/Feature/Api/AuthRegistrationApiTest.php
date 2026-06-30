@@ -13,28 +13,33 @@ class AuthRegistrationApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Valid registration payload (consents satisfied) + any overrides. */
+    private function payload(array $overrides = []): array
+    {
+        return array_merge([
+            'name' => 'Nový Pádlič',
+            'email' => 'novy@example.test',
+            'password' => 'tajneheslo123',
+            'dataConsent' => true,
+            'rulesAck' => true,
+        ], $overrides);
+    }
+
     public function test_registration_notifies_admin_of_pending_member(): void
     {
         Mail::fake();
 
-        $this->postJson('/api/v1/auth/register', [
-            'name' => 'Čakateľ',
-            'email' => 'waiting@example.test',
-            'password' => 'tajneheslo123',
-            'privacyAck' => true,
-        ])->assertCreated();
+        $this->postJson('/api/v1/auth/register', $this->payload([
+            'name' => 'Čakateľ', 'email' => 'waiting@example.test',
+        ]))->assertCreated();
 
         Mail::assertSent(PendingMemberNotificationMail::class, fn ($m) => $m->memberEmail === 'waiting@example.test');
     }
 
     public function test_public_registration_creates_pending_account_and_logs_in(): void
     {
-        $resp = $this->postJson('/api/v1/auth/register', [
-            'name' => 'Nový Pádlič',
-            'email' => 'novy@example.test',
-            'password' => 'tajneheslo123',
-            'privacyAck' => true,
-        ])->assertCreated()
+        $resp = $this->postJson('/api/v1/auth/register', $this->payload())
+            ->assertCreated()
             ->assertJsonPath('user.role', 'PENDING')
             ->assertJsonStructure(['token', 'user' => ['id', 'email', 'role']]);
 
@@ -49,13 +54,9 @@ class AuthRegistrationApiTest extends TestCase
     {
         // Even if a client sends role=ADMIN it is ignored — the controller
         // always forces PENDING.
-        $this->postJson('/api/v1/auth/register', [
-            'name' => 'Sneaky',
-            'email' => 'sneaky@example.test',
-            'password' => 'tajneheslo123',
-            'privacyAck' => true,
-            'role' => 'ADMIN',
-        ])->assertCreated()
+        $this->postJson('/api/v1/auth/register', $this->payload([
+            'email' => 'sneaky@example.test', 'role' => 'ADMIN',
+        ]))->assertCreated()
             ->assertJsonPath('user.role', 'PENDING');
     }
 
@@ -69,56 +70,53 @@ class AuthRegistrationApiTest extends TestCase
             'isActive' => true,
         ]);
 
-        $this->postJson('/api/v1/auth/register', [
-            'name' => 'Another',
+        $this->postJson('/api/v1/auth/register', $this->payload([
             'email' => 'dup@example.test',
-            'password' => 'tajneheslo123',
-            'privacyAck' => true,
-        ])->assertStatus(400)
+        ]))->assertStatus(400)
             ->assertJsonPath('code', 'VALIDATION_ERROR');
     }
 
     public function test_registration_normalizes_email_case(): void
     {
-        $this->postJson('/api/v1/auth/register', [
-            'name' => 'Case',
+        $this->postJson('/api/v1/auth/register', $this->payload([
             'email' => 'MixedCase@Example.TEST',
-            'password' => 'tajneheslo123',
-            'privacyAck' => true,
-        ])->assertCreated();
+        ]))->assertCreated();
 
         $this->assertDatabaseHas('users', ['email' => 'mixedcase@example.test']);
     }
 
-    public function test_registration_requires_the_mandatory_gdpr_checkbox(): void
+    public function test_registration_requires_operating_rules_acknowledgement(): void
     {
-        $this->postJson('/api/v1/auth/register', [
-            'name' => 'No Ack', 'email' => 'noack@example.test',
-            'password' => 'tajneheslo123', 'privacyAck' => false, 'dataConsent' => true,
-        ])->assertStatus(400)->assertJsonPath('code', 'VALIDATION_ERROR');
+        $this->postJson('/api/v1/auth/register', $this->payload([
+            'email' => 'norules@example.test', 'rulesAck' => false,
+        ]))->assertStatus(400)->assertJsonPath('code', 'VALIDATION_ERROR');
 
-        $this->assertDatabaseMissing('users', ['email' => 'noack@example.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'norules@example.test']);
     }
 
-    public function test_registration_stores_both_consents(): void
+    public function test_registration_requires_an_explicit_data_consent_choice(): void
     {
-        $this->postJson('/api/v1/auth/register', [
-            'name' => 'Consent', 'email' => 'consent@example.test',
-            'password' => 'tajneheslo123', 'privacyAck' => true, 'dataConsent' => false,
-        ])->assertCreated();
+        // dataConsent omitted entirely → rejected (must pick yes or no).
+        $payload = $this->payload(['email' => 'nochoice@example.test']);
+        unset($payload['dataConsent']);
+
+        $this->postJson('/api/v1/auth/register', $payload)
+            ->assertStatus(400)->assertJsonPath('code', 'VALIDATION_ERROR');
+
+        $this->assertDatabaseMissing('users', ['email' => 'nochoice@example.test']);
+    }
+
+    public function test_registration_stores_consents_and_timestamps(): void
+    {
+        $this->postJson('/api/v1/auth/register', $this->payload([
+            'email' => 'consent@example.test', 'dataConsent' => false,
+        ]))->assertCreated();
 
         $user = User::where('email', 'consent@example.test')->firstOrFail();
-        $this->assertTrue((bool) $user->privacyAck);
-        $this->assertFalse((bool) $user->dataConsent);
-    }
-
-    public function test_data_consent_defaults_to_true_when_omitted(): void
-    {
-        $this->postJson('/api/v1/auth/register', [
-            'name' => 'Default', 'email' => 'default-consent@example.test',
-            'password' => 'tajneheslo123', 'privacyAck' => true,
-        ])->assertCreated();
-
-        $this->assertTrue((bool) User::where('email', 'default-consent@example.test')->firstOrFail()->dataConsent);
+        $this->assertTrue((bool) $user->privacyAck);     // forced true (informational)
+        $this->assertFalse((bool) $user->dataConsent);   // chose "neudeľujem"
+        $this->assertTrue((bool) $user->rulesAck);       // operating rules accepted
+        $this->assertNotNull($user->gdprConsentAt);
+        $this->assertNotNull($user->rulesAckAt);
     }
 }

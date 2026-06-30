@@ -79,11 +79,14 @@ class AuthController extends Controller
             'role' => $match !== null ? UserRole::MEMBER : UserRole::PENDING,
             'isActive' => true,
             'memberId' => $match?->memberId,
-            // GDPR: checkbox 1 is required (always true here); checkbox 2 is
-            // optional and default-checked, so treat a missing value as true.
+            // Informational notice — acknowledged by creating the registration.
             'privacyAck' => true,
-            'dataConsent' => (bool) ($data['dataConsent'] ?? true),
+            // Explicit photo/marketing consent decision (true = granted).
+            'dataConsent' => (bool) $data['dataConsent'],
             'gdprConsentAt' => now(),
+            // Prevádzkový poriadok + stanovy acknowledgement (required true).
+            'rulesAck' => true,
+            'rulesAckAt' => now(),
             // Self-registration sets a real password right away.
             'passwordSetAt' => now(),
         ]);
@@ -180,6 +183,9 @@ class AuthController extends Controller
         }
         if (array_key_exists('dataConsent', $data)) {
             $consents['dataConsent'] = (bool) $data['dataConsent'];
+        }
+        if (array_key_exists('rulesAck', $data)) {
+            $consents['rulesAck'] = (bool) $data['rulesAck'];
         }
         $user = $passwordReset->reset($data['email'], $data['token'], $data['password'], $consents);
 

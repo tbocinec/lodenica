@@ -98,16 +98,20 @@ class PasswordResetService
             $user->isActive = true;
         }
         // GDPR consents captured when an invited member sets their first
-        // password (the invite link's set-password screen shows the
-        // checkboxes). Only applied when supplied.
+        // password (the invite link's set-password screen shows the same
+        // sections as registration). Only applied when supplied.
         if (array_key_exists('privacyAck', $consents) || array_key_exists('dataConsent', $consents)) {
-            if (array_key_exists('privacyAck', $consents)) {
-                $user->privacyAck = (bool) $consents['privacyAck'];
-            }
+            $user->privacyAck = array_key_exists('privacyAck', $consents)
+                ? (bool) $consents['privacyAck']
+                : true;
             if (array_key_exists('dataConsent', $consents)) {
                 $user->dataConsent = (bool) $consents['dataConsent'];
             }
             $user->gdprConsentAt = now();
+        }
+        if (array_key_exists('rulesAck', $consents)) {
+            $user->rulesAck = (bool) $consents['rulesAck'];
+            $user->rulesAckAt = now();
         }
         $user->save();
         $user->tokens()->delete();

@@ -65,7 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
     name: string,
     email: string,
     password: string,
-    consents: { privacyAck: boolean; dataConsent: boolean },
+    consents: { dataConsent: boolean; rulesAck: boolean },
   ): Promise<void> {
     lastError.value = null;
     try {
@@ -82,7 +82,7 @@ export const useAuthStore = defineStore('auth', () => {
     email: string,
     resetToken: string,
     password: string,
-    consents?: { privacyAck: boolean; dataConsent: boolean },
+    consents?: { dataConsent: boolean; rulesAck: boolean },
   ): Promise<void> {
     const res = await authApi.resetPassword(email, resetToken, password, consents);
     setSession(res.token, res.user);

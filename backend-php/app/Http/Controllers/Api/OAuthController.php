@@ -107,10 +107,12 @@ class OAuthController extends Controller
     {
         $data = $request->validate([
             'profile' => ['required', 'string'],
-            'privacyAck' => ['accepted'],
-            'dataConsent' => ['nullable', 'boolean'],
+            'privacyAck' => ['nullable', 'boolean'],
+            'dataConsent' => ['required', 'boolean'],
+            'rulesAck' => ['accepted'],
         ], [
-            'privacyAck.accepted' => 'Pre registráciu musíte potvrdiť oboznámenie s podmienkami spracúvania osobných údajov.',
+            'dataConsent.required' => 'Vyberte, či udeľujete alebo neudeľujete súhlas so spracúvaním osobných údajov na účely propagácie.',
+            'rulesAck.accepted' => 'Pre registráciu musíte potvrdiť oboznámenie so stanovami a prevádzkovým poriadkom.',
         ]);
 
         $profile = $this->verifyProfile($data['profile']);
@@ -130,7 +132,11 @@ class OAuthController extends Controller
             (string) $profile['pid'],
             $profile['email'] ?? null,
             $profile['name'] ?? null,
-            ['privacyAck' => true, 'dataConsent' => (bool) ($data['dataConsent'] ?? true)],
+            [
+                'privacyAck' => true,
+                'dataConsent' => (bool) $data['dataConsent'],
+                'rulesAck' => true,
+            ],
         );
 
         $token = $user->createToken('spa:oauth:'.$provider->value)->plainTextToken;

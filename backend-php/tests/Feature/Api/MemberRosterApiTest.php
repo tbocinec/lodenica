@@ -67,7 +67,7 @@ class MemberRosterApiTest extends TestCase
             'name' => 'Real Name',
             'email' => 'known@example.test',
             'password' => 'password123',
-            'privacyAck' => true,
+            'dataConsent' => true, 'rulesAck' => true,
         ])->assertCreated()
             ->assertJsonPath('user.role', 'MEMBER');
 
@@ -88,7 +88,7 @@ class MemberRosterApiTest extends TestCase
             'name' => 'Nobody',
             'email' => 'nobody@example.test',
             'password' => 'password123',
-            'privacyAck' => true,
+            'dataConsent' => true, 'rulesAck' => true,
         ])->assertCreated()
             ->assertJsonPath('user.role', 'PENDING');
     }

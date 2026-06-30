@@ -32,8 +32,10 @@ class User extends Authenticatable
         'isActive' => 'boolean',
         'privacyAck' => 'boolean',
         'dataConsent' => 'boolean',
+        'rulesAck' => 'boolean',
         'passwordSetAt' => 'datetime',
         'gdprConsentAt' => 'datetime',
+        'rulesAckAt' => 'datetime',
         'createdAt' => 'datetime',
         'updatedAt' => 'datetime',
     ];

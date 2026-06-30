@@ -22,10 +22,14 @@ class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:200'],
             'email' => ['required', 'email', 'max:200', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'max:200'],
-            // GDPR checkbox 1 — mandatory: must be ticked to register.
-            'privacyAck' => ['accepted'],
-            // GDPR checkbox 2 — optional consent; default-checked on the form.
-            'dataConsent' => ['nullable', 'boolean'],
+            // Informational notice — acknowledged implicitly by submitting the
+            // form (privacyAck is forced true server-side), so not required here.
+            'privacyAck' => ['nullable', 'boolean'],
+            // GDPR photo/marketing consent — an explicit yes/no choice is
+            // mandatory (the form offers two radio options).
+            'dataConsent' => ['required', 'boolean'],
+            // Prevádzkový poriadok + stanovy — must be accepted to register.
+            'rulesAck' => ['accepted'],
         ];
     }
 
@@ -40,7 +44,8 @@ class RegisterRequest extends FormRequest
     {
         return [
             'email.unique' => 'Účet s týmto e-mailom už existuje.',
-            'privacyAck.accepted' => 'Pre registráciu musíte potvrdiť oboznámenie s podmienkami spracúvania osobných údajov.',
+            'dataConsent.required' => 'Vyberte, či udeľujete alebo neudeľujete súhlas so spracúvaním osobných údajov na účely propagácie.',
+            'rulesAck.accepted' => 'Pre registráciu musíte potvrdiť oboznámenie so stanovami a prevádzkovým poriadkom.',
         ];
     }
 }

@@ -70,7 +70,7 @@ class OAuthService
      * email already exists (e.g. a double submit), returns that user without
      * creating a duplicate.
      *
-     * @param  array{privacyAck: bool, dataConsent: bool}  $consents
+     * @param  array{privacyAck: bool, dataConsent: bool, rulesAck?: bool}  $consents
      */
     public function completeRegistration(
         OAuthProvider $provider,
@@ -106,8 +106,10 @@ class OAuthService
                 'isActive' => true,
                 'memberId' => $match?->memberId,
                 'privacyAck' => $consents['privacyAck'] ?? true,
-                'dataConsent' => $consents['dataConsent'] ?? true,
+                'dataConsent' => $consents['dataConsent'] ?? false,
                 'gdprConsentAt' => now(),
+                'rulesAck' => $consents['rulesAck'] ?? true,
+                'rulesAckAt' => now(),
             ]);
 
             $this->createIdentity($user, $provider, $providerUserId, $email);

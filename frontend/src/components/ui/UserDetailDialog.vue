@@ -187,10 +187,25 @@ async function unlink(provider: string, label: string): Promise<void> {
             </span>
           </dd>
 
-          <dt class="pl-3 text-xs text-slate-400">· súhlas so spracovaním</dt>
+          <dt class="pl-3 text-xs text-slate-400">· súhlas s propagáciou (foto)</dt>
           <dd class="text-xs">
-            <span :class="user.dataConsent ? 'text-emerald-700' : 'text-slate-400'">
-              {{ user.dataConsent ? 'áno' : 'nie' }}
+            <span :class="user.dataConsent ? 'text-emerald-700' : 'text-rose-700'">
+              {{ user.dataConsent ? 'udelený' : 'neudelený' }}
+            </span>
+          </dd>
+
+          <dt class="text-slate-500">Prevádzkový poriadok</dt>
+          <dd class="text-slate-800">
+            <template v-if="user.rulesAckAt">
+              {{ formatDateTime(user.rulesAckAt) }}
+            </template>
+            <span v-else class="text-slate-400">nezaznamenané</span>
+          </dd>
+
+          <dt class="pl-3 text-xs text-slate-400">· oboznámenie + súhlas</dt>
+          <dd class="text-xs">
+            <span :class="user.rulesAck ? 'text-emerald-700' : 'text-slate-400'">
+              {{ user.rulesAck ? 'áno' : 'nie' }}
             </span>
           </dd>
         </dl>
