@@ -124,6 +124,7 @@ async function load(): Promise<void> {
   error.value = null;
   try {
     items.value = await expeditionsApi.list();
+    map?.invalidateSize();
     renderMarkers();
   } catch (e) {
     error.value = (e as Error).message;
@@ -166,6 +167,9 @@ onMounted(() => {
       maxZoom: 19,
     }).addTo(map);
     markerGroup = L.layerGroup().addTo(map);
+    // Leaflet renders blank/grey if the container wasn't fully laid out at
+    // init time — nudge it once the browser has painted.
+    setTimeout(() => map?.invalidateSize(), 200);
   }
   void load();
 });

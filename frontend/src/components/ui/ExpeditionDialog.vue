@@ -48,6 +48,52 @@ const pickerEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let marker: L.Marker | null = null;
 
+// Geocoding (OpenStreetMap Nominatim) — optional helper; click-to-place still works.
+interface GeoResult {
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+const geoQuery = ref('');
+const geoResults = ref<GeoResult[]>([]);
+const geoLoading = ref(false);
+const geoError = ref<string | null>(null);
+
+async function searchPlace(): Promise<void> {
+  const q = geoQuery.value.trim();
+  if (q.length < 3) {
+    geoError.value = 'Zadaj aspoň 3 znaky.';
+    return;
+  }
+  geoLoading.value = true;
+  geoError.value = null;
+  geoResults.value = [];
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=sk&q=${encodeURIComponent(q)}`,
+    );
+    if (!res.ok) throw new Error('Vyhľadávanie miesta zlyhalo.');
+    geoResults.value = (await res.json()) as GeoResult[];
+    if (geoResults.value.length === 0) geoError.value = 'Nič sa nenašlo.';
+  } catch (e) {
+    geoError.value = (e as Error).message;
+  } finally {
+    geoLoading.value = false;
+  }
+}
+
+function pickResult(r: GeoResult): void {
+  const lat = parseFloat(r.lat);
+  const lng = parseFloat(r.lon);
+  setPoint(lat, lng);
+  map?.setView([lat, lng], 10);
+  if (!form.place.trim()) {
+    form.place = r.display_name.split(',').slice(0, 2).join(',').trim();
+  }
+  geoResults.value = [];
+  geoQuery.value = r.display_name.split(',')[0] ?? geoQuery.value;
+}
+
 function pinIcon(color: string): L.DivIcon {
   return L.divIcon({
     className: 'exp-pin',
@@ -100,6 +146,9 @@ watch(
     }
     error.value = null;
     submitting.value = false;
+    geoQuery.value = '';
+    geoResults.value = [];
+    geoError.value = null;
     const e = props.expedition;
     working.value = e ? { ...e } : null;
     Object.assign(form, {
@@ -257,9 +306,41 @@ async function removePhoto(photoId: string): Promise<void> {
         <!-- Location picker -->
         <div>
           <span class="label">Miesto na mape *</span>
-          <div ref="pickerEl" class="mt-1 h-64 w-full overflow-hidden rounded-lg ring-1 ring-slate-200"></div>
+
+          <!-- Optional geocoding search (you can still just click the map). -->
+          <div class="relative mt-1">
+            <div class="flex gap-2">
+              <input
+                v-model="geoQuery"
+                type="search"
+                class="input text-sm"
+                placeholder="Hľadať miesto (mesto, rieka, jazero…)"
+                @keydown.enter.prevent="searchPlace"
+              />
+              <button type="button" class="btn-secondary shrink-0" :disabled="geoLoading" @click="searchPlace">
+                <Spinner v-if="geoLoading" />
+                <span v-else>Hľadať</span>
+              </button>
+            </div>
+            <ul
+              v-if="geoResults.length"
+              class="absolute z-[500] mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+            >
+              <li
+                v-for="(r, i) in geoResults"
+                :key="i"
+                class="cursor-pointer px-3 py-2 text-xs text-slate-700 hover:bg-brand-50"
+                @click="pickResult(r)"
+              >
+                {{ r.display_name }}
+              </li>
+            </ul>
+            <p v-if="geoError" class="mt-1 text-xs text-rose-600">{{ geoError }}</p>
+          </div>
+
+          <div ref="pickerEl" class="mt-2 h-64 w-full overflow-hidden rounded-lg ring-1 ring-slate-200"></div>
           <p class="mt-1 text-xs text-slate-500">
-            Klikni na mapu a nastav značku.
+            Vyhľadaj miesto alebo klikni na mapu a nastav značku.
             <span v-if="form.latitude !== null" class="font-medium text-slate-700">
               {{ form.latitude?.toFixed(4) }}, {{ form.longitude?.toFixed(4) }}
             </span>
