@@ -7,7 +7,7 @@
  *
  * Map: Leaflet + OpenStreetMap tiles (both open-source / open-data).
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -41,7 +41,6 @@ const expandedId = ref<string | null>(null);
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let markerGroup: L.LayerGroup | null = null;
-let resizeObs: ResizeObserver | null = null;
 const markers = new Map<string, L.Marker>();
 
 const stats = computed(() => {
@@ -125,7 +124,6 @@ async function load(): Promise<void> {
   error.value = null;
   try {
     items.value = await expeditionsApi.list();
-    map?.invalidateSize();
     renderMarkers();
   } catch (e) {
     error.value = (e as Error).message;
@@ -160,29 +158,25 @@ async function remove(e: Expedition): Promise<void> {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Create the map AFTER a tick so the container is fully laid out (mirrors
+  // the working picker map in the dialog). fadeAnimation:false avoids the
+  // Leaflet quirk where tiles stay `visibility:hidden` if the fade/ready
+  // cycle is interrupted — which left the map blank despite tiles loading.
+  await nextTick();
   if (mapEl.value) {
-    map = L.map(mapEl.value, { worldCopyJump: true, scrollWheelZoom: true }).setView([30, 10], 2);
+    map = L.map(mapEl.value, { worldCopyJump: true, fadeAnimation: false }).setView([30, 10], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap',
       maxZoom: 19,
     }).addTo(map);
     markerGroup = L.layerGroup().addTo(map);
-    // Leaflet shows blank tiles if the container wasn't fully laid out at init
-    // time (it requests tiles for a 0-size viewport). A ResizeObserver fires
-    // once the element gets its real size — that reliably triggers the tile
-    // load, plus a couple of explicit nudges as a belt-and-braces fallback.
-    resizeObs = new ResizeObserver(() => map?.invalidateSize());
-    resizeObs.observe(mapEl.value);
-    requestAnimationFrame(() => map?.invalidateSize());
-    setTimeout(() => map?.invalidateSize(), 300);
+    setTimeout(() => map?.invalidateSize(), 120);
   }
   void load();
 });
 
 onBeforeUnmount(() => {
-  resizeObs?.disconnect();
-  resizeObs = null;
   if (map) {
     map.remove();
     map = null;
