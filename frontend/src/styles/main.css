@@ -11,6 +11,11 @@
 }
 .leaflet-container {
   background: #aadaff;
+  /* Confine Leaflet's internal z-indexes (panes 200–700, controls ~1000) to
+     the map's own stacking context, so a map never bleeds over modals/overlays
+     (the fullscreen editor was showing the page's overview map through it). */
+  position: relative;
+  z-index: 0;
 }
 
 @layer base {
