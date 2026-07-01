@@ -39,8 +39,21 @@ const form = reactive({
   distanceKm: null as number | null,
   detail: '',
   publishConsent: false,
-  route: [] as [number, number][],
 });
+
+// Route drawing model: an ordered list of segments. A "portage" (prenáška)
+// segment is carried overland — drawn straight (dashed) and NEVER snapped to
+// the river; river segments are snapped independently, each between its own
+// first + last point. The stored/displayed route is the flat concatenation.
+type RouteSegment = { portage: boolean; points: [number, number][] };
+const segments = ref<RouteSegment[]>([]);
+const drawKind = ref<'river' | 'portage'>('river');
+
+const isRiver = computed(() => form.waterType === 'river');
+const totalPoints = computed(() => segments.value.reduce((n, s) => n + s.points.length, 0));
+function flatRoute(): [number, number][] {
+  return segments.value.flatMap((s) => s.points);
+}
 
 const placeLabel = computed(() => {
   switch (form.waterType) {
@@ -65,7 +78,7 @@ const photoInput = ref<HTMLInputElement | null>(null);
 const pickerEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let marker: L.Marker | null = null;
-let routeLayer: L.Polyline | null = null;
+let routeLayers: L.Polyline[] = [];
 
 // Geocoding (OpenStreetMap Nominatim).
 interface GeoResult {
@@ -104,39 +117,50 @@ function setPoint(lat: number, lng: number): void {
 
 function drawRoute(): void {
   if (!map) return;
-  if (routeLayer) {
-    routeLayer.remove();
-    routeLayer = null;
-  }
-  if (form.route.length >= 2) {
-    routeLayer = L.polyline(form.route, {
-      color: waterColor(form.waterType || null),
-      weight: 4,
-      opacity: 0.85,
-    }).addTo(map);
+  routeLayers.forEach((l) => l.remove());
+  routeLayers = [];
+  for (const s of segments.value) {
+    if (s.points.length < 2) continue;
+    const layer = L.polyline(
+      s.points as L.LatLngExpression[],
+      s.portage
+        ? { color: '#92400e', weight: 3, opacity: 0.85, dashArray: '6 7' } // portage: brown, dashed
+        : { color: waterColor(form.waterType || null), weight: 4, opacity: 0.85 },
+    ).addTo(map);
+    routeLayers.push(layer);
   }
 }
 
 function appendRoutePoint(lat: number, lng: number): void {
-  form.route.push([Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6]);
-  if (form.route.length === 1) setPoint(lat, lng);
+  const wantPortage = drawKind.value === 'portage';
+  let last = segments.value[segments.value.length - 1];
+  if (!last || last.portage !== wantPortage) {
+    last = { portage: wantPortage, points: [] };
+    segments.value.push(last);
+  }
+  last.points.push([Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6]);
+  if (totalPoints.value === 1) setPoint(lat, lng);
   drawRoute();
 }
 
 function undoRoutePoint(): void {
-  form.route.pop();
+  const last = segments.value[segments.value.length - 1];
+  if (!last) return;
+  last.points.pop();
+  if (last.points.length === 0) segments.value.pop();
   drawRoute();
 }
 
 function clearRoute(): void {
-  form.route = [];
+  segments.value = [];
   routeError.value = null;
   drawRoute();
 }
 
 function fitRoute(): void {
-  if (map && form.route.length >= 2) {
-    map.fitBounds(L.latLngBounds(form.route as L.LatLngExpression[]).pad(0.2));
+  const all = flatRoute();
+  if (map && all.length >= 2) {
+    map.fitBounds(L.latLngBounds(all as L.LatLngExpression[]).pad(0.2));
   }
 }
 
@@ -146,7 +170,7 @@ async function onGpx(event: Event): Promise<void> {
   routeError.value = null;
   try {
     const pts = parseGpx(await file.text());
-    form.route = pts;
+    segments.value = [{ portage: false, points: pts }];
     if (pts.length) setPoint(pts[0][0], pts[0][1]);
     drawRoute();
     fitRoute();
@@ -159,22 +183,39 @@ async function onGpx(event: Event): Promise<void> {
 
 async function snapRiver(): Promise<void> {
   routeError.value = null;
-  if (form.route.length < 2) {
-    routeError.value = 'Vyznač aspoň 2 body (začiatok a koniec) kliknutím do mapy.';
+  const riverSegs = segments.value.filter((s) => !s.portage && s.points.length >= 2);
+  if (riverSegs.length === 0) {
+    routeError.value = 'Vyznač aspoň 2 body riečnej časti (prenášky sa neprichytávajú).';
     return;
   }
   snapping.value = true;
+  let failed = 0;
   try {
-    const path = await snapToRiver(form.route[0], form.route[form.route.length - 1]);
-    form.route = path;
-    if (path.length) setPoint(path[0][0], path[0][1]);
+    // Snap each river segment independently between its own endpoints;
+    // portage segments are left exactly as drawn.
+    for (const s of segments.value) {
+      if (s.portage || s.points.length < 2) continue;
+      try {
+        s.points = await snapToRiver(s.points[0], s.points[s.points.length - 1]);
+      } catch {
+        failed++;
+      }
+    }
+    const first = flatRoute()[0];
+    if (first) setPoint(first[0], first[1]);
     drawRoute();
     fitRoute();
-  } catch (e) {
-    routeError.value = (e as Error).message;
+    if (failed > 0) {
+      routeError.value = `${failed} riečnu časť sa nepodarilo prichytiť na rieku — ostala nakreslená ručne.`;
+    }
   } finally {
     snapping.value = false;
   }
+}
+
+function setDrawKind(kind: 'river' | 'portage'): void {
+  drawKind.value = kind;
+  traceMode.value = true;
 }
 
 async function searchPlace(): Promise<void> {
@@ -255,8 +296,12 @@ async function loadForEdit(): Promise<void> {
       distanceKm: e.distanceKm,
       detail: e.detail ?? '',
       publishConsent: true,
-      route: e.route ? e.route.map((p) => [p[0], p[1]] as [number, number]) : [],
     });
+    // Existing route loads as a single river segment (portage breaks aren't
+    // persisted; re-draw if you need to re-snap with portages).
+    segments.value = e.route && e.route.length
+      ? [{ portage: false, points: e.route.map((p) => [p[0], p[1]] as [number, number]) }]
+      : [];
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -291,7 +336,7 @@ async function submit(): Promise<void> {
       participants: form.participants.trim() || null,
       distanceKm: form.distanceKm ?? null,
       detail: form.detail.trim() || null,
-      route: form.route.length >= 2 ? form.route : null,
+      route: flatRoute().length >= 2 ? flatRoute() : null,
     };
     working.value = working.value
       ? await expeditionsApi.update(working.value.id, payload)
@@ -346,7 +391,7 @@ onBeforeUnmount(() => {
     map.remove();
     map = null;
     marker = null;
-    routeLayer = null;
+    routeLayers = [];
   }
 });
 </script>
@@ -455,23 +500,47 @@ onBeforeUnmount(() => {
       <div class="mt-4 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-slate-700">Trasa <span class="font-normal text-slate-400">(nepovinné)</span></span>
-          <span v-if="form.route.length" class="text-xs text-slate-500">{{ form.route.length }} bodov</span>
+          <span v-if="totalPoints" class="text-xs text-slate-500">{{ totalPoints }} bodov</span>
         </div>
+
         <div class="mt-2 flex flex-wrap gap-1.5">
           <button type="button" class="btn-secondary text-xs" :class="traceMode ? 'ring-2 ring-brand-400' : ''" @click="traceMode = !traceMode">
             {{ traceMode ? '✓ Kreslím… klikaj do mapy' : '✏️ Kresliť trasu' }}
           </button>
-          <button type="button" class="btn-secondary text-xs" :disabled="!form.route.length" @click="undoRoutePoint">↶ Späť</button>
-          <button type="button" class="btn-secondary text-xs" :disabled="!form.route.length" @click="clearRoute">🗑 Vymazať</button>
-          <button type="button" class="btn-secondary text-xs" :disabled="snapping || form.route.length < 2" @click="snapRiver">
+          <button type="button" class="btn-secondary text-xs" :disabled="!totalPoints" @click="undoRoutePoint">↶ Späť</button>
+          <button type="button" class="btn-secondary text-xs" :disabled="!totalPoints" @click="clearRoute">🗑 Vymazať</button>
+          <button v-if="isRiver" type="button" class="btn-secondary text-xs" :disabled="snapping" @click="snapRiver">
             <Spinner v-if="snapping" class="mr-1" />🌊 Prichytiť na rieku
           </button>
           <input ref="gpxInput" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" class="hidden" @change="onGpx" />
           <button type="button" class="btn-secondary text-xs" @click="gpxInput?.click()">⬆ GPX</button>
         </div>
+
+        <!-- River vs portage drawing mode (portage only makes sense on rivers) -->
+        <div v-if="isRiver && traceMode" class="mt-2 flex items-center gap-1.5 text-xs">
+          <span class="text-slate-500">Kreslím:</span>
+          <button
+            type="button"
+            class="rounded-full px-2.5 py-1 font-medium transition"
+            :class="drawKind === 'river' ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'"
+            @click="setDrawKind('river')"
+          >🌊 Rieka</button>
+          <button
+            type="button"
+            class="rounded-full px-2.5 py-1 font-medium transition"
+            :class="drawKind === 'portage' ? 'bg-amber-700 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'"
+            @click="setDrawKind('portage')"
+          >🥾 Prenáška</button>
+        </div>
+
         <p v-if="routeError" class="mt-1 text-xs text-rose-600">{{ routeError }}</p>
         <p class="mt-1 text-xs text-slate-400">
-          „Kresliť trasu" → klikaj po mape (napr. pozdĺž rieky). „Prichytiť na rieku" z 2 bodov skúsi dopočítať úsek rieky (OSM). GPX = presná trasa z hodiniek/appky.
+          „Kresliť trasu" → klikaj po mape.
+          <template v-if="isRiver">
+            Pri <strong>rieke</strong> môžeš prepínať medzi <em>Rieka</em> a <em>Prenáška</em> (prenos po súši — kreslí sa priamo a
+            <strong>neprichytáva</strong> na rieku). „Prichytiť na rieku" prichytí každú riečnu časť zvlášť (OSM).
+          </template>
+          GPX = presná trasa z hodiniek/appky.
         </p>
       </div>
     </div>
