@@ -196,6 +196,7 @@ if (( DO_BUILD )); then
         --exclude='storage/framework/testing/' \
         --exclude='storage/app/damages/*' \
         --exclude='storage/app/expeditions/*' \
+        --exclude='storage/app/resources/*' \
         --exclude='storage/app/public/*' \
         --exclude='bootstrap/cache/*.php' \
         --exclude='tests/' \
@@ -355,6 +356,7 @@ mirror -R --delete --verbose=1 \
     --exclude-glob 'storage/framework/views/*' \
     --exclude-glob 'storage/app/damages/*' \
     --exclude-glob 'storage/app/expeditions/*' \
+    --exclude-glob 'storage/app/resources/*' \
     --exclude-glob 'storage/app/public/*' \
     --exclude-glob 'bootstrap/cache/*.php' \
     $LARAVEL_STAGE/ $DEPLOY_LARAVEL_APP_REMOTE/
