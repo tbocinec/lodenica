@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Leaflet: guarantee tiles are visible. In some cache/timing states Leaflet
+   leaves tiles at `visibility:hidden` (the `leaflet-tile-loaded` class never
+   gets applied), so the map is blank white even though tiles downloaded
+   (HTTP 200). Forcing visibility + a water-coloured backdrop fixes that. */
+.leaflet-tile {
+  visibility: inherit !important;
+}
+.leaflet-container {
+  background: #aadaff;
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

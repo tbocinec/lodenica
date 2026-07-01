@@ -354,18 +354,21 @@ async function removePhoto(photoId: string): Promise<void> {
 <template>
   <div
     v-if="open"
-    class="fixed inset-0 z-40 flex items-end bg-slate-900/40 sm:items-center sm:justify-center"
+    class="fixed inset-0 z-40 overflow-y-auto bg-white"
     role="dialog"
     aria-modal="true"
-    @click.self="emit('close')"
   >
-    <div class="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
+    <div class="mx-auto max-w-5xl p-4 sm:p-6">
       <header class="mb-4 flex items-start justify-between gap-3">
         <h3 class="text-lg font-semibold text-slate-900">
           {{ working ? 'Upraviť expedíciu' : 'Pridať expedíciu' }}
         </h3>
         <button type="button" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" aria-label="Zavrieť" @click="emit('close')">✕</button>
       </header>
+
+      <p class="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">
+        💻 Kreslenie trasy a prácu s mapou odporúčame robiť na <strong>notebooku/počítači</strong> — na mobile sa mapa ovláda ťažšie.
+      </p>
 
       <div class="grid gap-4 md:grid-cols-2">
         <!-- Form -->
@@ -447,7 +450,7 @@ async function removePhoto(photoId: string): Promise<void> {
             <p v-if="geoError" class="mt-1 text-xs text-rose-600">{{ geoError }}</p>
           </div>
 
-          <div ref="pickerEl" class="mt-2 h-64 w-full overflow-hidden rounded-lg ring-1 ring-slate-200"></div>
+          <div ref="pickerEl" class="mt-2 h-[58vh] min-h-[320px] w-full overflow-hidden rounded-lg ring-1 ring-slate-200"></div>
           <p class="mt-1 text-xs text-slate-500">
             Vyhľadaj miesto alebo klikni na mapu a nastav značku.
             <span v-if="form.latitude !== null" class="font-medium text-slate-700">
