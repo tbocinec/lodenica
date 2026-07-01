@@ -8,17 +8,33 @@ import { ResourceType, type Reservation } from '@/api/types';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
+import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
 import Spinner from '@/components/ui/Spinner.vue';
+import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
 import { formatReservationRange, todayUtc } from '@/utils/format';
 
+const auth = useAuthStore();
 const resources = useResourcesStore();
 const reservations = ref<Reservation[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
+// Reservation open in the edit dialog (members only).
+const editing = ref<Reservation | null>(null);
 
 function reservationsFor(spaceId: string) {
   return reservations.value.filter((r) => r.resourceId === spaceId);
+}
+
+function editingResourceLabel(): string | undefined {
+  if (!editing.value) return undefined;
+  const r = resources.byId.get(editing.value.resourceId);
+  return r ? `${r.identifier} · ${r.name}` : undefined;
+}
+
+function onReservationChanged(): void {
+  editing.value = null;
+  void load();
 }
 
 async function load() {
@@ -81,16 +97,32 @@ onMounted(load);
         title="Žiadne nadchádzajúce rezervácie"
       />
       <ul v-else class="divide-y divide-slate-100">
-        <li v-for="r in reservationsFor(space.id)" :key="r.id" class="py-3">
-          <div class="flex items-baseline justify-between gap-3">
-            <p class="font-medium text-slate-800">{{ r.customerName ?? '** rezervácia' }}</p>
-            <span class="text-xs text-slate-500">
-              {{ formatReservationRange(r.startsAt, r.endsAt) }}
-            </span>
-          </div>
-          <p v-if="r.note" class="mt-1 text-sm text-slate-600">{{ r.note }}</p>
+        <li v-for="r in reservationsFor(space.id)" :key="r.id">
+          <component
+            :is="auth.isMember ? 'button' : 'div'"
+            type="button"
+            class="w-full py-3 text-left"
+            :class="auth.isMember ? '-mx-2 rounded-lg px-2 transition hover:bg-brand-50/50' : ''"
+            @click="auth.isMember && (editing = r)"
+          >
+            <div class="flex items-baseline justify-between gap-3">
+              <p class="font-medium text-slate-800">{{ r.customerName ?? '** rezervácia' }}</p>
+              <span class="shrink-0 text-xs text-slate-500">
+                {{ formatReservationRange(r.startsAt, r.endsAt) }}
+              </span>
+            </div>
+            <p v-if="r.note" class="mt-1 text-sm text-slate-600">{{ r.note }}</p>
+          </component>
         </li>
       </ul>
     </section>
   </div>
+
+  <ReservationEditDialog
+    :reservation="editing"
+    :resource-label="editingResourceLabel()"
+    @close="editing = null"
+    @saved="onReservationChanged"
+    @deleted="onReservationChanged"
+  />
 </template>

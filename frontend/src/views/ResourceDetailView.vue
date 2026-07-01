@@ -167,9 +167,11 @@ onMounted(load);
         </p>
       </template>
       <template v-else>
-        <p class="text-sm font-semibold text-emerald-800">✅ Voľná</p>
+        <p class="text-sm font-semibold text-emerald-800">
+          ✅ {{ resource.type === 'BOATHOUSE_SPACE' ? 'Voľný' : 'Voľná' }}
+        </p>
         <p class="mt-1 text-sm text-emerald-900">
-          Loď nie je momentálne rezervovaná.
+          {{ resource.type === 'BOATHOUSE_SPACE' ? 'Priestor nie je momentálne rezervovaný.' : 'Loď nie je momentálne rezervovaná.' }}
         </p>
       </template>
     </section>
