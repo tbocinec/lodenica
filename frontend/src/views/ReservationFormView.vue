@@ -414,11 +414,43 @@ function pickHour(hour: string): void {
 
 const linkedEvent = ref<Event | null>(null);
 
+// Gentle nudge for anonymous visitors — shown once per browser session.
+const showLoginPrompt = ref(false);
+
+function goLogin(): void {
+  try {
+    sessionStorage.setItem('kvs_resv_prompt', '1');
+  } catch {
+    /* ignore */
+  }
+  router.push({ path: '/login', query: { redirect: route.fullPath } });
+}
+
+function continueWithoutLogin(): void {
+  try {
+    sessionStorage.setItem('kvs_resv_prompt', '1');
+  } catch {
+    /* ignore */
+  }
+  showLoginPrompt.value = false;
+}
+
 onMounted(async () => {
   // Default the booking to the logged-in member (they can switch to
   // "for someone else"). Don't clobber a name already passed in.
   if (auth.isAuthenticated && !form.customerName) {
     fillSelf();
+  }
+
+  // Invite anonymous visitors to log in (once per session, non-blocking).
+  if (!auth.isAuthenticated) {
+    let dismissed = false;
+    try {
+      dismissed = sessionStorage.getItem('kvs_resv_prompt') === '1';
+    } catch {
+      /* ignore */
+    }
+    if (!dismissed) showLoginPrompt.value = true;
   }
 
   await resources.fetch();
@@ -860,4 +892,33 @@ onMounted(async () => {
       </button>
     </div>
   </form>
+
+  <!-- Login nudge for anonymous visitors (once per session). -->
+  <div
+    v-if="showLoginPrompt"
+    class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4"
+    role="dialog"
+    aria-modal="true"
+    @click.self="continueWithoutLogin"
+  >
+    <div class="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-xl">
+      <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">🛶</div>
+      <h3 class="text-lg font-semibold text-slate-900">Rezervujte pohodlnejšie</h3>
+      <p class="mt-2 text-sm leading-relaxed text-slate-600">
+        Prihláste sa a získate viac — <strong>prehľad a sledovanie vašich rezervácií</strong>,
+        rýchlejšie vypĺňanie a možnosť rezerváciu neskôr upraviť. Prihlásenie nie je povinné,
+        rezervovať môžete aj bez neho.
+      </p>
+      <div class="mt-5 flex flex-col gap-2 sm:flex-row-reverse">
+        <button type="button" class="btn-primary flex-1" @click="goLogin">Prihlásiť sa</button>
+        <button type="button" class="btn-secondary flex-1" @click="continueWithoutLogin">
+          Pokračovať bez prihlásenia
+        </button>
+      </div>
+      <p class="mt-3 text-xs text-slate-400">
+        Ešte nemáte účet?
+        <RouterLink to="/register" class="text-brand-700 hover:underline" @click="continueWithoutLogin">Zaregistrovať sa</RouterLink>
+      </p>
+    </div>
+  </div>
 </template>

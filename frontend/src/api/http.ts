@@ -26,16 +26,25 @@ export const http: AxiosInstance = axios.create({
 });
 
 /**
- * Auth token storage. Kept in sessionStorage (not localStorage) so closing
- * the browser tab clears the token — a reasonable tradeoff for an admin
- * tool on shared devices. The auth store mirrors this value into a Pinia
- * state so Vue components can react.
+ * Auth token storage. Kept in localStorage so the session survives closing
+ * the browser and lasts until the user explicitly logs out (Sanctum tokens
+ * don't expire server-side). The auth store mirrors this value into Pinia
+ * state so Vue components can react. A 401 always clears it.
  */
 const TOKEN_KEY = 'lodenica.auth.token';
 
 export function readStoredToken(): string | null {
   try {
-    return sessionStorage.getItem(TOKEN_KEY);
+    const persisted = localStorage.getItem(TOKEN_KEY);
+    if (persisted) return persisted;
+    // Migrate a legacy per-session token so existing users stay logged in.
+    const legacy = sessionStorage.getItem(TOKEN_KEY);
+    if (legacy) {
+      localStorage.setItem(TOKEN_KEY, legacy);
+      sessionStorage.removeItem(TOKEN_KEY);
+      return legacy;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -44,10 +53,11 @@ export function readStoredToken(): string | null {
 export function writeStoredToken(token: string | null): void {
   try {
     if (token) {
-      sessionStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(TOKEN_KEY, token);
     } else {
-      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_KEY);
     }
+    sessionStorage.removeItem(TOKEN_KEY); // drop any legacy copy
   } catch {
     // Storage may be disabled (private browsing) — fail silently;
     // the Pinia store still holds the in-memory token for this session.
