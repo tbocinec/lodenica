@@ -63,8 +63,14 @@ const infoItems: NavItem[] = [
   { to: '/q-a', label: 'Otázky a odpovede', icon: '❓' },
   {
     to: 'https://www.lodenicakvs.sk/?page_id=5024',
-    label: 'Ochrana údajov',
+    label: 'GDPR – Informačná povinnosť',
     icon: '🔒',
+    external: true,
+  },
+  {
+    to: 'https://www.lodenicakvs.sk/?page_id=5036',
+    label: 'GDPR – Súhlas dotknutej osoby',
+    icon: '📝',
     external: true,
   },
   {
