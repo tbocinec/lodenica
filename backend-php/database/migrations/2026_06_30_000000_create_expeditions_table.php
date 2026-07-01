@@ -22,7 +22,7 @@ return new class extends Migration
             $table->double('longitude');
             $table->integer('year')->nullable();
             $table->string('waterType', 16)->nullable();   // river | lake | sea | other
-            $table->string('country', 120)->nullable();
+            $table->json('countries')->nullable();          // list of country names
             $table->string('participants', 500)->nullable();
             $table->decimal('distanceKm', 8, 1)->nullable();
             // Optional route polyline: ordered [lat, lng] pairs (traced on the

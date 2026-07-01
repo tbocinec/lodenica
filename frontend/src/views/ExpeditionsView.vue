@@ -46,7 +46,9 @@ function onWinResize(): void {
 }
 
 const stats = computed(() => {
-  const countries = new Set(items.value.map((e) => (e.country ?? '').trim().toLowerCase()).filter(Boolean));
+  const countries = new Set(
+    items.value.flatMap((e) => e.countries ?? []).map((c) => c.trim().toLowerCase()).filter(Boolean),
+  );
   return { places: items.value.length, countries: countries.size };
 });
 
@@ -54,7 +56,7 @@ const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
   let list = items.value.filter((e) => {
     if (!q) return true;
-    return `${e.title} ${e.place} ${e.country ?? ''} ${e.participants ?? ''} ${e.year ?? ''} ${waterLabel(e.waterType)}`
+    return `${e.title} ${e.place} ${(e.countries ?? []).join(' ')} ${e.participants ?? ''} ${e.year ?? ''} ${waterLabel(e.waterType)}`
       .toLowerCase()
       .includes(q);
   });
@@ -280,7 +282,7 @@ onBeforeUnmount(() => {
                 {{ e.title }}
               </td>
               <td class="px-4 py-2.5 text-slate-700">
-                {{ e.place }}<span v-if="e.country" class="text-slate-400"> · {{ e.country }}</span>
+                {{ e.place }}<span v-if="e.countries.length" class="text-slate-400"> · {{ e.countries.join(', ') }}</span>
               </td>
               <td class="px-4 py-2.5 text-slate-600">{{ e.year ?? '—' }}</td>
               <td class="hidden px-4 py-2.5 sm:table-cell">

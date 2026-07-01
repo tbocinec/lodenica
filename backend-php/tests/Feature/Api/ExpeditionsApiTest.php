@@ -51,6 +51,17 @@ class ExpeditionsApiTest extends TestCase
             ->assertJsonCount(1);
     }
 
+    public function test_create_stores_multiple_countries(): void
+    {
+        $this->actingAsMember();
+
+        $this->postJson('/api/v1/expeditions', $this->payload([
+            'countries' => ['Slovensko', 'Rakúsko', 'Maďarsko'],
+        ]))->assertCreated()
+            ->assertJsonCount(3, 'countries')
+            ->assertJsonPath('countries.1', 'Rakúsko');
+    }
+
     public function test_create_stores_route_polyline(): void
     {
         $this->actingAsMember();

@@ -22,6 +22,17 @@ import { parseGpx } from '@/utils/gpx';
 import { snapToRiver } from '@/utils/riverRoute';
 
 const countries = countryNames();
+const countryInput = ref('');
+
+function addCountry(): void {
+  const c = countryInput.value.trim();
+  if (c && !form.countries.includes(c)) form.countries.push(c);
+  countryInput.value = '';
+}
+
+function removeCountry(c: string): void {
+  form.countries = form.countries.filter((x) => x !== c);
+}
 
 const route = useRoute();
 const router = useRouter();
@@ -34,7 +45,7 @@ const form = reactive({
   longitude: null as number | null,
   year: null as number | null,
   waterType: '' as WaterType | '',
-  country: '',
+  countries: [] as string[],
   participants: '',
   distanceKm: null as number | null,
   detail: '',
@@ -45,9 +56,14 @@ const form = reactive({
 // segment is carried overland — drawn straight (dashed) and NEVER snapped to
 // the river; river segments are snapped independently, each between its own
 // first + last point. The stored/displayed route is the flat concatenation.
-type RouteSegment = { portage: boolean; points: [number, number][] };
+// `points` is the drawn/stored path; `waypoints` (river segments) are the
+// user's clicks, kept so snap can run per consecutive pair and leave only the
+// failing pair straight.
+type RouteSegment = { portage: boolean; points: [number, number][]; waypoints?: [number, number][] };
 const segments = ref<RouteSegment[]>([]);
 const drawKind = ref<'river' | 'portage'>('river');
+// Junction points where snapping failed (drawn as red warnings on the map).
+const problemPoints = ref<[number, number][]>([]);
 
 const isRiver = computed(() => form.waterType === 'river');
 const totalPoints = computed(() => segments.value.reduce((n, s) => n + s.points.length, 0));
@@ -79,6 +95,7 @@ const pickerEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let marker: L.Marker | null = null;
 let routeLayers: L.Polyline[] = [];
+let problemLayer: L.LayerGroup | null = null;
 
 // Geocoding (OpenStreetMap Nominatim).
 interface GeoResult {
@@ -131,14 +148,36 @@ function drawRoute(): void {
   }
 }
 
+function drawProblems(): void {
+  if (!map) return;
+  if (!problemLayer) problemLayer = L.layerGroup().addTo(map);
+  else problemLayer.clearLayers();
+  for (const p of problemPoints.value) {
+    L.circleMarker(p as L.LatLngExpression, {
+      radius: 7,
+      color: '#dc2626',
+      weight: 2,
+      fillColor: '#fecaca',
+      fillOpacity: 0.9,
+    })
+      .bindTooltip('Tu sa nepodarilo prichytiť na rieku — úsek ostal priamy', { direction: 'top' })
+      .addTo(problemLayer);
+  }
+}
+
 function appendRoutePoint(lat: number, lng: number): void {
   const wantPortage = drawKind.value === 'portage';
+  const pt: [number, number] = [Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6];
   let last = segments.value[segments.value.length - 1];
-  if (!last || last.portage !== wantPortage) {
-    last = { portage: wantPortage, points: [] };
+  // A river segment that was already snapped (points ≠ waypoints) is "closed" —
+  // start a fresh one so we don't append into a snapped path.
+  const closed = last && !last.portage && last.waypoints && last.waypoints !== last.points;
+  if (!last || last.portage !== wantPortage || closed) {
+    last = wantPortage ? { portage: true, points: [] } : { portage: false, points: [], waypoints: [] };
     segments.value.push(last);
   }
-  last.points.push([Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6]);
+  last.points.push(pt);
+  if (last.waypoints) last.waypoints.push(pt);
   if (totalPoints.value === 1) setPoint(lat, lng);
   drawRoute();
 }
@@ -147,13 +186,18 @@ function undoRoutePoint(): void {
   const last = segments.value[segments.value.length - 1];
   if (!last) return;
   last.points.pop();
+  if (last.waypoints) last.waypoints.pop();
   if (last.points.length === 0) segments.value.pop();
+  problemPoints.value = [];
+  drawProblems();
   drawRoute();
 }
 
 function clearRoute(): void {
   segments.value = [];
   routeError.value = null;
+  problemPoints.value = [];
+  drawProblems();
   drawRoute();
 }
 
@@ -170,8 +214,11 @@ async function onGpx(event: Event): Promise<void> {
   routeError.value = null;
   try {
     const pts = parseGpx(await file.text());
+    // GPX is already a precise track — store as-is, no waypoints (not snapped).
     segments.value = [{ portage: false, points: pts }];
+    problemPoints.value = [];
     if (pts.length) setPoint(pts[0][0], pts[0][1]);
+    drawProblems();
     drawRoute();
     fitRoute();
   } catch (e) {
@@ -181,32 +228,53 @@ async function onGpx(event: Event): Promise<void> {
   }
 }
 
+function sameCoord(a: [number, number], b: [number, number]): boolean {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
 async function snapRiver(): Promise<void> {
   routeError.value = null;
-  const riverSegs = segments.value.filter((s) => !s.portage && s.points.length >= 2);
+  problemPoints.value = [];
+  const riverSegs = segments.value.filter((s) => !s.portage && s.waypoints && s.waypoints.length >= 2);
   if (riverSegs.length === 0) {
     routeError.value = 'Vyznač aspoň 2 body riečnej časti (prenášky sa neprichytávajú).';
     return;
   }
   snapping.value = true;
-  let failed = 0;
+  let failedPairs = 0;
+  const problems: [number, number][] = [];
   try {
-    // Snap each river segment independently between its own endpoints;
-    // portage segments are left exactly as drawn.
     for (const s of segments.value) {
-      if (s.portage || s.points.length < 2) continue;
-      try {
-        s.points = await snapToRiver(s.points[0], s.points[s.points.length - 1]);
-      } catch {
-        failed++;
+      if (s.portage || !s.waypoints || s.waypoints.length < 2) continue;
+      const wps = s.waypoints;
+      const out: [number, number][] = [];
+      // Snap each consecutive pair independently — only a pair with no river
+      // path stays straight (its endpoints get flagged), the rest snap.
+      for (let i = 0; i < wps.length - 1; i++) {
+        let pairPath: [number, number][];
+        try {
+          pairPath = await snapToRiver(wps[i], wps[i + 1]);
+        } catch {
+          pairPath = [wps[i], wps[i + 1]];
+          failedPairs++;
+          problems.push(wps[i], wps[i + 1]);
+        }
+        if (out.length && pairPath.length && sameCoord(out[out.length - 1], pairPath[0])) {
+          out.push(...pairPath.slice(1));
+        } else {
+          out.push(...pairPath);
+        }
       }
+      s.points = out; // points now differ from waypoints → segment is "snapped"
     }
+    problemPoints.value = problems;
     const first = flatRoute()[0];
     if (first) setPoint(first[0], first[1]);
     drawRoute();
+    drawProblems();
     fitRoute();
-    if (failed > 0) {
-      routeError.value = `${failed} riečnu časť sa nepodarilo prichytiť na rieku — ostala nakreslená ručne.`;
+    if (failedPairs > 0) {
+      routeError.value = `${failedPairs} úsek(ov) sa nepodarilo prichytiť — vyznačené na mape (ostali priame). Ostatné časti sú prichytené na rieku.`;
     }
   } finally {
     snapping.value = false;
@@ -291,7 +359,7 @@ async function loadForEdit(): Promise<void> {
       longitude: e.longitude,
       year: e.year,
       waterType: e.waterType ?? '',
-      country: e.country ?? '',
+      countries: e.countries ? [...e.countries] : [],
       participants: e.participants ?? '',
       distanceKm: e.distanceKm,
       detail: e.detail ?? '',
@@ -332,7 +400,7 @@ async function submit(): Promise<void> {
       longitude: form.longitude,
       year: form.year ?? null,
       waterType: (form.waterType || null) as WaterType | null,
-      country: form.country.trim() || null,
+      countries: form.countries.length ? form.countries : null,
       participants: form.participants.trim() || null,
       distanceKm: form.distanceKm ?? null,
       detail: form.detail.trim() || null,
@@ -392,6 +460,7 @@ onBeforeUnmount(() => {
     map = null;
     marker = null;
     routeLayers = [];
+    problemLayer = null;
   }
 });
 </script>
@@ -431,12 +500,34 @@ onBeforeUnmount(() => {
           <option v-for="t in WATER_TYPES" :key="t" :value="t">{{ WATER_TYPE_LABEL[t] }}</option>
         </select>
       </div>
-      <div>
-        <label class="label" for="exp-country">Krajina</label>
-        <input id="exp-country" v-model="form.country" class="input mt-1" maxlength="120" list="country-list" placeholder="Vyber zo zoznamu…" />
-        <datalist id="country-list">
-          <option v-for="c in countries" :key="c" :value="c" />
-        </datalist>
+      <div class="sm:col-span-2">
+        <label class="label" for="exp-country">Krajiny <span class="text-xs font-normal text-slate-400">(môžeš vybrať viac)</span></label>
+        <div class="mt-1 flex gap-2">
+          <input
+            id="exp-country"
+            v-model="countryInput"
+            class="input"
+            maxlength="120"
+            list="country-list"
+            placeholder="Vyber krajinu zo zoznamu a pridaj…"
+            @keydown.enter.prevent="addCountry"
+            @change="addCountry"
+          />
+          <button type="button" class="btn-secondary shrink-0" @click="addCountry">Pridať</button>
+          <datalist id="country-list">
+            <option v-for="c in countries" :key="c" :value="c" />
+          </datalist>
+        </div>
+        <div v-if="form.countries.length" class="mt-2 flex flex-wrap gap-1.5">
+          <span
+            v-for="c in form.countries"
+            :key="c"
+            class="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-800 ring-1 ring-brand-200"
+          >
+            {{ c }}
+            <button type="button" class="text-brand-500 hover:text-brand-800" @click="removeCountry(c)">✕</button>
+          </span>
+        </div>
       </div>
       <div>
         <label class="label" for="exp-dist">Vzdialenosť (km)</label>

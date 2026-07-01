@@ -16,7 +16,7 @@ export interface Expedition {
   longitude: number;
   year: number | null;
   waterType: WaterType | null;
-  country: string | null;
+  countries: string[];
   participants: string | null;
   distanceKm: number | null;
   /** Optional route polyline: ordered [lat, lng] pairs. */
@@ -37,7 +37,7 @@ export interface ExpeditionInput {
   longitude: number;
   year?: number | null;
   waterType?: WaterType | null;
-  country?: string | null;
+  countries?: string[] | null;
   participants?: string | null;
   distanceKm?: number | null;
   detail?: string | null;

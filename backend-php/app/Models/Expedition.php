@@ -34,6 +34,7 @@ class Expedition extends Model
         'year' => 'integer',
         'distanceKm' => 'float',
         'route' => 'array',
+        'countries' => 'array',
         'publishConsent' => 'boolean',
         'createdAt' => 'datetime',
         'updatedAt' => 'datetime',

@@ -26,7 +26,7 @@ class ExpeditionResource extends JsonResource
             'longitude' => (float) $this->longitude,
             'year' => $this->year,
             'waterType' => $this->waterType,
-            'country' => $this->country,
+            'countries' => $this->countries ?? [],
             'participants' => $this->participants,
             'distanceKm' => $this->distanceKm !== null ? (float) $this->distanceKm : null,
             'route' => $this->route,
