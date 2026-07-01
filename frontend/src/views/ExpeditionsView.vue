@@ -8,13 +8,13 @@
  * Map: Leaflet + OpenStreetMap tiles (both open-source / open-data).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import { expeditionsApi, type Expedition } from '@/api/expeditions.api';
 import EmptyState from '@/components/ui/EmptyState.vue';
-import ExpeditionDialog from '@/components/ui/ExpeditionDialog.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Spinner from '@/components/ui/Spinner.vue';
@@ -23,10 +23,7 @@ import { waterColor, waterLabel, WATER_TYPE_EMOJI } from '@/utils/expeditions';
 const items = ref<Expedition[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
-
-// Dialog state
-const dialogOpen = ref(false);
-const editing = ref<Expedition | null>(null);
+const router = useRouter();
 
 // Lightbox
 const lightbox = ref<string | null>(null);
@@ -149,18 +146,11 @@ async function load(): Promise<void> {
 }
 
 function openCreate(): void {
-  editing.value = null;
-  dialogOpen.value = true;
+  router.push('/expeditions/new');
 }
 
 function openEdit(e: Expedition): void {
-  editing.value = e;
-  dialogOpen.value = true;
-}
-
-async function onSaved(): Promise<void> {
-  // Reload so the map + table reflect the new/edited entry (and photos).
-  await load();
+  router.push(`/expeditions/${e.id}/edit`);
 }
 
 async function remove(e: Expedition): Promise<void> {
@@ -352,13 +342,6 @@ onBeforeUnmount(() => {
       <button type="button" class="btn-secondary" :disabled="page === pageCount" @click="page++">›</button>
     </div>
   </div>
-
-  <ExpeditionDialog
-    :open="dialogOpen"
-    :expedition="editing"
-    @close="dialogOpen = false"
-    @saved="onSaved"
-  />
 
   <!-- Lightbox -->
   <div

@@ -159,6 +159,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Expedície', auth: 'confirmed' },
   },
   {
+    path: '/expeditions/new',
+    name: 'expedition-new',
+    component: () => import('@/views/ExpeditionEditView.vue'),
+    meta: { title: 'Nová expedícia', auth: 'confirmed' },
+  },
+  {
+    path: '/expeditions/:id/edit',
+    name: 'expedition-edit',
+    component: () => import('@/views/ExpeditionEditView.vue'),
+    meta: { title: 'Upraviť expedíciu', auth: 'confirmed' },
+  },
+  {
     path: '/spaces',
     name: 'spaces',
     component: () => import('@/views/SpacesView.vue'),
