@@ -17,8 +17,10 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import ColorDot from '@/components/ui/ColorDot.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
+import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
+import { useAuthStore } from '@/stores/auth.store';
 import {
   DAMAGE_SEVERITY_LABEL,
   DAMAGE_STATUS_LABEL,
@@ -28,10 +30,13 @@ import { formatDateTime, formatReservationRange } from '@/utils/format';
 import { qrWithCenterLabel, resourceBookingUrl } from '@/utils/qr';
 
 const route = useRoute();
+const auth = useAuthStore();
 const id = computed(() => route.params.id as string);
 
 const resource = ref<Resource | null>(null);
 const reservations = ref<Reservation[]>([]);
+// Reservation open in the edit dialog (members only).
+const editing = ref<Reservation | null>(null);
 const damages = ref<Damage[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -57,6 +62,15 @@ async function load() {
   } finally {
     loading.value = false;
   }
+}
+
+const resourceLabel = computed(() =>
+  resource.value ? `${resource.value.identifier} · ${resource.value.name}` : undefined,
+);
+
+function onReservationChanged(): void {
+  editing.value = null;
+  void load();
 }
 
 function downloadQr(): void {
@@ -225,12 +239,25 @@ onMounted(load);
           title="Žiadne nadchádzajúce rezervácie"
         />
         <ul v-else class="divide-y divide-slate-100">
-          <li v-for="r in upcomingReservations" :key="r.id" class="py-3">
-            <p class="font-medium text-slate-800">{{ r.customerName ?? '** rezervácia' }}</p>
-            <p class="text-xs text-slate-500">
-              {{ formatReservationRange(r.startsAt, r.endsAt) }}
-            </p>
-            <p v-if="r.note" class="mt-1 text-xs text-slate-500">{{ r.note }}</p>
+          <li v-for="r in upcomingReservations" :key="r.id">
+            <component
+              :is="auth.isMember ? 'button' : 'div'"
+              type="button"
+              class="w-full py-3 text-left"
+              :class="auth.isMember ? '-mx-2 rounded-lg px-2 transition hover:bg-brand-50/50' : ''"
+              @click="auth.isMember && (editing = r)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="font-medium text-slate-800">{{ r.customerName ?? '** rezervácia' }}</p>
+                  <p class="text-xs text-slate-500">
+                    {{ formatReservationRange(r.startsAt, r.endsAt) }}
+                  </p>
+                  <p v-if="r.note" class="mt-1 text-xs text-slate-500">{{ r.note }}</p>
+                </div>
+                <span v-if="auth.isMember" aria-hidden="true" class="mt-0.5 text-slate-300">✏️</span>
+              </div>
+            </component>
           </li>
         </ul>
       </section>
@@ -315,4 +342,12 @@ onMounted(load);
       </section>
     </div>
   </template>
+
+  <ReservationEditDialog
+    :reservation="editing"
+    :resource-label="resourceLabel"
+    @close="editing = null"
+    @saved="onReservationChanged"
+    @deleted="onReservationChanged"
+  />
 </template>
