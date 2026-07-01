@@ -19,7 +19,7 @@ import Spinner from '@/components/ui/Spinner.vue';
 import { countryNames } from '@/utils/countries';
 import { WATER_TYPES, WATER_TYPE_LABEL, waterColor } from '@/utils/expeditions';
 import { parseGpx } from '@/utils/gpx';
-import { snapToRiver } from '@/utils/riverRoute';
+import { snapRiverPath } from '@/utils/riverRoute';
 
 const countries = countryNames();
 const countryInput = ref('');
@@ -117,6 +117,13 @@ const geoError = ref<string | null>(null);
 const traceMode = ref(false);
 const routeError = ref<string | null>(null);
 const snapping = ref(false);
+const snapDone = ref(0);
+const snapTotal = ref(0);
+const snapPct = computed(() => {
+  if (!snapTotal.value) return 0;
+  const inFlight = snapping.value && snapDone.value < snapTotal.value ? 0.5 : 0;
+  return Math.min(100, Math.round(((snapDone.value + inFlight) / snapTotal.value) * 100));
+});
 const gpxInput = ref<HTMLInputElement | null>(null);
 
 function pinIcon(color: string): L.DivIcon {
@@ -238,10 +245,6 @@ async function onGpx(event: Event): Promise<void> {
   }
 }
 
-function sameCoord(a: [number, number], b: [number, number]): boolean {
-  return a[0] === b[0] && a[1] === b[1];
-}
-
 async function snapRiver(): Promise<void> {
   routeError.value = null;
   problemPoints.value = [];
@@ -251,32 +254,27 @@ async function snapRiver(): Promise<void> {
     return;
   }
   snapping.value = true;
+  snapTotal.value = riverSegs.length;
+  snapDone.value = 0;
   let failedPairs = 0;
+  let fatalMsg: string | null = null;
   const problems: [number, number][] = [];
   try {
+    // One Overpass request per river segment (not per pair) → stays within
+    // rate limits. Portage segments are left as drawn.
     for (const s of segments.value) {
       if (s.portage || !s.waypoints || s.waypoints.length < 2) continue;
-      const wps = s.waypoints;
-      const out: [number, number][] = [];
-      // Snap each consecutive pair independently — only a pair with no river
-      // path stays straight (its endpoints get flagged), the rest snap.
-      for (let i = 0; i < wps.length - 1; i++) {
-        let pairPath: [number, number][];
-        try {
-          pairPath = await snapToRiver(wps[i], wps[i + 1]);
-        } catch {
-          pairPath = [wps[i], wps[i + 1]];
-          failedPairs++;
-          problems.push(wps[i], wps[i + 1]);
-        }
-        if (out.length && pairPath.length && sameCoord(out[out.length - 1], pairPath[0])) {
-          out.push(...pairPath.slice(1));
-        } else {
-          out.push(...pairPath);
-        }
+      try {
+        const { path, failedPairs: f, problems: p } = await snapRiverPath(s.waypoints);
+        s.points = path;
+        s.snapped = true;
+        failedPairs += f;
+        problems.push(...p);
+      } catch (e) {
+        // Whole-segment failure (rate limit / too long) — keep it manual.
+        fatalMsg = (e as Error).message;
       }
-      s.points = out;
-      s.snapped = true; // closed for further appends; re-drawing starts a new segment
+      snapDone.value++;
     }
     problemPoints.value = problems;
     const first = flatRoute()[0];
@@ -284,7 +282,9 @@ async function snapRiver(): Promise<void> {
     drawRoute();
     drawProblems();
     fitRoute();
-    if (failedPairs > 0) {
+    if (fatalMsg) {
+      routeError.value = fatalMsg;
+    } else if (failedPairs > 0) {
       routeError.value = `${failedPairs} úsek(ov) sa nepodarilo prichytiť — vyznačené na mape (ostali priame). Ostatné časti sú prichytené na rieku.`;
     }
   } finally {
@@ -633,6 +633,20 @@ onBeforeUnmount(() => {
             :class="drawKind === 'portage' ? 'bg-amber-700 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'"
             @click="setDrawKind('portage')"
           >🥾 Prenáška</button>
+        </div>
+
+        <div v-if="snapping" class="mt-2">
+          <div class="flex justify-between text-xs text-slate-500">
+            <span>Prichytávam na rieku…</span>
+            <span>{{ snapDone }}/{{ snapTotal }}</span>
+          </div>
+          <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+            <div
+              class="h-full rounded-full bg-brand-500 transition-all duration-300"
+              :class="{ 'animate-pulse': snapDone < snapTotal }"
+              :style="{ width: snapPct + '%' }"
+            ></div>
+          </div>
         </div>
 
         <p v-if="routeError" class="mt-1 text-xs text-rose-600">{{ routeError }}</p>

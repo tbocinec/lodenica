@@ -1,18 +1,18 @@
 /**
- * Best-effort "snap to river" routing using OpenStreetMap data via the
- * Overpass API. Given two points, it downloads the waterway lines around them,
- * builds a graph (shared OSM nodes have identical coordinates, so we merge by
- * rounded lat/lon), and runs Dijkstra to find the path along the river between
- * the nearest graph nodes.
+ * Best-effort "snap to river" using OpenStreetMap data via the Overpass API.
  *
- * It's approximate: OSM rivers are split into many segments, can branch or have
- * gaps, so it may fail or look off — callers should fall back to manual tracing
- * / GPX. Worldwide and free; no API key.
+ * To stay within Overpass rate limits (a single public server, ~429 on abuse),
+ * we download the waterway network for a whole segment ONCE, build a graph in
+ * memory, and route every consecutive waypoint pair locally (Dijkstra) — no
+ * per-pair network calls. It's approximate (OSM rivers are split, can branch or
+ * have gaps), so callers fall back to the straight line + a warning.
  */
 type LatLng = [number, number];
 
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
 const WATERWAY_RE = '^(river|canal|stream|tidal_channel|riverbank)$';
+
+export class RiverRouteError extends Error {}
 
 function haversine(a: LatLng, b: LatLng): number {
   const R = 6371000;
@@ -25,47 +25,50 @@ function haversine(a: LatLng, b: LatLng): number {
 }
 
 const key = (lat: number, lon: number): string => `${lat.toFixed(6)},${lon.toFixed(6)}`;
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-export class RiverRouteError extends Error {}
+interface Graph {
+  adj: Map<string, Array<{ to: string; w: number }>>;
+  coord: Map<string, LatLng>;
+}
 
-export async function snapToRiver(a: LatLng, b: LatLng): Promise<LatLng[]> {
-  // Straight-line distance gates the query size (Overpass + client graph).
-  const straight = haversine(a, b);
-  if (straight > 250_000) {
-    throw new RiverRouteError('Body sú príliš ďaleko od seba (nad 250 km) pre auto‑trasu.');
-  }
-
-  const pad = Math.max(0.02, (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) * 0.3);
-  const south = Math.min(a[0], b[0]) - pad;
-  const north = Math.max(a[0], b[0]) + pad;
-  const west = Math.min(a[1], b[1]) - pad;
-  const east = Math.max(a[1], b[1]) + pad;
-
+/** Download the waterway network in a bbox and build a routing graph (1 request). */
+async function fetchGraph(south: number, west: number, north: number, east: number): Promise<Graph> {
   const q =
     `[out:json][timeout:25];` +
     `way["waterway"~"${WATERWAY_RE}"](${south},${west},${north},${east});` +
     `out geom;`;
 
-  let json: { elements?: Array<{ geometry?: Array<{ lat: number; lon: number }> }> };
-  try {
-    const res = await fetch(OVERPASS, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent(q),
-    });
-    if (!res.ok) throw new RiverRouteError('Server OSM (Overpass) nedostupný, skús neskôr.');
+  let json: { elements?: Array<{ geometry?: Array<{ lat: number; lon: number }> }> } | null = null;
+  // One polite retry on 429/5xx (Overpass asks for ~1 req/s).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(OVERPASS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent(q),
+      });
+    } catch {
+      throw new RiverRouteError('Nepodarilo sa spojiť s OSM (Overpass).');
+    }
+    if (res.status === 429 || res.status === 504 || res.status === 503) {
+      if (attempt === 0) {
+        await sleep(1500);
+        continue;
+      }
+      throw new RiverRouteError('OSM server (Overpass) je momentálne preťažený (429). Skús o chvíľu, alebo použi GPX / nakresli ručne.');
+    }
+    if (!res.ok) throw new RiverRouteError('Server OSM (Overpass) vrátil chybu.');
     json = await res.json();
-  } catch (e) {
-    if (e instanceof RiverRouteError) throw e;
-    throw new RiverRouteError('Nepodarilo sa načítať dáta riek z OSM.');
+    break;
   }
 
-  const ways = (json.elements ?? []).filter((el) => Array.isArray(el.geometry) && el.geometry.length > 1);
+  const ways = (json?.elements ?? []).filter((el) => Array.isArray(el.geometry) && el.geometry.length > 1);
   if (ways.length === 0) {
     throw new RiverRouteError('V okolí sa nenašla žiadna rieka. Skús ručne alebo GPX.');
   }
 
-  // Build an undirected weighted graph from way vertices (merged by coords).
   const adj = new Map<string, Array<{ to: string; w: number }>>();
   const coord = new Map<string, LatLng>();
   const addEdge = (k1: string, k2: string, w: number) => {
@@ -85,33 +88,32 @@ export async function snapToRiver(a: LatLng, b: LatLng): Promise<LatLng[]> {
       }
     }
   }
-  if (coord.size > 60_000) {
-    throw new RiverRouteError('Oblasť je príliš veľká/hustá. Skús bližšie body alebo GPX.');
+  if (coord.size > 80_000) {
+    throw new RiverRouteError('Oblasť je príliš veľká/hustá. Skús kratšie úseky alebo GPX.');
   }
+  return { adj, coord };
+}
 
-  // Snap endpoints to the nearest graph node.
-  const nearest = (p: LatLng): string => {
-    let best = '';
-    let bestD = Infinity;
-    for (const [k, c] of coord) {
-      const d = haversine(p, c);
-      if (d < bestD) {
-        bestD = d;
-        best = k;
-      }
+function nearestNode(graph: Graph, p: LatLng): string {
+  let best = '';
+  let bestD = Infinity;
+  for (const [k, c] of graph.coord) {
+    const d = haversine(p, c);
+    if (d < bestD) {
+      bestD = d;
+      best = k;
     }
-    return best;
-  };
-  const start = nearest(a);
-  const end = nearest(b);
-  if (!start || !end) throw new RiverRouteError('Nepodarilo sa prichytiť body na rieku.');
+  }
+  return best;
+}
 
-  // Dijkstra (naive min-scan; node counts here are modest).
+/** Dijkstra between two graph nodes; returns coord path or null if unreachable. */
+function shortestPath(graph: Graph, start: string, end: string): LatLng[] | null {
   const dist = new Map<string, number>();
   const prev = new Map<string, string>();
   const visited = new Set<string>();
   dist.set(start, 0);
-  while (true) {
+  for (;;) {
     let u = '';
     let ud = Infinity;
     for (const [k, d] of dist) {
@@ -122,7 +124,7 @@ export async function snapToRiver(a: LatLng, b: LatLng): Promise<LatLng[]> {
     }
     if (u === '' || u === end) break;
     visited.add(u);
-    for (const e of adj.get(u) ?? []) {
+    for (const e of graph.adj.get(u) ?? []) {
       if (visited.has(e.to)) continue;
       const nd = ud + e.w;
       if (nd < (dist.get(e.to) ?? Infinity)) {
@@ -131,27 +133,73 @@ export async function snapToRiver(a: LatLng, b: LatLng): Promise<LatLng[]> {
       }
     }
   }
-  if (!dist.has(end)) {
-    throw new RiverRouteError('Medzi bodmi nevedie súvislá rieka v dátach OSM. Skús ručne alebo GPX.');
-  }
-
-  // Reconstruct path.
+  if (!dist.has(end)) return null;
   const path: LatLng[] = [];
   let cur: string | undefined = end;
   while (cur) {
-    const c = coord.get(cur);
+    const c = graph.coord.get(cur);
     if (c) path.push(c);
     if (cur === start) break;
     cur = prev.get(cur);
   }
   path.reverse();
+  return path;
+}
+
+/**
+ * Snap a whole segment's waypoints to the river using ONE Overpass request.
+ * Routes each consecutive pair on the downloaded graph; a pair with no river
+ * path stays a straight line and its endpoints are reported as problems.
+ */
+export async function snapRiverPath(
+  waypoints: LatLng[],
+): Promise<{ path: LatLng[]; failedPairs: number; problems: LatLng[] }> {
+  if (waypoints.length < 2) {
+    throw new RiverRouteError('Potrebné sú aspoň 2 body.');
+  }
+  const lats = waypoints.map((p) => p[0]);
+  const lons = waypoints.map((p) => p[1]);
+  const span = Math.max(...lats) - Math.min(...lats) + (Math.max(...lons) - Math.min(...lons));
+  if (haversine([Math.min(...lats), Math.min(...lons)], [Math.max(...lats), Math.max(...lons)]) > 250_000) {
+    throw new RiverRouteError('Úsek je príliš dlhý pre auto‑prichytenie (nad ~250 km). Použi GPX alebo kratšie časti.');
+  }
+  const pad = Math.max(0.02, span * 0.15);
+  const graph = await fetchGraph(
+    Math.min(...lats) - pad,
+    Math.min(...lons) - pad,
+    Math.max(...lats) + pad,
+    Math.max(...lons) + pad,
+  );
+
+  const path: LatLng[] = [];
+  const problems: LatLng[] = [];
+  let failedPairs = 0;
+  const push = (seg: LatLng[]) => {
+    if (path.length && seg.length && path[path.length - 1][0] === seg[0][0] && path[path.length - 1][1] === seg[0][1]) {
+      path.push(...seg.slice(1));
+    } else {
+      path.push(...seg);
+    }
+  };
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const a = waypoints[i];
+    const b = waypoints[i + 1];
+    const routed = shortestPath(graph, nearestNode(graph, a), nearestNode(graph, b));
+    if (routed && routed.length >= 2) {
+      push(routed);
+    } else {
+      push([a, b]);
+      failedPairs++;
+      problems.push(a, b);
+    }
+  }
 
   // Downsample very long paths to keep the payload reasonable.
-  if (path.length > 2000) {
-    const step = Math.ceil(path.length / 2000);
-    const reduced = path.filter((_, i) => i % step === 0);
-    if (reduced[reduced.length - 1] !== path[path.length - 1]) reduced.push(path[path.length - 1]);
-    return reduced;
+  let out = path;
+  if (out.length > 2000) {
+    const step = Math.ceil(out.length / 2000);
+    out = out.filter((_, i) => i % step === 0);
+    if (out[out.length - 1] !== path[path.length - 1]) out.push(path[path.length - 1]);
   }
-  return path;
+  return { path: out, failedPairs, problems };
 }
