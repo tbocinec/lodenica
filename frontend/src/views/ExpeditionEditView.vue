@@ -59,7 +59,12 @@ const form = reactive({
 // `points` is the drawn/stored path; `waypoints` (river segments) are the
 // user's clicks, kept so snap can run per consecutive pair and leave only the
 // failing pair straight.
-type RouteSegment = { portage: boolean; points: [number, number][]; waypoints?: [number, number][] };
+type RouteSegment = {
+  portage: boolean;
+  points: [number, number][];
+  waypoints?: [number, number][];
+  snapped?: boolean;
+};
 const segments = ref<RouteSegment[]>([]);
 const drawKind = ref<'river' | 'portage'>('river');
 // Junction points where snapping failed (drawn as red warnings on the map).
@@ -169,11 +174,16 @@ function appendRoutePoint(lat: number, lng: number): void {
   const wantPortage = drawKind.value === 'portage';
   const pt: [number, number] = [Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6];
   let last = segments.value[segments.value.length - 1];
-  // A river segment that was already snapped (points ≠ waypoints) is "closed" —
-  // start a fresh one so we don't append into a snapped path.
-  const closed = last && !last.portage && last.waypoints && last.waypoints !== last.points;
-  if (!last || last.portage !== wantPortage || closed) {
-    last = wantPortage ? { portage: true, points: [] } : { portage: false, points: [], waypoints: [] };
+  // Continue the last segment only if it matches the current mode and — for a
+  // river segment — is still open (not snapped, and has a waypoint list).
+  const canContinue =
+    !!last &&
+    last.portage === wantPortage &&
+    (wantPortage || (!last.snapped && !!last.waypoints));
+  if (!canContinue) {
+    last = wantPortage
+      ? { portage: true, points: [] }
+      : { portage: false, points: [], waypoints: [], snapped: false };
     segments.value.push(last);
   }
   last.points.push(pt);
@@ -265,7 +275,8 @@ async function snapRiver(): Promise<void> {
           out.push(...pairPath);
         }
       }
-      s.points = out; // points now differ from waypoints → segment is "snapped"
+      s.points = out;
+      s.snapped = true; // closed for further appends; re-drawing starts a new segment
     }
     problemPoints.value = problems;
     const first = flatRoute()[0];
