@@ -40,8 +40,13 @@ const expandedId = ref<string | null>(null);
 
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
+let tileLayer: L.TileLayer | null = null;
 let markerGroup: L.LayerGroup | null = null;
 const markers = new Map<string, L.Marker>();
+
+function onWinResize(): void {
+  map?.invalidateSize();
+}
 
 const stats = computed(() => {
   const countries = new Set(items.value.map((e) => (e.country ?? '').trim().toLowerCase()).filter(Boolean));
@@ -169,25 +174,38 @@ async function remove(e: Expedition): Promise<void> {
   }
 }
 
+function initMap(): void {
+  if (!mapEl.value || map) return;
+  map = L.map(mapEl.value, { worldCopyJump: true, fadeAnimation: false }).setView([30, 10], 2);
+  // Non-subdomain OSM URL (the a/b/c subdomains are deprecated).
+  tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19,
+  }).addTo(map);
+  markerGroup = L.layerGroup().addTo(map);
+  // Force correct sizing + a tile redraw once the map is live, and again a
+  // bit later in case the surrounding layout was still settling.
+  map.whenReady(() => {
+    setTimeout(() => {
+      map?.invalidateSize();
+      tileLayer?.redraw();
+    }, 50);
+    setTimeout(() => map?.invalidateSize(), 400);
+  });
+  window.addEventListener('resize', onWinResize);
+}
+
 onMounted(async () => {
-  // Create the map AFTER a tick so the container is fully laid out (mirrors
-  // the working picker map in the dialog). fadeAnimation:false avoids the
-  // Leaflet quirk where tiles stay `visibility:hidden` if the fade/ready
-  // cycle is interrupted — which left the map blank despite tiles loading.
   await nextTick();
-  if (mapEl.value) {
-    map = L.map(mapEl.value, { worldCopyJump: true, fadeAnimation: false }).setView([30, 10], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap',
-      maxZoom: 19,
-    }).addTo(map);
-    markerGroup = L.layerGroup().addTo(map);
-    setTimeout(() => map?.invalidateSize(), 120);
-  }
-  void load();
+  initMap();
+  await load();
+  // One more nudge after data + layout settle.
+  await nextTick();
+  map?.invalidateSize();
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', onWinResize);
   if (map) {
     map.remove();
     map = null;
@@ -223,7 +241,7 @@ onBeforeUnmount(() => {
 
   <!-- Map -->
   <div class="card overflow-hidden">
-    <div ref="mapEl" class="h-[420px] w-full" :class="{ 'opacity-60': loading }"></div>
+    <div ref="mapEl" class="w-full" style="height: 460px"></div>
   </div>
 
   <!-- Smart table -->
