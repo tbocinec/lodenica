@@ -27,6 +27,18 @@ function haversine(a: LatLng, b: LatLng): number {
 const key = (lat: number, lon: number): string => `${lat.toFixed(6)},${lon.toFixed(6)}`;
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+// Overpass has no fixed req/s — it's slot-based and returns 429 when busy.
+// Be a good citizen: at least ~1.6s between requests, app-wide + sequential.
+const MIN_INTERVAL_MS = 1600;
+let nextAllowedAt = 0;
+async function rateLimit(): Promise<void> {
+  const now = Date.now();
+  const wait = Math.max(0, nextAllowedAt - now);
+  // Reserve this slot even for concurrent callers so they queue rather than burst.
+  nextAllowedAt = Math.max(now, nextAllowedAt) + MIN_INTERVAL_MS;
+  if (wait > 0) await sleep(wait);
+}
+
 interface Graph {
   adj: Map<string, Array<{ to: string; w: number }>>;
   coord: Map<string, LatLng>;
@@ -40,8 +52,10 @@ async function fetchGraph(south: number, west: number, north: number, east: numb
     `out geom;`;
 
   let json: { elements?: Array<{ geometry?: Array<{ lat: number; lon: number }> }> } | null = null;
-  // One polite retry on 429/5xx (Overpass asks for ~1 req/s).
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // Sequential + spaced (rateLimit), with backoff retries honouring Retry-After.
+  const MAX_ATTEMPTS = 4;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    await rateLimit();
     let res: Response;
     try {
       res = await fetch(OVERPASS, {
@@ -50,14 +64,18 @@ async function fetchGraph(south: number, west: number, north: number, east: numb
         body: 'data=' + encodeURIComponent(q),
       });
     } catch {
-      throw new RiverRouteError('Nepodarilo sa spojiť s OSM (Overpass).');
+      if (attempt === MAX_ATTEMPTS) throw new RiverRouteError('Nepodarilo sa spojiť s OSM (Overpass).');
+      await sleep(1500 * attempt);
+      continue;
     }
-    if (res.status === 429 || res.status === 504 || res.status === 503) {
-      if (attempt === 0) {
-        await sleep(1500);
-        continue;
+    if (res.status === 429 || res.status === 503 || res.status === 504) {
+      if (attempt === MAX_ATTEMPTS) {
+        throw new RiverRouteError('OSM server (Overpass) je zaneprázdnený (429). Chvíľu počkaj a skús znova, alebo použi GPX / nakresli ručne.');
       }
-      throw new RiverRouteError('OSM server (Overpass) je momentálne preťažený (429). Skús o chvíľu, alebo použi GPX / nakresli ručne.');
+      const ra = parseInt(res.headers.get('Retry-After') ?? '', 10);
+      const delay = Number.isFinite(ra) && ra > 0 ? ra * 1000 : Math.min(15000, 2000 * 2 ** attempt);
+      await sleep(delay);
+      continue;
     }
     if (!res.ok) throw new RiverRouteError('Server OSM (Overpass) vrátil chybu.');
     json = await res.json();
