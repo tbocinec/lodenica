@@ -493,23 +493,27 @@ onBeforeUnmount(() => {
     <!-- Form fields -->
     <form class="card-padded grid gap-3 sm:grid-cols-2" @submit.prevent="submit">
       <div class="sm:col-span-2">
-        <label class="label" for="exp-title">Názov expedície *</label>
-        <input id="exp-title" v-model="form.title" class="input mt-1" required maxlength="200" placeholder="napr. Dunajský maratón" />
+        <label class="label" for="exp-water">Typ vody</label>
+        <select id="exp-water" v-model="form.waterType" class="input mt-1">
+          <option value="">—</option>
+          <option v-for="t in WATER_TYPES" :key="t" :value="t">{{ WATER_TYPE_LABEL[t] }}</option>
+        </select>
       </div>
       <div class="sm:col-span-2">
         <label class="label" for="exp-place">{{ placeLabel }}</label>
         <input id="exp-place" v-model="form.place" class="input mt-1" required maxlength="200" placeholder="napr. Vltava, Česko" />
+      </div>
+      <div class="sm:col-span-2">
+        <label class="label" for="exp-title">Názov expedície *</label>
+        <input id="exp-title" v-model="form.title" class="input mt-1" required maxlength="200" placeholder="napr. Dunajský maratón" />
       </div>
       <div>
         <label class="label" for="exp-year">Rok</label>
         <input id="exp-year" v-model.number="form.year" type="number" class="input mt-1" min="1900" :max="new Date().getFullYear() + 1" placeholder="2024" />
       </div>
       <div>
-        <label class="label" for="exp-water">Typ vody</label>
-        <select id="exp-water" v-model="form.waterType" class="input mt-1">
-          <option value="">—</option>
-          <option v-for="t in WATER_TYPES" :key="t" :value="t">{{ WATER_TYPE_LABEL[t] }}</option>
-        </select>
+        <label class="label" for="exp-dist">Vzdialenosť (km)</label>
+        <input id="exp-dist" v-model.number="form.distanceKm" type="number" class="input mt-1" min="0" step="0.1" />
       </div>
       <div class="sm:col-span-2">
         <label class="label" for="exp-country">Krajiny <span class="text-xs font-normal text-slate-400">(môžeš vybrať viac)</span></label>
@@ -539,10 +543,6 @@ onBeforeUnmount(() => {
             <button type="button" class="text-brand-500 hover:text-brand-800" @click="removeCountry(c)">✕</button>
           </span>
         </div>
-      </div>
-      <div>
-        <label class="label" for="exp-dist">Vzdialenosť (km)</label>
-        <input id="exp-dist" v-model.number="form.distanceKm" type="number" class="input mt-1" min="0" step="0.1" />
       </div>
       <div class="sm:col-span-2">
         <label class="label" for="exp-part">Členovia výpravy <span class="text-xs font-normal text-slate-400">(dobrovoľné)</span></label>
