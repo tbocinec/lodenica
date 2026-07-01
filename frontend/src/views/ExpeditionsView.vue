@@ -18,7 +18,7 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Spinner from '@/components/ui/Spinner.vue';
-import { waterColor, waterLabel, WATER_TYPE_EMOJI } from '@/utils/expeditions';
+import { waterColor, waterLabel } from '@/utils/expeditions';
 
 const items = ref<Expedition[]>([]);
 const loading = ref(false);
@@ -229,6 +229,12 @@ onBeforeUnmount(() => {
     </div>
   </div>
 
+  <!-- Experimental notice -->
+  <div class="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+    🧪 Táto časť je zatiaľ <strong>experimentálna</strong>. V prípade chyby alebo nápadu napíšte prosím na
+    <a href="mailto:t.bocinec@gmail.com" class="font-medium underline">t.bocinec@gmail.com</a>.
+  </div>
+
   <LoadError class="mb-4" :message="error" />
 
   <!-- Map -->
@@ -278,7 +284,6 @@ onBeforeUnmount(() => {
               @click="expandedId = expandedId === e.id ? null : e.id"
             >
               <td class="px-4 py-2.5 font-medium text-slate-900">
-                <span class="mr-1" aria-hidden="true">{{ e.waterType ? WATER_TYPE_EMOJI[e.waterType] : '📍' }}</span>
                 {{ e.title }}
               </td>
               <td class="px-4 py-2.5 text-slate-700">
