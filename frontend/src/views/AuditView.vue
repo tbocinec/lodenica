@@ -14,8 +14,10 @@ import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { AUDIT_ACTION_LABEL, AUDIT_ENTITY_TYPE_LABEL } from '@/i18n/labels';
+import { useAuthStore } from '@/stores/auth.store';
 import { formatDateTime } from '@/utils/format';
 
+const auth = useAuthStore();
 const items = ref<AuditLog[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -184,6 +186,7 @@ onMounted(load);
           <th class="px-4 py-2.5">Typ</th>
           <th class="px-4 py-2.5">Akcia</th>
           <th class="px-4 py-2.5">Popis</th>
+          <th v-if="auth.isAdmin" class="px-4 py-2.5">Kto</th>
           <th class="px-4 py-2.5"></th>
         </tr>
       </thead>
@@ -205,6 +208,9 @@ onMounted(load);
               </span>
             </td>
             <td class="px-4 py-2 text-slate-800">{{ row.summary }}</td>
+            <td v-if="auth.isAdmin" class="whitespace-nowrap px-4 py-2 text-xs text-slate-500">
+              {{ row.actor ?? '—' }}
+            </td>
             <td class="px-4 py-2 text-right">
               <button
                 v-if="row.changes"
@@ -217,7 +223,7 @@ onMounted(load);
             </td>
           </tr>
           <tr v-if="expanded.has(row.id)" class="bg-slate-50">
-            <td colspan="5" class="px-4 py-3">
+            <td :colspan="auth.isAdmin ? 6 : 5" class="px-4 py-3">
               <pre class="overflow-x-auto whitespace-pre-wrap break-words text-xs text-slate-700">{{ JSON.stringify(row.changes, null, 2) }}</pre>
             </td>
           </tr>

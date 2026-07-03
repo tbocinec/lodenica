@@ -106,6 +106,21 @@ class ReservationsService
         }
 
         $existing->fill($updates);
+
+        // Admin reassignment of ownership: set the member ID and point
+        // createdById at the matching user (if that member is registered), so
+        // "my reservations" follows the new owner both ways. An empty value
+        // detaches it.
+        if (array_key_exists('memberId', $cmd)) {
+            $memberId = is_string($cmd['memberId']) && trim($cmd['memberId']) !== ''
+                ? trim($cmd['memberId'])
+                : null;
+            $existing->memberId = $memberId;
+            $existing->createdById = $memberId !== null
+                ? \App\Models\User::query()->where('memberId', $memberId)->value('id')
+                : null;
+        }
+
         $existing->save();
         $existing->refresh();
 

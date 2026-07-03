@@ -16,15 +16,18 @@
  *     @deleted="onDeleted"
  *   />
  */
-import { reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
+import { auditApi } from '@/api/audit.api';
 import { reservationsApi } from '@/api/reservations.api';
-import type { Reservation } from '@/api/types';
+import { usersApi } from '@/api/users.api';
+import type { AuditLog, Reservation } from '@/api/types';
 import { useAuthStore } from '@/stores/auth.store';
-import { isoFromDateTime } from '@/utils/format';
+import { formatDateTime, isoFromDateTime } from '@/utils/format';
 
 import DateInput from './DateInput.vue';
 import LoadError from './LoadError.vue';
+import Spinner from './Spinner.vue';
 
 const props = defineProps<{
   reservation: Reservation | null;
@@ -45,12 +48,58 @@ const form = reactive({
   endDate: '',
   endTime: '',
   note: '',
+  memberId: '',
 });
 
 const auth = useAuthStore();
 const error = ref<string | null>(null);
 const submitting = ref(false);
 const deleting = ref(false);
+
+// Admin: reassign ownership (member ID). Members list drives a datalist.
+const members = ref<Array<{ memberId: string; name: string }>>([]);
+const currentOwnerName = computed(
+  () => members.value.find((m) => m.memberId === form.memberId)?.name ?? '',
+);
+
+// Reservation history (audit). Members see the changes; admins also the actor.
+const history = ref<AuditLog[]>([]);
+const historyOpen = ref(false);
+const historyLoading = ref(false);
+
+async function loadMembers(): Promise<void> {
+  if (members.value.length) return;
+  try {
+    const data = await usersApi.list({ pageSize: 200 });
+    members.value = data.items
+      .filter((u) => !!u.memberId)
+      .map((u) => ({ memberId: u.memberId as string, name: u.name }));
+  } catch {
+    /* non-fatal — the field still accepts a raw member ID */
+  }
+}
+
+async function loadHistory(): Promise<void> {
+  if (!props.reservation) return;
+  historyLoading.value = true;
+  try {
+    const data = await auditApi.list({
+      entityType: 'RESERVATION' as AuditLog['entityType'],
+      entityId: props.reservation.id,
+      pageSize: 50,
+    });
+    history.value = data.items;
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    historyLoading.value = false;
+  }
+}
+
+function toggleHistory(): void {
+  historyOpen.value = !historyOpen.value;
+  if (historyOpen.value && history.value.length === 0) void loadHistory();
+}
 
 watch(
   () => props.reservation,
@@ -70,6 +119,11 @@ watch(
     form.endDate = utcDate(end);
     form.endTime = utcTime(end);
     form.note = r.note ?? '';
+    form.memberId = r.memberId ?? '';
+    // Reset history for the newly-opened reservation.
+    history.value = [];
+    historyOpen.value = false;
+    if (auth.isAdmin) void loadMembers();
   },
   { immediate: true },
 );
@@ -101,6 +155,8 @@ async function save(): Promise<void> {
       startsAt,
       endsAt,
       note: form.note || undefined,
+      // Admin-only ownership reassignment (ignored server-side otherwise).
+      ...(auth.isAdmin ? { memberId: form.memberId.trim() || null } : {}),
     });
     emit('saved', updated);
   } catch (e) {
@@ -135,7 +191,7 @@ async function remove(): Promise<void> {
     aria-modal="true"
     @click.self="emit('close')"
   >
-    <div class="w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
+    <div class="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
       <header class="mb-4 flex items-start justify-between gap-3">
         <div>
           <h3 class="text-lg font-semibold text-slate-900">Upraviť rezerváciu</h3>
@@ -233,6 +289,25 @@ async function remove(): Promise<void> {
           ></textarea>
         </div>
 
+        <!-- Admin: reassign the reservation to a member. -->
+        <div v-if="auth.isAdmin" class="sm:col-span-2">
+          <label class="label" for="ed-member">
+            Priradiť členovi <span class="text-xs font-normal text-slate-400">(interné členské ID)</span>
+          </label>
+          <input
+            id="ed-member"
+            v-model="form.memberId"
+            class="input mt-1"
+            maxlength="100"
+            list="ed-member-list"
+            placeholder="Členské ID — prázdne = bez priradenia"
+          />
+          <datalist id="ed-member-list">
+            <option v-for="m in members" :key="m.memberId" :value="m.memberId" :label="m.name" />
+          </datalist>
+          <p v-if="currentOwnerName" class="mt-1 text-xs text-slate-500">Patrí: {{ currentOwnerName }}</p>
+        </div>
+
         <LoadError class="sm:col-span-2" :message="error" />
 
         <div class="sm:col-span-2 mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -254,6 +329,31 @@ async function remove(): Promise<void> {
           </div>
         </div>
       </form>
+
+      <!-- Reservation history: members see the changes; admins also who made them. -->
+      <div class="mt-4 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          class="flex w-full items-center justify-between text-sm font-medium text-slate-700 hover:text-slate-900"
+          @click="toggleHistory"
+        >
+          <span>🕓 História rezervácie</span>
+          <span class="text-slate-400">{{ historyOpen ? '▲' : '▼' }}</span>
+        </button>
+        <div v-if="historyOpen" class="mt-2">
+          <div v-if="historyLoading" class="flex justify-center py-3"><Spinner /></div>
+          <p v-else-if="history.length === 0" class="text-xs text-slate-400">Žiadne záznamy zmien.</p>
+          <ul v-else class="space-y-2">
+            <li v-for="h in history" :key="h.id" class="border-l-2 border-slate-200 pl-3 text-xs">
+              <div class="flex flex-wrap justify-between gap-x-2 text-slate-500">
+                <span>{{ formatDateTime(h.createdAt) }}</span>
+                <span v-if="h.actor" class="text-slate-400">👤 {{ h.actor }}</span>
+              </div>
+              <p class="text-slate-700">{{ h.summary }}</p>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </template>

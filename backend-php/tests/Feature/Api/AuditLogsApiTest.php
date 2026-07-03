@@ -58,7 +58,22 @@ class AuditLogsApiTest extends TestCase
             ->where('entityType', AuditEntityType::RESOURCE->value)
             ->first();
         $this->assertNotNull($row);
-        $this->assertSame('admin@example.test', $row->actor);
+        // Actor is now "Name (email)" for readability + precision.
+        $this->assertStringContainsString('admin@example.test', (string) $row->actor);
+    }
+
+    public function test_actor_is_hidden_from_non_admins(): void
+    {
+        $this->actingAsAdmin(['email' => 'admin3@example.test']);
+        $this->postJson('/api/v1/resources', [
+            'identifier' => 'K-HIDE', 'type' => 'WW_KAYAK', 'name' => 'H',
+        ])->assertCreated();
+
+        // A regular member sees the change but not who made it.
+        $this->actingAsMember();
+        $this->getJson('/api/v1/audit-logs')
+            ->assertOk()
+            ->assertJsonPath('items.0.actor', null);
     }
 
     public function test_index_filters_by_entityType(): void

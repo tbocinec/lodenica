@@ -94,6 +94,8 @@ export interface CreateReservationInput {
 
 export type UpdateReservationInput = Partial<Omit<CreateReservationInput, 'resourceId'>> & {
   status?: ReservationStatus;
+  /** Admin-only: reassign the reservation to a member (internal member ID). */
+  memberId?: string | null;
 };
 
 export const reservationsApi = {

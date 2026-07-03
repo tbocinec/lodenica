@@ -25,6 +25,7 @@ class ReservationResource extends JsonResource
         // the token gets resolved regardless of route gating.
         $user = $request->user('sanctum') ?? $request->user();
         $isMember = $user instanceof \App\Models\User && $user->isMember();
+        $isAdmin = $user instanceof \App\Models\User && $user->isAdmin();
 
         return [
             'id' => $this->id,
@@ -33,6 +34,9 @@ class ReservationResource extends JsonResource
             // The logged-in user who created the booking (null for
             // anonymous). Lets the SPA flag "my reservations". Not PII.
             'createdById' => $this->createdById,
+            // Internal member ID this booking is mapped to — admin-only
+            // (admins can reassign it). See docs/AUTH-AND-PERMISSIONS.md.
+            'memberId' => $isAdmin ? $this->memberId : null,
             'customerName' => $isMember ? $this->customerName : null,
             'customerContact' => $isMember ? $this->customerContact : null,
             'startsAt' => $this->startsAt?->toIso8601String(),

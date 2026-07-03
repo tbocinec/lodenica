@@ -121,10 +121,27 @@ class AuditLogger
      */
     private function currentActor(): string
     {
+        // Resolve the acting user even on PUBLIC routes (e.g. a logged-in member
+        // creating a reservation): those don't run auth middleware, so
+        // Auth::user() is null — but the Sanctum guard can still read the bearer
+        // token. Prefer name for readability, keep the email for precision.
         /** @var User|null $user */
         $user = Auth::user();
-        if ($user instanceof User && !empty($user->email)) {
-            return $user->email;
+        if (!$user instanceof User) {
+            try {
+                $user = Auth::guard('sanctum')->user();
+            } catch (\Throwable) {
+                $user = null;
+            }
+        }
+        if ($user instanceof User) {
+            $name = trim((string) $user->name);
+            $email = (string) $user->email;
+            if ($name !== '' && $email !== '') {
+                return "{$name} ({$email})";
+            }
+
+            return $name !== '' ? $name : ($email !== '' ? $email : 'anonymous');
         }
 
         return 'anonymous';

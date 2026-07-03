@@ -76,6 +76,8 @@ export interface Reservation {
   /** Id of the logged-in user who created the booking, or null for
    *  anonymous bookings. Lets the SPA flag "my reservations". */
   createdById: string | null;
+  /** Internal member ID the booking maps to — admin-only (null otherwise). */
+  memberId?: string | null;
   /** ISO datetime, inclusive lower bound. */
   startsAt: string;
   /** ISO datetime, exclusive upper bound. */

@@ -80,6 +80,42 @@ class ReservationMemberLinkTest extends TestCase
         $this->assertSame('KVS-42', Reservation::find($r['id'])->memberId);
     }
 
+    public function test_admin_can_reassign_reservation_to_a_member(): void
+    {
+        $owner = User::create([
+            'name' => 'Nový vlastník', 'email' => 'owner@example.test',
+            'password' => 'password123', 'role' => UserRole::MEMBER, 'isActive' => true,
+            'memberId' => 'KVS-500',
+        ]);
+        $r = Reservation::create([
+            'resourceId' => $this->kayak->id, 'createdById' => null, 'memberId' => null,
+            'customerName' => 'X', 'startsAt' => '2030-09-01T09:00:00Z', 'endsAt' => '2030-09-01T12:00:00Z',
+        ]);
+
+        $this->actingAsAdmin();
+        $this->patchJson("/api/v1/reservations/{$r->id}", ['memberId' => 'KVS-500'])->assertOk();
+
+        $r->refresh();
+        $this->assertSame('KVS-500', $r->memberId);
+        $this->assertSame($owner->id, $r->createdById); // linked to the matching user
+    }
+
+    public function test_non_admin_cannot_reassign_reservation_owner(): void
+    {
+        $r = Reservation::create([
+            'resourceId' => $this->kayak->id, 'memberId' => 'KVS-1',
+            'customerName' => 'X', 'startsAt' => '2030-09-02T09:00:00Z', 'endsAt' => '2030-09-02T12:00:00Z',
+        ]);
+        $this->actingAsMember();
+        $this->patchJson("/api/v1/reservations/{$r->id}", ['memberId' => 'KVS-999', 'customerName' => 'Y'])
+            ->assertOk();
+
+        // customerName change applied, but memberId reassignment was ignored.
+        $r->refresh();
+        $this->assertSame('Y', $r->customerName);
+        $this->assertSame('KVS-1', $r->memberId);
+    }
+
     public function test_confirming_pending_member_with_id_backfills_their_reservations(): void
     {
         // A PENDING user who already made a booking (PENDING can create).

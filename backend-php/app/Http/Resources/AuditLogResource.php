@@ -13,6 +13,11 @@ class AuditLogResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Who made the change is admin-only; regular members see the changes
+        // but not the person behind them.
+        $viewer = $request->user('sanctum') ?? $request->user();
+        $isAdmin = $viewer instanceof \App\Models\User && $viewer->isAdmin();
+
         return [
             'id' => $this->id,
             'entityType' => $this->entityType?->value,
@@ -20,7 +25,7 @@ class AuditLogResource extends JsonResource
             'action' => $this->action?->value,
             'summary' => $this->summary,
             'changes' => $this->changes,
-            'actor' => $this->actor,
+            'actor' => $isAdmin ? $this->actor : null,
             'createdAt' => $this->createdAt?->toIso8601String(),
         ];
     }

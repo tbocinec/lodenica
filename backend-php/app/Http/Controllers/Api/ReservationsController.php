@@ -112,8 +112,15 @@ class ReservationsController extends Controller
 
     public function update(UpdateReservationRequest $request, string $id): ReservationResource
     {
+        $data = $request->validated();
+        // Reassigning ownership (memberId) is admin-only — strip it otherwise.
+        $user = $request->user('sanctum') ?? $request->user();
+        if (array_key_exists('memberId', $data) && !($user && $user->isAdmin())) {
+            unset($data['memberId']);
+        }
+
         return new ReservationResource(
-            $this->reservations->update($id, $request->validated()),
+            $this->reservations->update($id, $data),
         );
     }
 

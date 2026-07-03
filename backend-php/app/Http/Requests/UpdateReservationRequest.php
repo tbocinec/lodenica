@@ -23,6 +23,9 @@ class UpdateReservationRequest extends FormRequest
             'endsAt' => ['sometimes', 'date'],
             'note' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'status' => ['sometimes', new Enum(ReservationStatus::class)],
+            // Admin-only: reassign the reservation to a member (internal ID).
+            // Non-admins get this stripped in the controller.
+            'memberId' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
 }
