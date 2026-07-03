@@ -56,6 +56,18 @@ const error = ref<string | null>(null);
 const submitting = ref(false);
 const deleting = ref(false);
 
+// When the contact is a valid e-mail, offer a "write message" link that opens
+// the device's mail client (works on mobile + desktop) with a prefilled subject.
+const contactEmail = computed(() => {
+  const v = form.customerContact.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null;
+});
+const mailtoHref = computed(() => {
+  if (!contactEmail.value) return '';
+  const subject = `Rezervácia — ${props.resourceName ?? 'Lodenica KVŠ'}`;
+  return `mailto:${contactEmail.value}?subject=${encodeURIComponent(subject)}`;
+});
+
 // Admin: reassign ownership (member ID). Members list drives a datalist.
 const members = ref<Array<{ memberId: string; name: string }>>([]);
 const currentOwnerName = computed(
@@ -239,6 +251,13 @@ async function remove(): Promise<void> {
             prázdne, pôvodný kontakt zostane zachovaný; ak napíšeš
             nový, prepíše ten existujúci.
           </p>
+          <a
+            v-if="contactEmail"
+            :href="mailtoHref"
+            class="btn-secondary mt-2 inline-flex text-xs"
+          >
+            ✉️ Napísať e‑mail
+          </a>
         </div>
 
         <div>
