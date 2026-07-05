@@ -160,11 +160,22 @@ onMounted(load);
       :class="reservedNow ? 'bg-amber-50/60 ring-1 ring-amber-200' : 'bg-emerald-50/60 ring-1 ring-emerald-200'"
     >
       <template v-if="reservedNow">
-        <p class="text-sm font-semibold text-amber-800">⏰ Práve obsadené</p>
-        <p class="mt-1 text-sm text-amber-900">
-          {{ reservedNow.customerName ?? '** rezervácia' }} ·
-          {{ formatReservationRange(reservedNow.startsAt, reservedNow.endsAt) }}
-        </p>
+        <component
+          :is="auth.isMember ? 'button' : 'div'"
+          type="button"
+          class="w-full text-left"
+          :class="auth.isMember ? '-m-2 rounded-lg p-2 transition hover:bg-amber-100/60' : ''"
+          @click="auth.isMember && reservedNow && (editing = reservedNow)"
+        >
+          <p class="flex items-center gap-2 text-sm font-semibold text-amber-800">
+            ⏰ Práve obsadené
+            <span v-if="auth.isMember" aria-hidden="true" class="ml-auto text-amber-400">✏️</span>
+          </p>
+          <p class="mt-1 text-sm text-amber-900">
+            {{ reservedNow.customerName ?? '** rezervácia' }} ·
+            {{ formatReservationRange(reservedNow.startsAt, reservedNow.endsAt) }}
+          </p>
+        </component>
       </template>
       <template v-else>
         <p class="text-sm font-semibold text-emerald-800">
