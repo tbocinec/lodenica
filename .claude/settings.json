@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l app/Http/Requests/UpdateResourceRequest.php)",
+      "Bash(vendor/bin/phpunit --filter Resource)"
+    ]
+  }
+}

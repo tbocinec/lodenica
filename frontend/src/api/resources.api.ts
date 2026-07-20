@@ -23,7 +23,7 @@ export interface CreateResourceInput {
   isActive?: boolean;
 }
 
-export type UpdateResourceInput = Partial<Omit<CreateResourceInput, 'identifier' | 'type'>>;
+export type UpdateResourceInput = Partial<CreateResourceInput>;
 
 export const resourcesApi = {
   async list(params: ListResourcesParams = {}): Promise<Paginated<Resource>> {

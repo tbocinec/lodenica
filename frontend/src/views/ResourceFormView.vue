@@ -100,9 +100,7 @@ async function submit() {
       imageUrl: form.imageUrl || undefined,
     };
     if (id) {
-      const { identifier: _id, type: _t, ...rest } = payload;
-      void _id; void _t;
-      await resourcesApi.update(id, rest);
+      await resourcesApi.update(id, payload);
     } else {
       await resourcesApi.create(payload);
     }
@@ -127,18 +125,20 @@ onMounted(load);
         id="identifier"
         v-model="form.identifier"
         class="input mt-1"
-        :disabled="!!id"
         required
         maxlength="50"
         pattern="^[A-Za-z0-9\-_.]+$"
         title="Iba písmená, číslice, -, _, ."
       />
-      <p class="mt-1 text-xs text-slate-500">Napr. K-001, C-001, T-001.</p>
+      <p class="mt-1 text-xs text-slate-500">
+        Napr. K-001, C-001, T-001.
+        <span v-if="id" class="text-amber-600">Pri zmene identifikátora pretlač QR kód/štítok lode.</span>
+      </p>
     </div>
 
     <div>
       <label class="label" for="type">Typ *</label>
-      <select id="type" v-model="form.type" class="input mt-1" :disabled="!!id" required>
+      <select id="type" v-model="form.type" class="input mt-1" required>
         <option v-for="t in RESOURCE_TYPE_VALUES" :key="t" :value="t">
           {{ RESOURCE_TYPE_LABEL[t] }}
         </option>

@@ -87,6 +87,34 @@ class ResourcesApiTest extends TestCase
             ->assertJsonPath('name', 'New');
     }
 
+    public function test_update_can_change_identifier_and_type(): void
+    {
+        $this->actingAsAdmin();
+        $r = Resource::create([
+            'identifier' => 'K-OLD', 'type' => ResourceType::WW_KAYAK, 'name' => 'X',
+        ]);
+        $this->patchJson("/api/v1/resources/{$r->id}", [
+            'identifier' => 'C-NEW', 'type' => 'CANOE',
+        ])->assertOk()
+            ->assertJsonPath('identifier', 'C-NEW')
+            ->assertJsonPath('type', 'CANOE');
+    }
+
+    public function test_update_identifier_must_stay_unique(): void
+    {
+        $this->actingAsAdmin();
+        Resource::create(['identifier' => 'K-DUP', 'type' => ResourceType::WW_KAYAK, 'name' => 'A']);
+        $r = Resource::create(['identifier' => 'K-ME', 'type' => ResourceType::WW_KAYAK, 'name' => 'B']);
+
+        $this->patchJson("/api/v1/resources/{$r->id}", ['identifier' => 'K-DUP'])
+            ->assertStatus(400)
+            ->assertJsonPath('code', 'VALIDATION_ERROR');
+
+        // Keeping its own identifier is fine (ignore-self).
+        $this->patchJson("/api/v1/resources/{$r->id}", ['identifier' => 'K-ME', 'name' => 'B2'])
+            ->assertOk();
+    }
+
     public function test_deactivate_and_activate(): void
     {
         $this->actingAsAdmin();
