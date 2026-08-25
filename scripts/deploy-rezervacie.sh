@@ -204,6 +204,19 @@ if (( DO_BUILD )); then
         --exclude='deploy/' \
         "$REPO_ROOT/backend-php/" "$LARAVEL_STAGE/"
 
+    # Laravel's runtime directories must EXIST on the server. The excludes
+    # above strip them down to EMPTY directories, and lftp's mirror does not
+    # recreate empty ones — so production came up with no
+    # storage/framework/views at all. That took the entire mail system down
+    # and nothing else: Blade is only used by e-mail templates here, and
+    # Laravel's stock view config realpath()s the missing directory into
+    # `false` (see backend-php/config/view.php). Drop a .gitignore in each so
+    # they are never empty and always make the trip.
+    for d in framework/views framework/cache/data framework/sessions logs app/public; do
+        mkdir -p "$LARAVEL_STAGE/storage/$d"
+        printf '*\n!.gitignore\n' > "$LARAVEL_STAGE/storage/$d/.gitignore"
+    done
+
     log "composer install --no-dev --optimize-autoloader…"
     ( cd "$LARAVEL_STAGE" && \
       composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist 2>&1 \
@@ -221,6 +234,19 @@ if (( DO_BUILD )); then
     fi
 
     log "Writing .env (production values from .deploy-secrets)…"
+    # Pick the mailer. An EMPTY MAIL_MAILER is the dangerous case: Laravel
+    # resolves it to no mailer at all and every send throws instantly —
+    # which reaches members as a bare 500 on "forgot password", with
+    # nothing in the UI to explain it. Fall back to `log` instead, so a
+    # missing password degrades to "mail is written to the log" rather
+    # than "the app breaks".
+    MAIL_MAILER_EFFECTIVE="${MAIL_PASSWORD:+smtp}"
+    MAIL_MAILER_EFFECTIVE="${MAIL_MAILER_EFFECTIVE:-log}"
+    if [[ "$MAIL_MAILER_EFFECTIVE" == "log" ]]; then
+        warn "MAIL_PASSWORD is empty — deploying with MAIL_MAILER=log."
+        warn "No e-mail will actually be delivered until you set it in the secrets file."
+    fi
+
     # printf is literal — special chars (`+`, `]`, `|`, `\`) in passwords
     # survive unescaped, which is what Laravel's dotenv parser wants when
     # the value has no surrounding double quotes.
@@ -258,7 +284,7 @@ if (( DO_BUILD )); then
         printf '\n'
         # Transactional email (Websupport SMTP). Password comes from
         # .deploy-secrets (MAIL_PASSWORD); host/port/from are fixed here.
-        printf 'MAIL_MAILER=%s\n' "${MAIL_PASSWORD:+smtp}"
+        printf 'MAIL_MAILER=%s\n' "$MAIL_MAILER_EFFECTIVE"
         printf 'MAIL_SCHEME=smtps\n'
         printf 'MAIL_HOST=%s\n' "${MAIL_HOST:-smtp.m1.websupport.sk}"
         printf 'MAIL_PORT=%s\n' "${MAIL_PORT:-465}"
