@@ -51,6 +51,7 @@ const navItems = computed<NavItem[]>(() => {
     { to: '/admin/usage', label: 'Štatistiky', icon: '📈', requires: 'admin' },
     { to: '/admin/qr-codes', label: 'QR kódy lodí', icon: '🔳', requires: 'admin' },
     { to: '/admin/data', label: 'Správa dát', icon: '💾', requires: 'admin' },
+    { to: '/admin/diagnostics', label: 'Diagnostika e-mailov', icon: '✉️', requires: 'admin' },
   ];
   return items.filter(visible);
 });

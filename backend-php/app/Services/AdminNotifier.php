@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Domain\Enums\MailNotification;
 use App\Mail\PendingMemberNotificationMail;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Operational notifications to the club's admin address. Failures are
@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Mail;
  */
 class AdminNotifier
 {
+    public function __construct(private readonly NotificationMailer $mailer) {}
+
     public function pendingMemberAwaitingApproval(User $user): void
     {
         try {
@@ -22,7 +24,9 @@ class AdminNotifier
                 return;
             }
             $adminUrl = rtrim((string) config('app.url'), '/').'/admin/users';
-            Mail::to($to)->send(
+            $this->mailer->send(
+                MailNotification::PENDING_MEMBER_ADMIN,
+                $to,
                 new PendingMemberNotificationMail($user->name, $user->email, $adminUrl),
             );
         } catch (\Throwable $e) {

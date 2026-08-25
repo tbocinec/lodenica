@@ -16,6 +16,8 @@ use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
 use App\Http\Controllers\Api\ResourcesController;
 use App\Http\Controllers\Api\UsageController;
+use App\Http\Controllers\Api\MailDiagnosticsController;
+use App\Http\Controllers\Api\MailNotificationsController;
 use App\Http\Controllers\Api\UsageStatsController;
 use App\Http\Controllers\Api\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -189,6 +191,16 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::patch('faq', [FaqController::class, 'update']);
 
     Route::get('admin/usage-stats', [UsageStatsController::class, 'show']);
+
+    // Mail diagnostics + the per-notification on/off switches. The test
+    // send is throttled so the club mailbox can't be used as a relay by a
+    // stuck browser tab.
+    Route::get('admin/mail/config', [MailDiagnosticsController::class, 'config']);
+    Route::post('admin/mail/test', [MailDiagnosticsController::class, 'test'])
+        ->middleware('throttle:5,1');
+    Route::get('admin/mail/log', [MailDiagnosticsController::class, 'log']);
+    Route::get('admin/mail/notifications', [MailNotificationsController::class, 'index']);
+    Route::patch('admin/mail/notifications', [MailNotificationsController::class, 'update']);
 
     Route::get('admin/export/database.json', [AdminDataController::class, 'exportDatabase']);
     Route::get('admin/export/reservations.csv', [AdminDataController::class, 'exportReservationsCsv']);

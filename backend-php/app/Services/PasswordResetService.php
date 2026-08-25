@@ -2,13 +2,13 @@
 
 namespace App\Services;
 
+use App\Domain\Enums\MailNotification;
 use App\Exceptions\InvalidResetTokenException;
 use App\Mail\AccountInvitationMail;
 use App\Mail\PasswordResetMail;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
@@ -26,6 +26,8 @@ class PasswordResetService
     public const RESET_TTL_MINUTES = 60;
     public const INVITE_TTL_DAYS = 30;
 
+    public function __construct(private readonly NotificationMailer $mailer) {}
+
     /**
      * Issue + email a reset link. No-op (silently) when the email is
      * unknown or the account is inactive — callers must NOT reveal which,
@@ -41,7 +43,9 @@ class PasswordResetService
         $plain = $this->issueToken($user->email, self::RESET_TTL_MINUTES * 60);
         $url = $this->buildUrl($user->email, $plain, invite: false);
 
-        Mail::to($user->email)->send(
+        $this->mailer->send(
+            MailNotification::PASSWORD_RESET,
+            $user->email,
             new PasswordResetMail($user->email, $url, self::RESET_TTL_MINUTES),
         );
     }
@@ -55,7 +59,9 @@ class PasswordResetService
         $plain = $this->issueToken($user->email, self::INVITE_TTL_DAYS * 86400);
         $url = $this->buildUrl($user->email, $plain, invite: true);
 
-        Mail::to($user->email)->send(
+        $this->mailer->send(
+            MailNotification::ACCOUNT_INVITATION,
+            $user->email,
             new AccountInvitationMail($user->email, $user->name, $url, self::INVITE_TTL_DAYS),
         );
     }

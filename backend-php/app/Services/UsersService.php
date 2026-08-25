@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Domain\Enums\AuditEntityType;
+use App\Domain\Enums\MailNotification;
 use App\Domain\Enums\UserRole;
 use App\Exceptions\ForbiddenException;
 use App\Exceptions\NotFoundDomainException;
@@ -11,7 +12,10 @@ use App\Models\User;
 
 class UsersService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly NotificationMailer $mailer,
+    ) {}
 
     public function create(array $input): User
     {
@@ -167,7 +171,9 @@ class UsersService
         // not undo the confirmation — log and move on.
         try {
             $loginUrl = rtrim((string) config('app.url'), '/').'/login';
-            \Illuminate\Support\Facades\Mail::to($user->email)->send(
+            $this->mailer->send(
+                MailNotification::MEMBERSHIP_APPROVED,
+                $user->email,
                 new \App\Mail\MembershipApprovedMail($user->name, $loginUrl),
             );
         } catch (\Throwable $e) {
