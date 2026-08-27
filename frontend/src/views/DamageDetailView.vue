@@ -10,6 +10,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { damagesApi } from '@/api/damages.api';
 import { DamageSeverity, DamageStatus, type Damage } from '@/api/types';
+import DamageComments from '@/components/ui/DamageComments.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Spinner from '@/components/ui/Spinner.vue';
@@ -18,6 +19,7 @@ import {
   DAMAGE_STATUS_LABEL,
   RESOURCE_TYPE_LABEL,
 } from '@/i18n/labels';
+import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
 import { formatDateTime } from '@/utils/format';
 
@@ -32,11 +34,17 @@ const error = ref<string | null>(null);
 const saving = ref(false);
 const busy = ref(false);
 
+const auth = useAuthStore();
+/** Personal names and the comment thread are confirmed-members-only. */
+const isMember = computed(() => auth.user?.role === 'MEMBER' || auth.user?.role === 'ADMIN');
+
 const form = reactive({
   description: '',
   severity: DamageSeverity.MINOR as DamageSeverity,
   status: DamageStatus.REPORTED as DamageStatus,
   note: '',
+  assigneeName: '',
+  reportedByName: '',
 });
 
 const photoInput = ref<HTMLInputElement | null>(null);
@@ -56,6 +64,8 @@ function fill(d: Damage): void {
   form.severity = d.severity;
   form.status = d.status;
   form.note = d.note ?? '';
+  form.assigneeName = d.assigneeName ?? '';
+  form.reportedByName = d.reportedByName ?? '';
 }
 
 async function load(): Promise<void> {
@@ -80,6 +90,14 @@ async function save(): Promise<void> {
       severity: form.severity,
       status: form.status,
       note: form.note || undefined,
+      // Only members can see these, so only members may write them —
+      // otherwise a non-member's save would blank them out.
+      ...(isMember.value
+        ? {
+            assigneeName: form.assigneeName.trim() || null,
+            reportedByName: form.reportedByName.trim() || null,
+          }
+        : {}),
     });
     fill(updated);
   } catch (e) {
@@ -251,7 +269,7 @@ onMounted(load);
         <form class="card-padded grid gap-3" @submit.prevent="save">
           <div>
             <label class="label" for="dd-desc">Popis *</label>
-            <textarea id="dd-desc" v-model="form.description" class="input mt-1" rows="3" required maxlength="1000"></textarea>
+            <textarea id="dd-desc" v-model="form.description" class="input mt-1" rows="8" required maxlength="1000"></textarea>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
@@ -273,7 +291,34 @@ onMounted(load);
           </div>
           <div>
             <label class="label" for="dd-note">Poznámka</label>
-            <textarea id="dd-note" v-model="form.note" class="input mt-1" rows="2" maxlength="1000"></textarea>
+            <textarea id="dd-note" v-model="form.note" class="input mt-1" rows="4" maxlength="1000"></textarea>
+          </div>
+
+          <!-- Personal names: the API only sends these to confirmed
+               members, so there is nothing to edit for anyone else. -->
+          <div v-if="isMember" class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="label" for="dd-assignee">Riešiteľ</label>
+              <input
+                id="dd-assignee"
+                v-model="form.assigneeName"
+                type="text"
+                class="input mt-1"
+                maxlength="120"
+                placeholder="Kto opravu rieši"
+              />
+            </div>
+            <div>
+              <label class="label" for="dd-reporter">Nahlásil</label>
+              <input
+                id="dd-reporter"
+                v-model="form.reportedByName"
+                type="text"
+                class="input mt-1"
+                maxlength="120"
+                placeholder="Kto poškodenie nahlásil"
+              />
+            </div>
           </div>
 
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -287,6 +332,17 @@ onMounted(load);
         </form>
       </div>
     </div>
+
+    <!-- Discussion. Members only, reading included — the server gates it;
+         for everyone else the section would be an empty box, so hide it. -->
+    <DamageComments
+      v-if="isMember"
+      class="mt-6"
+      :damage-id="damage.id"
+      :can-comment="isMember"
+      :current-user-id="auth.user?.id ?? null"
+      :is-admin="auth.isAdmin"
+    />
 
     <!-- Lightbox -->
     <div

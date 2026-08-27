@@ -22,7 +22,14 @@ class DamagesController extends Controller
 
     public function store(CreateDamageRequest $request): JsonResponse
     {
-        $damage = $this->damages->create($request->validated());
+        // Public route, so the default guard never runs — resolve the token
+        // explicitly to sign the report with the member's name.
+        $user = $request->user('sanctum') ?? $request->user();
+
+        $damage = $this->damages->create(array_merge(
+            $request->validated(),
+            ['reportedByFallback' => $user?->name],
+        ));
 
         return (new DamageResource($damage))
             ->response()

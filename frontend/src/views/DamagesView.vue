@@ -191,7 +191,7 @@ onMounted(load);
           id="ddesc"
           v-model="form.description"
           class="input mt-1"
-          rows="3"
+          rows="8"
           required
           maxlength="1000"
         ></textarea>
@@ -202,7 +202,7 @@ onMounted(load);
           id="dnote"
           v-model="form.note"
           class="input mt-1"
-          rows="2"
+          rows="4"
           maxlength="1000"
         ></textarea>
       </div>

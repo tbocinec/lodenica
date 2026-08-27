@@ -21,6 +21,8 @@ class UpdateDamageRequest extends FormRequest
             'severity' => ['sometimes', new Enum(DamageSeverity::class)],
             'status' => ['sometimes', new Enum(DamageStatus::class)],
             'note' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'reportedByName' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'assigneeName' => ['sometimes', 'nullable', 'string', 'max:120'],
         ];
     }
 }

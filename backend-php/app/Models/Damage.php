@@ -7,6 +7,7 @@ use App\Domain\Enums\DamageStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Damage extends Model
 {
@@ -35,5 +36,10 @@ class Damage extends Model
     public function resource(): BelongsTo
     {
         return $this->belongsTo(Resource::class, 'resourceId');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(DamageComment::class, 'damageId');
     }
 }

@@ -67,6 +67,8 @@ final class AuditSnapshot
             'severity' => $d->severity?->value ?? $d->severity,
             'status' => $d->status?->value ?? $d->status,
             'note' => $d->note,
+            'reportedByName' => $d->reportedByName,
+            'assigneeName' => $d->assigneeName,
             'fixedAt' => self::iso($d->fixedAt ?? null),
         ];
     }

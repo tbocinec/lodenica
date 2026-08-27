@@ -1,5 +1,5 @@
 import { http } from './http';
-import type { Damage, DamageSeverity, DamageStatus, Paginated } from './types';
+import type { Damage, DamageComment, DamageSeverity, DamageStatus, Paginated } from './types';
 
 export interface ListDamagesParams {
   page?: number;
@@ -13,6 +13,9 @@ export interface CreateDamageInput {
   description: string;
   severity: DamageSeverity;
   note?: string;
+  /** Defaults server-side to the signed-in member's name when omitted. */
+  reportedByName?: string | null;
+  assigneeName?: string | null;
 }
 
 export type UpdateDamageInput = Partial<{
@@ -20,6 +23,8 @@ export type UpdateDamageInput = Partial<{
   severity: DamageSeverity;
   status: DamageStatus;
   note: string;
+  reportedByName: string | null;
+  assigneeName: string | null;
 }>;
 
 export const damagesApi = {
@@ -52,5 +57,21 @@ export const damagesApi = {
   },
   async removePhoto(id: string): Promise<void> {
     await http.delete(`/damages/${id}/photo`);
+  },
+
+  /* ── Comments (confirmed members only, reading included) ───────────── */
+
+  async listComments(damageId: string): Promise<DamageComment[]> {
+    const { data } = await http.get<{ items: DamageComment[] }>(
+      `/damages/${damageId}/comments`,
+    );
+    return data.items;
+  },
+  async addComment(damageId: string, body: string): Promise<DamageComment> {
+    const { data } = await http.post<DamageComment>(`/damages/${damageId}/comments`, { body });
+    return data;
+  },
+  async removeComment(damageId: string, commentId: string): Promise<void> {
+    await http.delete(`/damages/${damageId}/comments/${commentId}`);
   },
 };

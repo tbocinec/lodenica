@@ -129,10 +129,25 @@ export interface Damage {
   reportedAt: string;
   fixedAt: string | null;
   note: string | null;
+  /** Who reported it. Personal name — null for anonymous/PENDING callers. */
+  reportedByName: string | null;
+  /** Who is fixing it. Personal name — null for anonymous/PENDING callers. */
+  assigneeName: string | null;
   /** Backend-served URL of the attached photo, or null. */
   photoUrl: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** One message in a damage's discussion thread. Confirmed members only. */
+export interface DamageComment {
+  id: string;
+  damageId: string;
+  /** Null once the account is gone; authorName still holds the name. */
+  authorId: string | null;
+  authorName: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface Paginated<T> {

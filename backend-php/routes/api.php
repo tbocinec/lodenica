@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminDataController;
 use App\Http\Controllers\Api\AuditLogsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AvailabilityController;
+use App\Http\Controllers\Api\DamageCommentsController;
 use App\Http\Controllers\Api\DamagesController;
 use App\Http\Controllers\Api\MemberRosterController;
 use App\Http\Controllers\Api\EventsController;
@@ -131,6 +132,12 @@ Route::middleware('auth:sanctum')->group(function () {
 */
 
 Route::middleware(['auth:sanctum', 'member'])->group(function () {
+    // Damage comments — confirmed members only to READ as well as write,
+    // because every comment is signed with its author's name.
+    Route::get('damages/{id}/comments', [DamageCommentsController::class, 'index']);
+    Route::post('damages/{id}/comments', [DamageCommentsController::class, 'store']);
+    Route::delete('damages/{id}/comments/{commentId}', [DamageCommentsController::class, 'destroy']);
+
     Route::patch('reservations/{id}', [ReservationsController::class, 'update']);
     Route::delete('reservations/{id}', [ReservationsController::class, 'destroy']);
     Route::patch('reservations/{id}/cancel', [ReservationsController::class, 'cancel']);

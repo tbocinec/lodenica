@@ -24,6 +24,11 @@ class DamagesService
             'description' => $cmd['description'],
             'severity' => $cmd['severity'],
             'note' => $cmd['note'] ?? null,
+            // Attribute the report to the signed-in member unless the
+            // caller named someone else. Anonymous reports stay unsigned —
+            // the damage form is deliberately open to everyone.
+            'reportedByName' => $cmd['reportedByName'] ?? $cmd['reportedByFallback'] ?? null,
+            'assigneeName' => $cmd['assigneeName'] ?? null,
             'status' => DamageStatus::REPORTED,
         ]);
 
@@ -44,6 +49,7 @@ class DamagesService
 
         $updates = array_intersect_key($cmd, array_flip([
             'description', 'severity', 'status', 'note',
+            'reportedByName', 'assigneeName',
         ]));
 
         $newStatus = $cmd['status'] ?? null;
