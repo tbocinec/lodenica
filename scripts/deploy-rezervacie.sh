@@ -194,9 +194,7 @@ if (( DO_BUILD )); then
         --exclude='storage/framework/sessions/*' \
         --exclude='storage/framework/views/*' \
         --exclude='storage/framework/testing/' \
-        --exclude='storage/app/damages/*' \
-        --exclude='storage/app/expeditions/*' \
-        --exclude='storage/app/resources/*' \
+        --exclude='storage/app/private/*' \
         --exclude='storage/app/public/*' \
         --exclude='bootstrap/cache/*.php' \
         --exclude='tests/' \
@@ -212,7 +210,7 @@ if (( DO_BUILD )); then
     # Laravel's stock view config realpath()s the missing directory into
     # `false` (see backend-php/config/view.php). Drop a .gitignore in each so
     # they are never empty and always make the trip.
-    for d in framework/views framework/cache/data framework/sessions logs app/public; do
+    for d in framework/views framework/cache/data framework/sessions logs app/private app/public; do
         mkdir -p "$LARAVEL_STAGE/storage/$d"
         printf '*\n!.gitignore\n' > "$LARAVEL_STAGE/storage/$d/.gitignore"
     done
@@ -359,6 +357,15 @@ if (( DO_UPLOAD )); then
     #   set ssl:verify-certificate no  — defensive; ssh has its own keys
     #   --exclude-glob 'storage/logs/*' — leave server-side logs alone
     # Errors abort the whole script via `exit 1` in lftp.
+    #
+    # The exclude-globs below are LOAD-BEARING, not tidiness: `--delete`
+    # makes the server match the stage, so anything uploaded by users and
+    # absent from the stage gets erased. Uploaded photos (expeditions,
+    # damages, boats) all live on the `local` disk, whose root is
+    # storage/app/private — NOT storage/app/<feature>, which is where this
+    # list used to point. That mismatch silently deleted every photo on
+    # every deploy. tests/Feature/DeployProtectsUploadedFilesTest.php ties
+    # these paths to the disk config so they can't drift again.
     lftp -u "$DEPLOY_SFTP_USER,$DEPLOY_SFTP_PASSWORD" -p "$DEPLOY_SFTP_PORT" \
         "sftp://$DEPLOY_SFTP_HOST" <<LFTP
 set sftp:auto-confirm yes
@@ -380,9 +387,7 @@ mirror -R --delete --verbose=1 \
     --exclude-glob 'storage/framework/cache/data/*' \
     --exclude-glob 'storage/framework/sessions/*' \
     --exclude-glob 'storage/framework/views/*' \
-    --exclude-glob 'storage/app/damages/*' \
-    --exclude-glob 'storage/app/expeditions/*' \
-    --exclude-glob 'storage/app/resources/*' \
+    --exclude-glob 'storage/app/private/*' \
     --exclude-glob 'storage/app/public/*' \
     --exclude-glob 'bootstrap/cache/*.php' \
     $LARAVEL_STAGE/ $DEPLOY_LARAVEL_APP_REMOTE/
