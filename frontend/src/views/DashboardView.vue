@@ -293,7 +293,12 @@ onMounted(() => {
       </div>
 
       <div ref="damagesRef" class="card-padded scroll-mt-24 lg:col-span-2">
-        <h2 class="mb-3 text-lg font-semibold">Aktuálne poškodenia</h2>
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 class="text-lg font-semibold">Aktuálne poškodenia</h2>
+          <RouterLink to="/damages" class="text-sm font-medium text-brand-700 hover:underline">
+            Všetky poškodenia →
+          </RouterLink>
+        </div>
         <EmptyState v-if="snapshot.damaged.length === 0" title="Žiadne aktuálne poškodenia" />
         <ul v-else class="divide-y divide-slate-100">
           <li v-for="d in snapshot.damaged" :key="d.damageId">
@@ -303,6 +308,7 @@ onMounted(() => {
             >
               <div class="flex items-center gap-2">
                 <span class="pill-amber">{{ DAMAGE_STATUS_LABEL[d.status] }}</span>
+                <span class="font-mono text-xs text-slate-500">{{ d.resource.identifier }}</span>
                 <span class="text-sm font-medium text-slate-800">
                   {{ RESOURCE_TYPE_LABEL[d.resource.type] }} · {{ d.resource.name }}
                 </span>

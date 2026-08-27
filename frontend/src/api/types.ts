@@ -61,8 +61,20 @@ export interface Resource {
    *  imageUrl (a manually-entered external URL). */
   photoUrl: string | null;
   isActive: boolean;
+  /** Worst damage still open on this boat (reported or in repair), or null. */
+  openDamage: OpenDamage | null;
+  openDamageCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Damage summary carried inline on a Resource — enough to warn and link. */
+export interface OpenDamage {
+  id: string;
+  status: DamageStatus;
+  severity: DamageSeverity;
+  description: string;
+  reportedAt: string | null;
 }
 
 export interface Reservation {

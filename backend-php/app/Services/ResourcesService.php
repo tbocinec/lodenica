@@ -86,6 +86,10 @@ class ResourcesService
         $total = (clone $query)->count();
 
         $items = $query
+            // Eager-loaded so ResourceResource can report the worst open
+            // damage without one query per row — the picker pulls the
+            // whole inventory in a single page.
+            ->with('openDamages')
             ->orderBy('type')
             ->orderBy('identifier')
             ->skip($options['skip'] ?? 0)

@@ -32,8 +32,32 @@ class ResourceResource extends JsonResource
                 ? "/api/v1/resources/{$this->id}/photo?v=".(int) ($this->updatedAt?->getTimestamp() ?? 0)
                 : null,
             'isActive' => (bool) $this->isActive,
+            // Worst open damage, inline. Every screen that already holds
+            // the resources store (picker, timeline, reservation form) can
+            // warn about a damaged boat without fetching damages itself.
+            'openDamage' => $this->presentOpenDamage(),
+            'openDamageCount' => $this->openDamages->count(),
             'createdAt' => $this->createdAt?->toIso8601String(),
             'updatedAt' => $this->updatedAt?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function presentOpenDamage(): ?array
+    {
+        $damage = $this->resource->worstOpenDamage();
+        if ($damage === null) {
+            return null;
+        }
+
+        return [
+            'id' => $damage->id,
+            'status' => $damage->status->value,
+            'severity' => $damage->severity->value,
+            'description' => $damage->description,
+            'reportedAt' => $damage->reportedAt?->toIso8601String(),
         ];
     }
 }

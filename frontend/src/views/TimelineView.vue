@@ -26,6 +26,7 @@ import DateInput from '@/components/ui/DateInput.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
+import DamageBadge from '@/components/ui/DamageBadge.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { RESOURCE_TYPE_LABEL_PLURAL } from '@/i18n/labels';
@@ -508,13 +509,19 @@ async function onReservationDeleted(): Promise<void> {
           class="grid border-b border-slate-100"
           :style="{ gridTemplateColumns: 'var(--resource-col) 1fr' }"
         >
-          <!-- Resource label cell (sticky on horizontal scroll) -->
-          <div class="sticky left-0 z-10 flex flex-col gap-0.5 border-r border-slate-200 bg-white px-3 py-2">
+          <!-- Resource label cell (sticky on horizontal scroll). A damaged
+               boat is tinted here so it reads as damaged across the whole
+               row, not just where the badge sits. -->
+          <div
+            class="sticky left-0 z-10 flex flex-col gap-0.5 border-r border-slate-200 px-3 py-2"
+            :class="r.openDamage ? 'bg-amber-50' : 'bg-white'"
+          >
             <div class="flex items-center gap-2">
               <ResourceTypeBadge :type="r.type" />
               <span class="font-mono text-[11px] text-slate-500">{{ r.identifier }}</span>
             </div>
             <span class="truncate text-sm font-medium text-slate-800" :title="r.name">{{ r.name }}</span>
+            <DamageBadge v-if="r.openDamage" :damage="r.openDamage" link-to-detail />
           </div>
 
           <!-- Cells area: explicit block-formatting container with fixed height

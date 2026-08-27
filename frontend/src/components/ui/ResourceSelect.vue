@@ -14,6 +14,18 @@ import { RESOURCE_TYPE_LABEL } from '@/i18n/labels';
 import { useResourcesStore } from '@/stores/resources.store';
 
 import ColorDot from './ColorDot.vue';
+import DamageBadge from './DamageBadge.vue';
+
+/**
+ * Tint for a damaged option, by severity. Deliberately lighter than the
+ * badge itself — the row has to stay readable, the badge does the shouting.
+ */
+function damageTint(severity: string | undefined): string {
+  if (severity === 'CRITICAL') return 'bg-rose-50 hover:bg-rose-100';
+  if (severity === 'MODERATE') return 'bg-amber-50 hover:bg-amber-100';
+  if (severity === 'MINOR') return 'bg-slate-50 hover:bg-slate-100';
+  return 'hover:bg-brand-50';
+}
 
 const props = withDefaults(
   defineProps<{ modelValue: string; placeholder?: string }>(),
@@ -82,13 +94,19 @@ function onBlur(): void {
     <!-- Chosen resource chip -->
     <div
       v-if="selected && !open"
-      class="flex items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2"
+      class="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
+      :class="
+        selected.openDamage
+          ? 'border-amber-300 bg-amber-50/60'
+          : 'border-slate-300 bg-white'
+      "
     >
-      <span class="flex min-w-0 items-center gap-2 text-sm">
+      <span class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
         <span aria-hidden="true">{{ TYPE_ICON[selected.type] ?? '📦' }}</span>
         <span class="font-medium text-slate-900">{{ selected.identifier }}</span>
         <span class="truncate text-slate-500">{{ selected.name }}</span>
         <ColorDot v-if="selected.color" :color="selected.color" :size="11" />
+        <DamageBadge v-if="selected.openDamage" :damage="selected.openDamage" link-to-detail />
       </span>
       <button
         type="button"
@@ -123,7 +141,8 @@ function onBlur(): void {
         <li v-for="r in results" :key="r.id">
           <button
             type="button"
-            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-brand-50"
+            class="flex w-full flex-wrap items-center gap-2 px-3 py-2 text-left text-sm"
+            :class="damageTint(r.openDamage?.severity)"
             @mousedown.prevent="pick(r.id)"
           >
             <span aria-hidden="true">{{ TYPE_ICON[r.type] ?? '📦' }}</span>
@@ -133,6 +152,7 @@ function onBlur(): void {
               {{ RESOURCE_TYPE_LABEL[r.type] }}
               <ColorDot v-if="r.color" :color="r.color" :size="10" />
             </span>
+            <DamageBadge v-if="r.openDamage" :damage="r.openDamage" class="basis-full" />
           </button>
         </li>
       </ul>

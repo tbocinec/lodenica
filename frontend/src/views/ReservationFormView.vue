@@ -11,6 +11,7 @@ import {
 import { ResourceType, type Event, type Reservation } from '@/api/types';
 import AvailabilityHints from '@/components/ui/AvailabilityHints.vue';
 import ColorDot from '@/components/ui/ColorDot.vue';
+import DamageBadge from '@/components/ui/DamageBadge.vue';
 import DateInput from '@/components/ui/DateInput.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -560,26 +561,55 @@ onMounted(async () => {
       <!-- Picked state — compact summary + change buttons. -->
       <div
         v-if="selectedResource"
-        class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3"
+        class="rounded-lg border px-4 py-3"
+        :class="
+          selectedResource.openDamage
+            ? 'border-amber-300 bg-amber-50'
+            : 'border-emerald-200 bg-emerald-50/60'
+        "
       >
-        <div class="flex items-center gap-3">
-          <span class="text-2xl" aria-hidden="true">{{ TYPE_ICON[selectedResource.type] ?? '📦' }}</span>
-          <div>
-            <p class="text-xs uppercase tracking-wide text-emerald-700">
-              {{ RESOURCE_TYPE_LABEL[selectedResource.type] }}
-            </p>
-            <p class="font-semibold text-emerald-900">
-              {{ selectedResource.identifier }} · {{ selectedResource.name }}
-            </p>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl" aria-hidden="true">{{ TYPE_ICON[selectedResource.type] ?? '📦' }}</span>
+            <div>
+              <p
+                class="text-xs uppercase tracking-wide"
+                :class="selectedResource.openDamage ? 'text-amber-700' : 'text-emerald-700'"
+              >
+                {{ RESOURCE_TYPE_LABEL[selectedResource.type] }}
+              </p>
+              <p
+                class="font-semibold"
+                :class="selectedResource.openDamage ? 'text-amber-900' : 'text-emerald-900'"
+              >
+                {{ selectedResource.identifier }} · {{ selectedResource.name }}
+              </p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="btn-secondary text-xs" @click="changeResource">
+              Iný kus
+            </button>
+            <button type="button" class="btn-secondary text-xs" @click="changeType">
+              Iný typ
+            </button>
           </div>
         </div>
-        <div class="flex gap-2">
-          <button type="button" class="btn-secondary text-xs" @click="changeResource">
-            Iný kus
-          </button>
-          <button type="button" class="btn-secondary text-xs" @click="changeType">
-            Iný typ
-          </button>
+
+        <!-- Damage is a warning, not a block: the booking still goes
+             through, but nobody should reach the water surprised. -->
+        <div
+          v-if="selectedResource.openDamage"
+          class="mt-3 border-t border-amber-200 pt-3 text-sm text-amber-900"
+        >
+          <p class="mb-1 font-medium">Táto loď je aktuálne poškodená.</p>
+          <p class="mb-2">{{ selectedResource.openDamage.description }}</p>
+          <RouterLink
+            :to="`/damages/${selectedResource.openDamage.id}`"
+            class="inline-flex items-center gap-1 text-sm font-medium text-amber-800 hover:underline"
+          >
+            Detail poškodenia →
+          </RouterLink>
         </div>
       </div>
 
@@ -687,7 +717,12 @@ onMounted(async () => {
             v-for="r in filteredResourcesInPickedType"
             :key="r.id"
             type="button"
-            class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-brand-400 hover:bg-brand-50 hover:shadow-sm"
+            class="flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left transition hover:shadow-sm"
+            :class="
+              r.openDamage
+                ? 'border-amber-300 bg-amber-50 hover:border-amber-400 hover:bg-amber-100'
+                : 'border-slate-200 bg-white hover:border-brand-400 hover:bg-brand-50'
+            "
             @click="pickResource(r.id)"
           >
             <div class="min-w-0">
@@ -698,6 +733,7 @@ onMounted(async () => {
                 <span v-if="r.seats && r.color">·</span>
                 <ColorDot v-if="r.color" :color="r.color" :size="11" />
               </p>
+              <DamageBadge v-if="r.openDamage" :damage="r.openDamage" class="mt-1" />
             </div>
             <span aria-hidden="true" class="text-slate-300">›</span>
           </button>
