@@ -4,8 +4,10 @@ namespace Tests\Feature\Api;
 
 use App\Domain\Enums\ReservationStatus;
 use App\Domain\Enums\ResourceType;
+use App\Domain\Enums\UserRole;
 use App\Models\Reservation;
 use App\Models\Resource;
+use App\Models\User;
 use App\Services\ReservationsService;
 use App\Services\ResourcesService;
 use Carbon\CarbonImmutable;
@@ -209,6 +211,24 @@ class AdminDataApiTest extends TestCase
         $this->assertSame($beforeResources, Resource::count());
         $this->assertSame($beforeReservations, Reservation::count());
         $this->assertNotNull(Resource::where('identifier', 'K-HOT')->first());
+    }
+
+    public function test_export_and_import_round_trip_keeps_resource_approvers(): void
+    {
+        $admin = $this->actingAsAdmin();
+        $approver = User::create(['name' => 'A', 'email' => 'a@example.test', 'password' => 'password123', 'role' => UserRole::MEMBER, 'isActive' => true]);
+        $space = Resource::create(['identifier' => 'S-1', 'type' => ResourceType::BOATHOUSE_SPACE, 'name' => 'Klubovňa', 'requiresApproval' => true]);
+        $space->approvers()->attach($approver->id);
+
+        $dump = $this->getJson('/api/v1/admin/export/database.json')->assertOk()->json();
+        $this->assertSame([$approver->id], collect($dump['tables']['resource_approvers'])->pluck('userId')->all());
+
+        $this->postJson('/api/v1/admin/import/database', [
+            'confirmation' => 'VYMAZAŤ A OBNOVIŤ',
+            'tables' => $dump['tables'],
+        ])->assertOk();
+
+        $this->assertSame([$approver->id], $space->fresh()->approvers()->pluck('users.id')->all());
     }
 
     /* ──────────────  Fixture  ────────────── */

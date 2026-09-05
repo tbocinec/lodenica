@@ -44,10 +44,11 @@ class AdminDataController extends Controller
     /**
      * GET /api/v1/admin/export/database.json
      *
-     * Full JSON dump of business tables. `users` and
-     * `personal_access_tokens` are intentionally excluded — they hold
-     * hashed passwords that don't belong in a backup the operator
-     * email-attaches.
+     * Full JSON dump of business tables: resources, resource_approvers,
+     * events, reservations, event_participants, damages, audit_logs,
+     * settings. `users` and `personal_access_tokens` are intentionally
+     * excluded — they hold hashed passwords that don't belong in a
+     * backup the operator email-attaches.
      */
     public function exportDatabase(): JsonResponse
     {
@@ -56,6 +57,7 @@ class AdminDataController extends Controller
             'version' => self::EXPORT_VERSION,
             'tables' => [
                 'resources' => Resource::query()->orderBy('identifier')->get()->toArray(),
+                'resource_approvers' => DB::table('resource_approvers')->orderBy('resourceId')->orderBy('userId')->get()->map(fn ($r) => (array) $r)->all(),
                 'events' => Event::query()->orderBy('startsAt')->get()->toArray(),
                 'reservations' => Reservation::query()->orderBy('startsAt')->get()->toArray(),
                 'event_participants' => EventParticipant::query()->orderBy('createdAt')->get()->toArray(),
@@ -178,10 +180,9 @@ class AdminDataController extends Controller
      * POST /api/v1/admin/import/database
      *
      * Body: full export JSON from `exportDatabase()` + a typed
-     * `confirmation: "VYMAZAŤ A OBNOVIŤ"` field. Wipes the seven
-     * business tables and re-inserts from the payload inside a
-     * transaction — so any failure mid-import rolls back to the
-     * pre-import state.
+     * `confirmation: "VYMAZAŤ A OBNOVIŤ"` field. Wipes the business
+     * tables and re-inserts from the payload inside a transaction —
+     * so any failure mid-import rolls back to the pre-import state.
      */
     public function importDatabase(Request $request): JsonResponse
     {
@@ -189,6 +190,7 @@ class AdminDataController extends Controller
             'confirmation' => ['required', 'string', 'in:VYMAZAŤ A OBNOVIŤ'],
             'tables' => ['required', 'array'],
             'tables.resources' => ['sometimes', 'array'],
+            'tables.resource_approvers' => ['sometimes', 'array'],
             'tables.events' => ['sometimes', 'array'],
             'tables.reservations' => ['sometimes', 'array'],
             'tables.event_participants' => ['sometimes', 'array'],
@@ -213,6 +215,7 @@ class AdminDataController extends Controller
 
             // Insert order (forward dependency).
             $counts['resources'] = $this->bulkInsert('resources', $tables['resources'] ?? []);
+            $counts['resource_approvers'] = $this->bulkInsert('resource_approvers', $tables['resource_approvers'] ?? []);
             $counts['events'] = $this->bulkInsert('events', $tables['events'] ?? []);
             $counts['settings'] = $this->bulkInsert('settings', $tables['settings'] ?? []);
             $counts['reservations'] = $this->bulkInsert('reservations', $tables['reservations'] ?? []);
