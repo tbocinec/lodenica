@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -51,6 +52,9 @@ final class SiteConfig
         'paddlingTrafficLight' => ['site.features.paddling_traffic_light', false],
         'expeditions' => ['site.features.expeditions', true],
     ];
+
+    /** Decoded `site_config` row, read once per instance. */
+    private ?array $storedCache = null;
 
     public function __construct(private readonly SettingsService $settings) {}
 
@@ -217,6 +221,7 @@ final class SiteConfig
             self::SETTING_KEY,
             json_encode($stored, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
         );
+        $this->storedCache = null;
 
         return $this->all();
     }
@@ -261,8 +266,19 @@ final class SiteConfig
     /** @return array<string, mixed> */
     private function stored(): array
     {
-        $decoded = json_decode((string) $this->settings->get(self::SETTING_KEY, ''), true);
+        if ($this->storedCache !== null) {
+            return $this->storedCache;
+        }
 
-        return is_array($decoded) ? $decoded : [];
+        try {
+            $decoded = json_decode((string) $this->settings->get(self::SETTING_KEY, ''), true);
+        } catch (QueryException) {
+            // No `settings` table yet (first install before migrate, or a
+            // test without a migrated DB): behave as if nothing was stored,
+            // so .env defaults still answer.
+            $decoded = null;
+        }
+
+        return $this->storedCache = is_array($decoded) ? $decoded : [];
     }
 }

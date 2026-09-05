@@ -56,13 +56,16 @@ Route::get('site/logo', [SiteController::class, 'logo']);
 
 Route::get('availability/dashboard', [AvailabilityController::class, 'dashboard']);
 
-// Paddling traffic light (proxied + cached from dunajcik.sk). Public.
-Route::get('paddling-traffic-light', [PaddlingTrafficLightController::class, 'show']);
+// Paddling traffic light (proxied + cached from dunajcik.sk). Public, but
+// only on installations that switched the module on (Danube clubs).
+Route::get('paddling-traffic-light', [PaddlingTrafficLightController::class, 'show'])
+    ->middleware('feature:paddlingTrafficLight');
 
 // Expedition photo streaming is public-by-URL (UUIDs) so <img> tags can load
 // it without the bearer token, like damage/resource photos. The expedition
 // data itself stays member-gated (see the member group below).
-Route::get('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'showPhoto']);
+Route::get('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'showPhoto'])
+    ->middleware('feature:expeditions');
 
 // Anonymous usage beacon (pageview / visit). No PII collected. Tightly
 // throttled — a real client pings ~once per page load, so 20/min/IP is
@@ -175,13 +178,15 @@ Route::middleware(['auth:sanctum', 'member'])->group(function () {
 
     // Expedície — members' world map of paddled places. Read + create for any
     // member; edit/delete an entry or its photos is author-or-admin (enforced
-    // in the controller).
-    Route::get('expeditions', [ExpeditionsController::class, 'index']);
-    Route::post('expeditions', [ExpeditionsController::class, 'store']);
-    Route::patch('expeditions/{id}', [ExpeditionsController::class, 'update']);
-    Route::delete('expeditions/{id}', [ExpeditionsController::class, 'destroy']);
-    Route::post('expeditions/{id}/photos', [ExpeditionsController::class, 'addPhoto']);
-    Route::delete('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'removePhoto']);
+    // in the controller). The whole module can be switched off per site.
+    Route::middleware('feature:expeditions')->group(function () {
+        Route::get('expeditions', [ExpeditionsController::class, 'index']);
+        Route::post('expeditions', [ExpeditionsController::class, 'store']);
+        Route::patch('expeditions/{id}', [ExpeditionsController::class, 'update']);
+        Route::delete('expeditions/{id}', [ExpeditionsController::class, 'destroy']);
+        Route::post('expeditions/{id}/photos', [ExpeditionsController::class, 'addPhoto']);
+        Route::delete('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'removePhoto']);
+    });
 });
 
 /*
