@@ -33,11 +33,15 @@ scripts/deploy-rezervacie.sh --secrets "$SECRETS" || echo "‼  Deploy skript sk
 set -a; . "./$SECRETS"; set +a
 STAGE="${LODENICA_DEPLOY_STAGE:-/tmp/lodenica-deploy-$PROD_DOMAIN}"
 
-served_chunk() { curl -sk "https://$PROD_DOMAIN/" | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1; }
+# Cache-busting fetch: the hosting's edge proxy (openresty) has served a
+# stale index.html for a couple of minutes right after an upload, which
+# made this check fail although the deploy was fine (2026-09-05).
+fetch_fresh() { curl -sk -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$1?nocache=$RANDOM$RANDOM"; }
+served_chunk() { fetch_fresh "https://$PROD_DOMAIN/" | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1; }
 spa_ok() {
   local js; js="$(served_chunk)"
   [ -n "$js" ] || return 1
-  curl -sk "https://$PROD_DOMAIN/assets/$js" | grep -q "https://$PROD_DOMAIN/api/v1"
+  fetch_fresh "https://$PROD_DOMAIN/assets/$js" | grep -q "https://$PROD_DOMAIN/api/v1"
 }
 
 # ── Verify the served SPA points at the new API domain; if not, re-upload ──
