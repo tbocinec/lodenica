@@ -370,6 +370,9 @@ class ImportSheet extends Command
         }
 
         foreach ($samples as $s) {
+            // Writes CONFIRMED directly, bypassing ReservationsService on purpose: this is a
+            // one-shot operator import of a trusted sheet, so neither the approval gate nor
+            // the app-level overlap check applies (the DB EXCLUDE constraint still does).
             Reservation::create($s + ['status' => ReservationStatus::CONFIRMED]);
         }
         $this->info(sprintf('Inserted %d sample reservations.', count($samples)));
