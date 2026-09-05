@@ -220,6 +220,8 @@ export interface User {
   email: string;
   role: UserRole;
   isActive: boolean;
+  /** Own colour theme key; null = the site default (THEME-001). */
+  theme: string | null;
   /** Internal club member ID. Admin-only — null for non-admin viewers
    *  (backend strips it at the API boundary). */
   memberId: string | null;

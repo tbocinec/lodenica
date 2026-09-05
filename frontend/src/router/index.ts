@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
+import type { SiteFeatures } from '@/api/site.api';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSiteStore } from '@/stores/site.store';
 
 /**
  * Route `meta.auth` controls access:
@@ -10,10 +12,13 @@ import { useAuthStore } from '@/stores/auth.store';
  *     creating/editing events
  *   - 'admin': ADMIN role only
  *
+ * Route `meta.feature` names a site module switch (`features.*` in the site
+ * config); while the module is off the route bounces to the dashboard.
+ *
  * The global beforeEach guard redirects to /login when meta gates fail,
  * preserving the original target in `?redirect=…` so login can bounce
- * back. The auth store is bootstrapped from main.ts before mount so we
- * can read auth state synchronously here.
+ * back. The auth + site stores are bootstrapped from main.ts before mount
+ * so we can read their state synchronously here.
  */
 const routes: RouteRecordRaw[] = [
   {
@@ -162,19 +167,19 @@ const routes: RouteRecordRaw[] = [
     path: '/expeditions',
     name: 'expeditions',
     component: () => import('@/views/ExpeditionsView.vue'),
-    meta: { title: 'Expedície', auth: 'confirmed' },
+    meta: { title: 'Expedície', auth: 'confirmed', feature: 'expeditions' },
   },
   {
     path: '/expeditions/new',
     name: 'expedition-new',
     component: () => import('@/views/ExpeditionEditView.vue'),
-    meta: { title: 'Nová expedícia', auth: 'confirmed' },
+    meta: { title: 'Nová expedícia', auth: 'confirmed', feature: 'expeditions' },
   },
   {
     path: '/expeditions/:id/edit',
     name: 'expedition-edit',
     component: () => import('@/views/ExpeditionEditView.vue'),
-    meta: { title: 'Upraviť expedíciu', auth: 'confirmed' },
+    meta: { title: 'Upraviť expedíciu', auth: 'confirmed', feature: 'expeditions' },
   },
   {
     path: '/spaces',
@@ -234,7 +239,7 @@ const routes: RouteRecordRaw[] = [
     path: '/vodacky-semafor',
     name: 'paddling-traffic-light',
     component: () => import('@/views/PaddlingTrafficLightView.vue'),
-    meta: { title: 'Vodácky semafor' },
+    meta: { title: 'Vodácky semafor', feature: 'paddlingTrafficLight' },
   },
   {
     path: '/q-a',
@@ -256,6 +261,12 @@ export const router = createRouter({
 });
 
 router.beforeEach((to) => {
+  // A module the site switched off does not exist for this installation.
+  const feature = to.meta?.feature as keyof SiteFeatures | undefined;
+  if (feature && !useSiteStore().config.features[feature]) {
+    return { name: 'dashboard' };
+  }
+
   const required = to.meta?.auth as 'public' | 'member' | 'confirmed' | 'admin' | undefined;
   if (!required || required === 'public') return true;
 
@@ -282,6 +293,7 @@ router.beforeEach((to) => {
 });
 
 router.afterEach((to) => {
-  const title = (to.meta?.title as string | undefined) ?? 'Lodenica KVŠ';
-  document.title = `Lodenica KVŠ · ${title}`;
+  const shortName = useSiteStore().config.shortName;
+  const title = to.meta?.title as string | undefined;
+  document.title = title ? `${shortName} · ${title}` : shortName;
 });
