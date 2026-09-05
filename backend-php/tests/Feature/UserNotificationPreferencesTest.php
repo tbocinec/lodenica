@@ -11,7 +11,7 @@ use App\Services\UserNotificationPreferences;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/** REZ-062: a member's own e-mail switches. Missing key = on; admin switch still wins (tested in ReservationNotifierTest). */
+/** REZ-062: a member's own e-mail switches. Missing key = the type's default; admin switch still wins (tested in ReservationNotifierTest). */
 class UserNotificationPreferencesTest extends TestCase
 {
     use RefreshDatabase;
@@ -29,14 +29,24 @@ class UserNotificationPreferencesTest extends TestCase
         ]);
     }
 
-    public function test_everything_configurable_is_on_by_default(): void
+    public function test_defaults_follow_the_type(): void
     {
         $all = $this->prefs()->all($this->member());
 
         $this->assertSame(
-            ['reservation_approval_requested' => true, 'reservation_decided' => true],
+            ['reservation_approval_requested' => true, 'reservation_decided' => true, 'reservation_confirmed' => false],
             $all,
         );
+    }
+
+    public function test_the_opt_in_confirmation_can_be_switched_on(): void
+    {
+        $user = $this->member();
+        $this->assertFalse($this->prefs()->wants($user, MailNotification::RESERVATION_CONFIRMED));
+
+        $this->prefs()->update($user, ['reservation_confirmed' => true]);
+
+        $this->assertTrue($this->prefs()->wants($user->refresh(), MailNotification::RESERVATION_CONFIRMED));
     }
 
     public function test_non_configurable_notifications_are_always_wanted(): void

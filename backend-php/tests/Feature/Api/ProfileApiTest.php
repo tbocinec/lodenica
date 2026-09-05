@@ -88,16 +88,23 @@ class ProfileApiTest extends TestCase
         $r = $this->getJson('/api/v1/profile/notifications')->assertOk();
         $r->assertJsonStructure(['notifications' => [['key', 'label', 'description', 'enabled']]]);
         $this->assertSame(
-            ['reservation_approval_requested', 'reservation_decided'],
+            ['reservation_approval_requested', 'reservation_decided', 'reservation_confirmed'],
             collect($r->json('notifications'))->pluck('key')->all(),
         );
-        $this->assertTrue(collect($r->json('notifications'))->every(fn ($n) => $n['enabled'] === true));
+        // Approval mail is on by default, the booking confirmation is an opt-in (REZ-064).
+        $this->assertSame(
+            [true, true, false],
+            collect($r->json('notifications'))->pluck('enabled')->all(),
+        );
 
         $this->patchJson('/api/v1/profile/notifications', ['reservation_decided' => false])
             ->assertOk()
             ->assertJsonPath('notifications.1.enabled', false)
             ->assertJsonPath('notifications.0.enabled', true);
-        $this->assertSame(['reservation_approval_requested' => true, 'reservation_decided' => false], $user->refresh()->notificationPrefs);
+        $this->assertSame(
+            ['reservation_approval_requested' => true, 'reservation_decided' => false, 'reservation_confirmed' => false],
+            $user->refresh()->notificationPrefs,
+        );
     }
 
     public function test_notification_preferences_reject_unknown_or_non_configurable_keys(): void

@@ -10,7 +10,7 @@ use App\Http\Requests\UpdateReservationRequest;
 use App\Http\Resources\ReservationResource;
 use App\Http\Support\Paginated;
 use App\Services\ReservationsService;
-use App\Services\SiteConfig;
+use App\Services\ReservationCalendar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -155,84 +155,14 @@ class ReservationsController extends Controller
      * after a reservation is created. Public — no auth check; the
      * reservation id is already a UUID so guessing is infeasible.
      */
-    public function ics(string $id, SiteConfig $site): \Symfony\Component\HttpFoundation\Response
+    public function ics(string $id, ReservationCalendar $calendar): \Symfony\Component\HttpFoundation\Response
     {
         $reservation = $this->reservations->findById($id);
-        $resource = $reservation->resource()->first();
 
-        // Wall-clock UTC convention: what the user typed is what we send.
-        $fmt = fn (\DateTimeInterface $d) => $d->format('Ymd\THis\Z');
-        $start = $reservation->startsAt instanceof \DateTimeInterface
-            ? $reservation->startsAt
-            : new \DateTimeImmutable((string) $reservation->startsAt);
-        $end = $reservation->endsAt instanceof \DateTimeInterface
-            ? $reservation->endsAt
-            : new \DateTimeImmutable((string) $reservation->endsAt);
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-
-        $siteName = $site->siteName();
-        $summary = $resource
-            ? "{$siteName}: {$resource->identifier} – {$resource->name}"
-            : "{$siteName}: rezervácia";
-
-        // The club's maps link (when configured) is intentionally on its
-        // own line at the top of the description — most calendar apps
-        // render plain URLs as tappable links, so the user can navigate
-        // from the event view straight to the boathouse.
-        $description = trim(implode("\\n", array_filter([
-            $site->get('mapsUrl'),
-            'Rezervácia pre: '.$reservation->customerName,
-            $reservation->customerContact ? 'Kontakt: '.$reservation->customerContact : null,
-            $resource ? 'Zdroj: '.$resource->identifier.' '.$resource->name : null,
-            $reservation->note ? 'Poznámka: '.$reservation->note : null,
-        ])));
-
-        $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost';
-        $address = (string) $site->get('address');
-
-        $lines = [
-            'BEGIN:VCALENDAR',
-            'VERSION:2.0',
-            'PRODID:-//'.$this->icalEscape($siteName).'//SK',
-            'CALSCALE:GREGORIAN',
-            'METHOD:PUBLISH',
-            'BEGIN:VEVENT',
-            'UID:'.$reservation->id.'@'.$host,
-            'DTSTAMP:'.$fmt($now),
-            'DTSTART:'.$fmt($start),
-            'DTEND:'.$fmt($end),
-            'SUMMARY:'.$this->icalEscape($summary),
-            'DESCRIPTION:'.$this->icalEscape($description),
-        ];
-        if ($address !== '') {
-            $lines[] = 'LOCATION:'.$this->icalEscape($address);
-        }
-        // REZ-063: a waiting request is tentative in the user's calendar.
-        $lines[] = 'STATUS:'.match ($reservation->status) {
-            \App\Domain\Enums\ReservationStatus::CONFIRMED => 'CONFIRMED',
-            \App\Domain\Enums\ReservationStatus::PENDING_APPROVAL => 'TENTATIVE',
-            default => 'CANCELLED',
-        };
-        $lines[] = 'END:VEVENT';
-        $lines[] = 'END:VCALENDAR';
-
-        $body = implode("\r\n", $lines)."\r\n";
-
-        return response($body, 200, [
+        return response($calendar->ics($reservation), 200, [
             'Content-Type' => 'text/calendar; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="rezervacia-'.substr($reservation->id, 0, 8).'.ics"',
+            'Content-Disposition' => 'attachment; filename="'.$calendar->icsFilename($reservation).'"',
             'X-Robots-Tag' => 'noindex, nofollow',
-        ]);
-    }
-
-    /** RFC 5545 §3.3.11 escape: backslash, comma, semicolon, newline. */
-    private function icalEscape(string $value): string
-    {
-        return strtr($value, [
-            '\\' => '\\\\',
-            ',' => '\\,',
-            ';' => '\\;',
-            "\n" => '\\n',
         ]);
     }
 }

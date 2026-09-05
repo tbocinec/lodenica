@@ -10,7 +10,8 @@ use App\Models\User;
  * A member's own e-mail switches (REZ-062), stored as JSON in
  * `users.notificationPrefs`. Only user-configurable notifications
  * ({@see MailNotification::isUserConfigurable}) are exposed; a missing key
- * reads as ON, mirroring MailNotificationSettings for the admin switches.
+ * reads as the type's default ({@see MailNotification::defaultForUser}) —
+ * ON for approval mail, OFF for the opt-in booking confirmation.
  *
  * The admin switch is consulted separately in NotificationMailer — a user
  * preference can only ever turn an e-mail OFF, never back on.
@@ -26,8 +27,9 @@ class UserNotificationPreferences
 
         $result = [];
         foreach (self::configurable() as $type) {
-            $result[$type->value] = !array_key_exists($type->value, $stored)
-                || (bool) $stored[$type->value];
+            $result[$type->value] = array_key_exists($type->value, $stored)
+                ? (bool) $stored[$type->value]
+                : $type->defaultForUser();
         }
 
         return $result;

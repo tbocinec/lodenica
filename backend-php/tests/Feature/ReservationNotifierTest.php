@@ -7,18 +7,20 @@ use App\Domain\Enums\ReservationStatus;
 use App\Domain\Enums\ResourceType;
 use App\Domain\Enums\UserRole;
 use App\Mail\ReservationApprovalRequestedMail;
+use App\Mail\ReservationConfirmedMail;
 use App\Mail\ReservationDecidedMail;
 use App\Models\Reservation;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\MailNotificationSettings;
 use App\Services\ReservationNotifier;
+use App\Services\ReservationsService;
 use App\Services\UserNotificationPreferences;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
-/** REZ-053 and REZ-057: who gets which approval e-mail, and which switches silence it. */
+/** REZ-053, REZ-057 and REZ-064: who gets which booking e-mail, and which switches silence it. */
 class ReservationNotifierTest extends TestCase
 {
     use RefreshDatabase;
@@ -192,5 +194,98 @@ class ReservationNotifierTest extends TestCase
         $this->notifier()->decided($this->pending($creator, ReservationStatus::CONFIRMED));
 
         Mail::assertNothingSent();
+    }
+
+    /* ──────────────  REZ-064: booking confirmation (opt-in)  ────────────── */
+
+    private function book(?User $creator, array $extra = []): Reservation
+    {
+        $resource = Resource::create(['identifier' => 'K-1', 'type' => ResourceType::SEA_KAYAK, 'name' => 'Cetus']);
+
+        return app(ReservationsService::class)->create(array_merge([
+            'resourceId' => $resource->id,
+            'createdById' => $creator?->id,
+            'customerName' => 'Janka',
+            'startsAt' => '2027-06-02T09:00:00Z',
+            'endsAt' => '2027-06-02T12:00:00Z',
+            'note' => 'Ranná jazda',
+        ], $extra));
+    }
+
+    private function optIn(User $user): User
+    {
+        app(UserNotificationPreferences::class)->update($user, ['reservation_confirmed' => true]);
+
+        return $user;
+    }
+
+    public function test_confirmed_booking_is_not_mailed_by_default(): void
+    {
+        $this->book($this->user('c@example.test'));
+
+        Mail::assertNotSent(ReservationConfirmedMail::class);
+    }
+
+    public function test_confirmed_booking_is_mailed_to_a_creator_who_opted_in(): void
+    {
+        config(['app.url' => 'https://rez.example.test']);
+        $creator = $this->optIn($this->user('c@example.test'));
+
+        $reservation = $this->book($creator);
+
+        Mail::assertSent(ReservationConfirmedMail::class, function (ReservationConfirmedMail $m) use ($creator, $reservation) {
+            $html = $m->render(); // runs build(): subject + attachment
+            $this->assertTrue($m->hasTo($creator->email));
+            $this->assertStringContainsString('K-1 – Cetus', (string) $m->subject);
+            $this->assertStringContainsString('https://www.google.com/calendar/render?', $html);
+            $this->assertStringContainsString("https://rez.example.test/api/v1/reservations/{$reservation->id}/ics", $html);
+            $this->assertStringContainsString('Ranná jazda', $html);
+            $this->assertStringContainsString('reservations?mine=1', $html);
+            $this->assertNotEmpty($m->rawAttachments);
+            $this->assertSame('rezervacia-'.substr($reservation->id, 0, 8).'.ics', $m->rawAttachments[0]['name']);
+            $this->assertStringContainsString('BEGIN:VCALENDAR', $m->rawAttachments[0]['data']);
+
+            return true;
+        });
+    }
+
+    public function test_anonymous_booking_sends_no_confirmation(): void
+    {
+        $this->book(null);
+
+        Mail::assertNotSent(ReservationConfirmedMail::class);
+    }
+
+    public function test_pending_booking_gets_no_confirmation(): void
+    {
+        $creator = $this->optIn($this->user('c@example.test'));
+
+        $this->book($creator, ['resourceId' => $this->space->id]);
+
+        Mail::assertNotSent(ReservationConfirmedMail::class);
+        Mail::assertSent(ReservationApprovalRequestedMail::class);
+    }
+
+    public function test_boats_attached_to_an_event_send_no_confirmation(): void
+    {
+        $creator = $this->optIn($this->user('c@example.test'));
+        $event = \App\Models\Event::create([
+            'title' => 'Splav', 'description' => null, 'location' => 'Devín',
+            'startsAt' => '2027-06-02T08:00:00Z', 'endsAt' => '2027-06-02T13:00:00Z',
+        ]);
+
+        $this->book($creator, ['eventId' => $event->id]);
+
+        Mail::assertNotSent(ReservationConfirmedMail::class);
+    }
+
+    public function test_admin_switch_silences_confirmations_too(): void
+    {
+        $creator = $this->optIn($this->user('c@example.test'));
+        app(MailNotificationSettings::class)->update(['reservation_confirmed' => false]);
+
+        $this->book($creator);
+
+        Mail::assertNotSent(ReservationConfirmedMail::class);
     }
 }

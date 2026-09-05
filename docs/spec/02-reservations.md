@@ -284,10 +284,12 @@ SPA `ReservationStatusPill.vue`, `TimelineView.vue`
 Test: `ReservationsApiTest::test_list_accepts_multiple_statuses`,
 `ReservationStatusPill.spec.ts`
 
-**REZ-062** — Používateľ si MÔŽE v profile vypnúť e-maily označené ako
-používateľsky nastaviteľné (`MailNotification::isUserConfigurable`).
-Predvolene sú zapnuté. Vypnutie správcom v diagnostike má prednosť —
-používateľská preferencia e-mail nikdy nezapne, iba vypne. Zmena sa
+**REZ-062** — Používateľ si MÔŽE v profile zapnúť alebo vypnúť e-maily
+označené ako používateľsky nastaviteľné (`MailNotification::isUserConfigurable`).
+Predvolenú hodnotu určuje typ (`MailNotification::defaultForUser`) —
+schvaľovacie e-maily sú predvolene zapnuté, potvrdenie rezervácie
+(REZ-064) vypnuté. Vypnutie správcom v diagnostike má prednosť —
+používateľská preferencia e-mail nikdy nezapne proti správcovi. Zmena sa
 audituje.
 Vynútené: `UserNotificationPreferences`, `NotificationMailer::sendToUser`,
 `ProfileController::notifications/updateNotifications`
@@ -295,8 +297,19 @@ Test: `UserNotificationPreferencesTest`
 
 **REZ-063** — Kalendárový súbor `.ics` čakajúcej rezervácie má
 `STATUS:TENTATIVE`; zamietnutá a zrušená majú `CANCELLED`.
-Vynútené: `ReservationsController::ics`
+Vynútené: `ReservationCalendar::ics`
 Test: `ReservationIcsApiTest::test_ics_marks_a_pending_reservation_tentative`
+
+**REZ-064** — Keď prihlásený používateľ vytvorí rezerváciu, ktorá vznikne
+rovno ako `CONFIRMED` (zdroj bez schvaľovania), systém mu MÔŽE poslať
+e-mail „Potvrdenie rezervácie“: pre koho je, zdroj, termín, poznámka,
+odkaz na Google kalendár, odkaz aj príloha `.ics`, odkaz na Moje
+rezervácie. E-mail je predvolene **vypnutý** a používateľ si ho zapína v
+profile. Neposiela sa anonymnému rezervujúcemu, čakajúcej rezervácii
+(tá má REZ-057) ani lodiam pripojeným k udalosti.
+Vynútené: `ReservationsService::create` → `ReservationNotifier::confirmed`,
+`MailNotification::RESERVATION_CONFIRMED`
+Test: `ReservationNotifierTest` (`confirmed_*`)
 
 ## Známe medzery
 

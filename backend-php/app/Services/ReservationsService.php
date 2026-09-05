@@ -86,6 +86,10 @@ class ReservationsService
 
         if ($pending) {
             $this->notifier->approvalRequested($reservation);
+        } elseif (empty($cmd['eventId'])) {
+            // REZ-064: opt-in summary for the signed-in booker. Boats attached
+            // to an event are managed from the event — no per-boat mail.
+            $this->notifier->confirmed($reservation);
         }
 
         return $reservation;

@@ -6,22 +6,60 @@ use App\Domain\Enums\MailNotification;
 use App\Domain\Enums\ReservationStatus;
 use App\Domain\Enums\UserRole;
 use App\Mail\ReservationApprovalRequestedMail;
+use App\Mail\ReservationConfirmedMail;
 use App\Mail\ReservationDecidedMail;
 use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
 /**
- * E-mails around the approval workflow (REZ-053, REZ-057). Same contract as
- * AdminNotifier: failures are logged, never thrown — a broken mail server
- * must not undo the booking or the decision that triggered the notice.
+ * E-mails around bookings: the approval workflow (REZ-053, REZ-057) and the
+ * opt-in confirmation summary (REZ-064). Same contract as AdminNotifier:
+ * failures are logged, never thrown — a broken mail server must not undo
+ * the booking or the decision that triggered the notice.
  */
 class ReservationNotifier
 {
     public function __construct(
         private readonly NotificationMailer $mailer,
         private readonly SiteConfig $site,
+        private readonly ReservationCalendar $calendar,
     ) {}
+
+    /**
+     * REZ-064: a signed-in member booked a resource without approval and
+     * the reservation is confirmed right away. Off by default; the member
+     * switches it on in the profile (NotificationMailer::sendToUser checks
+     * both the admin and the user switch).
+     */
+    public function confirmed(Reservation $reservation): void
+    {
+        try {
+            $creator = $reservation->creator;
+            if (!$creator instanceof User || $reservation->status !== ReservationStatus::CONFIRMED) {
+                return;
+            }
+
+            $this->mailer->sendToUser(
+                MailNotification::RESERVATION_CONFIRMED,
+                $creator,
+                new ReservationConfirmedMail(
+                    name: $creator->name,
+                    customerName: $reservation->customerName,
+                    resourceLabel: $reservation->resource->label(),
+                    range: $reservation->rangeLabel(),
+                    note: $reservation->note,
+                    googleCalendarUrl: $this->calendar->googleCalendarUrl($reservation),
+                    icsUrl: $this->calendar->icsUrl($reservation),
+                    reservationsUrl: rtrim((string) config('app.url'), '/').'/reservations?mine=1',
+                    icsBody: $this->calendar->ics($reservation),
+                    icsFilename: $this->calendar->icsFilename($reservation),
+                ),
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Confirmation notice failed for reservation '.$reservation->id.': '.$e->getMessage());
+        }
+    }
 
     /**
      * Tell every active approver who is still a confirmed member that a
