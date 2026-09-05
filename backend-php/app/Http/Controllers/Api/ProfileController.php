@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Enums\AuditEntityType;
 use App\Domain\Enums\MailNotification;
 use App\Domain\Enums\OAuthProvider;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Resources\UserIdentityResource;
+use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Services\OAuthService;
 use App\Services\UserNotificationPreferences;
 use Illuminate\Http\JsonResponse;
@@ -117,6 +120,36 @@ class ProfileController extends Controller
         $state = $prefs->update($user, $changes);
 
         return new JsonResponse(['notifications' => $this->presentPreferences($state)]);
+    }
+
+    /**
+     * PATCH /api/v1/profile/appearance — `{ theme: slug|null }`. Null means
+     * "use the site default" (THEME-001). The slug is only shape-checked
+     * here; the SPA owns the list of themes and falls back to the default
+     * for a key it does not know.
+     */
+    public function updateAppearance(Request $request, AuditLogger $audit): UserResource
+    {
+        $data = $request->validate([
+            'theme' => ['present', 'nullable', 'string', 'regex:/^[a-z][a-z0-9-]{1,31}$/'],
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+        $before = $user->theme;
+        if ($before !== $data['theme']) {
+            $user->theme = $data['theme'];
+            $user->save();
+            $audit->logUpdate(
+                AuditEntityType::USER,
+                $user,
+                "Zmenená téma vzhľadu používateľa „{$user->name}“",
+                ['theme' => $before],
+                ['theme' => $data['theme']],
+            );
+        }
+
+        return new UserResource($user);
     }
 
     /**

@@ -135,6 +135,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Own e-mail switches for the user-configurable notifications (REZ-062).
     Route::get('profile/notifications', [ProfileController::class, 'notifications']);
     Route::patch('profile/notifications', [ProfileController::class, 'updateNotifications']);
+    // Own colour theme (THEME-001); null = site default.
+    Route::patch('profile/appearance', [ProfileController::class, 'updateAppearance']);
 
     // Audit log is technical and shown to everyone with a verified
     // account (including pending — useful for "did I really submit

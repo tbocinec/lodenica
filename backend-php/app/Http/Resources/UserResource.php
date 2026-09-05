@@ -25,6 +25,8 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'role' => $this->role?->value,
             'isActive' => (bool) $this->isActive,
+            // Own colour theme; null = site default (THEME-001).
+            'theme' => $this->theme,
             // Only admins see it; everyone else (incl. the member) gets null.
             'memberId' => $isAdmin ? $this->memberId : null,
             // GDPR consents recorded at registration — admin-only.
