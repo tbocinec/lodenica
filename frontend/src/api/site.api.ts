@@ -46,7 +46,9 @@ export interface AdminSiteConfig extends SiteConfig {
 }
 
 /** Partial update — only sent keys change; null puts a field back to its default. */
-export type SiteConfigPatch = Partial<Omit<AdminSiteConfig, 'logoUrl' | 'features'>> & {
+export type SiteConfigPatch = {
+  [K in keyof Omit<AdminSiteConfig, 'logoUrl' | 'features'>]?: AdminSiteConfig[K] | null;
+} & {
   features?: Partial<SiteFeatures>;
 };
 

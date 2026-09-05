@@ -224,6 +224,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'QR kódy lodí', auth: 'admin' },
   },
   {
+    path: '/admin/site',
+    name: 'admin-site',
+    component: () => import('@/views/AdminSiteSettingsView.vue'),
+    meta: { title: 'Nastavenia stránky', auth: 'admin' },
+  },
+  {
     path: '/admin/diagnostics',
     name: 'admin-diagnostics',
     component: () => import('@/views/AdminDiagnosticsView.vue'),
