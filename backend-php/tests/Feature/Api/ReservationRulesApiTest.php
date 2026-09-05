@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Setting;
+use App\Services\SiteConfig;
+use Database\Seeders\ContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,15 +21,16 @@ class ReservationRulesApiTest extends TestCase
 
     public function test_default_rules_seed_is_present(): void
     {
-        // Migration seeds from backend-php/deploy/reservation-rules.html.
-        // The canonical content always starts with the "O tomto systéme"
-        // heading and references the club rulebook so a regression that
-        // wipes / mangles the seed would be caught here.
+        // ContentSeeder fills the page from a template on a fresh install,
+        // with the club's name substituted (see database/seeders/content/).
+        app(SiteConfig::class)->update(['clubName' => 'Klub Test']);
+        $this->seed(ContentSeeder::class);
+
         $this->getJson('/api/v1/reservation-rules')
             ->assertOk()
             ->assertJsonPath('content', fn ($content) => is_string($content)
                 && str_contains($content, 'O tomto systéme')
-                && str_contains($content, 'Klubu vodných športov Karlova Ves'));
+                && str_contains($content, 'Klub Test'));
     }
 
     public function test_anonymous_cannot_update_rules(): void
