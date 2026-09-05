@@ -8,7 +8,7 @@ import {
   reservationIcsUrl,
   reservationsApi,
 } from '@/api/reservations.api';
-import { ResourceType, type Event, type Reservation } from '@/api/types';
+import { ReservationStatus, ResourceType, type Event, type Reservation } from '@/api/types';
 import AvailabilityHints from '@/components/ui/AvailabilityHints.vue';
 import ColorDot from '@/components/ui/ColorDot.vue';
 import DamageBadge from '@/components/ui/DamageBadge.vue';
@@ -222,6 +222,17 @@ const selectedResource = computed(() =>
 );
 
 /**
+ * Approval workflow (REZ-051/052). A flagged resource can only be REQUESTED,
+ * and only by a confirmed member — anonymous and PENDING visitors get a
+ * login link instead of the submit button. The API enforces the same rule.
+ */
+const requiresApproval = computed(() => !!selectedResource.value?.requiresApproval);
+const approvalBlocked = computed(() => requiresApproval.value && !auth.isMember);
+const createdIsPending = computed(
+  () => createdReservation.value?.status === ReservationStatus.PENDING_APPROVAL,
+);
+
+/**
  * Global full-text search at the type-tile level — search across ALL active
  * resources (any type) without first picking a category. When the box has
  * text we show matching resources directly instead of the type tiles.
@@ -340,6 +351,10 @@ function applyPreset(preset: 'threeHours' | 'morning' | 'afternoon' | 'fullDay')
 }
 
 async function submit(): Promise<void> {
+  if (approvalBlocked.value) {
+    error.value = 'Tento zdroj vyžaduje schválenie — rezervovať ho môže iba prihlásený člen.';
+    return;
+  }
   if (!form.resourceId) {
     error.value = 'Vyber zdroj (typ a konkrétny kus).';
     return;
@@ -500,22 +515,30 @@ onMounted(async () => {
        and .ics (Apple Calendar, Outlook, Thunderbird). -->
   <div
     v-if="createdReservation"
-    class="card-padded grid gap-4 border border-emerald-200 bg-emerald-50/40"
+    class="card-padded grid gap-4 border"
+    :class="createdIsPending ? 'border-amber-200 bg-amber-50/40' : 'border-emerald-200 bg-emerald-50/40'"
   >
     <div class="flex items-start gap-3">
-      <span class="text-3xl" aria-hidden="true">✅</span>
+      <span class="text-3xl" aria-hidden="true">{{ createdIsPending ? '⏳' : '✅' }}</span>
       <div class="flex-1">
-        <h2 class="text-lg font-semibold text-emerald-900">Rezervácia vytvorená</h2>
-        <p class="mt-1 text-sm text-emerald-800">
+        <h2 class="text-lg font-semibold" :class="createdIsPending ? 'text-amber-900' : 'text-emerald-900'">
+          {{ createdIsPending ? 'Žiadosť odoslaná — čaká na schválenie' : 'Rezervácia vytvorená' }}
+        </h2>
+        <p class="mt-1 text-sm" :class="createdIsPending ? 'text-amber-800' : 'text-emerald-800'">
           {{ formatReservationRange(createdReservation.startsAt, createdReservation.endsAt) }}
           <template v-if="selectedResource">
             · {{ selectedResource.identifier }} · {{ selectedResource.name }}
           </template>
         </p>
+        <p v-if="createdIsPending" class="mt-2 text-sm text-amber-800">
+          Schvaľovateľ dostal e-mail. O výsledku ťa budeme informovať
+          <template v-if="auth.user?.email">na <strong>{{ auth.user.email }}</strong></template>.
+          Stav žiadosti vidíš v „Moje rezervácie“ na prehľade.
+        </p>
       </div>
     </div>
 
-    <div class="border-t border-emerald-200 pt-3">
+    <div v-if="!createdIsPending" class="border-t border-emerald-200 pt-3">
       <p class="text-sm font-medium text-emerald-900">
         Chceš si rezerváciu uložiť do osobného kalendára?
       </p>
@@ -611,6 +634,25 @@ onMounted(async () => {
             Detail poškodenia →
           </RouterLink>
         </div>
+
+        <!-- REZ-051/052: the booking becomes a request; members only. -->
+        <div
+          v-if="selectedResource.requiresApproval"
+          class="mt-3 border-t pt-3 text-sm"
+          :class="selectedResource.openDamage ? 'border-amber-200 text-amber-900' : 'border-emerald-200 text-emerald-900'"
+        >
+          <p class="font-medium">🔒 Tento zdroj vyžaduje schválenie.</p>
+          <p class="mt-1">
+            Po odoslaní bude rezervácia čakať na schválenie a termín bude medzitým pre ostatných
+            blokovaný. O výsledku ťa budeme informovať e-mailom.
+          </p>
+          <p v-if="approvalBlocked" class="mt-2 font-medium">
+            Rezervovať ho môže iba prihlásený člen klubu.
+            <RouterLink :to="{ path: '/login', query: { redirect: route.fullPath } }" class="underline">
+              Prihlásiť sa
+            </RouterLink>
+          </p>
+        </div>
       </div>
 
       <!-- Step 1: search across everything OR pick a TYPE. -->
@@ -649,6 +691,7 @@ onMounted(async () => {
                   {{ r.identifier }}
                 </p>
                 <p class="truncate text-xs text-slate-500">{{ r.name }}</p>
+                <span v-if="r.requiresApproval" class="pill-amber mt-1 inline-flex">🔒 Schvaľuje sa</span>
                 <p class="flex items-center gap-1 truncate text-xs text-slate-400">
                   <span>{{ RESOURCE_TYPE_LABEL[r.type] }}</span>
                   <template v-if="r.color"><span>·</span><ColorDot :color="r.color" :size="11" /></template>
@@ -734,6 +777,7 @@ onMounted(async () => {
                 <ColorDot v-if="r.color" :color="r.color" :size="11" />
               </p>
               <DamageBadge v-if="r.openDamage" :damage="r.openDamage" class="mt-1" />
+              <span v-if="r.requiresApproval" class="pill-amber mt-1 inline-flex">🔒 Schvaľuje sa</span>
             </div>
             <span aria-hidden="true" class="text-slate-300">›</span>
           </button>
@@ -919,12 +963,20 @@ onMounted(async () => {
         <strong>{{ selectedResource.identifier }} · {{ selectedResource.name }}</strong>
       </span>
       <button type="button" class="btn-secondary" @click="$router.back()">Zrušiť</button>
+      <RouterLink
+        v-if="approvalBlocked"
+        :to="{ path: '/login', query: { redirect: route.fullPath } }"
+        class="btn-primary"
+      >
+        Prihlásiť sa a požiadať
+      </RouterLink>
       <button
+        v-else
         type="submit"
         class="btn-primary"
         :disabled="submitting || !rangeIsValid || !form.resourceId || !acceptedTerms"
       >
-        {{ submitting ? 'Ukladám…' : 'Vytvoriť rezerváciu' }}
+        {{ submitting ? 'Ukladám…' : requiresApproval ? 'Odoslať žiadosť o rezerváciu' : 'Vytvoriť rezerváciu' }}
       </button>
     </div>
   </form>
