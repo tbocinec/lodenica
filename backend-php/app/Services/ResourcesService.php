@@ -9,6 +9,7 @@ use App\Exceptions\NotFoundDomainException;
 use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -21,45 +22,49 @@ class ResourcesService
 
     public function create(array $input): Resource
     {
-        $approverIds = $this->takeApproverIds($input);
-        $resource = Resource::create($input);
-        if ($approverIds !== null) {
-            $this->syncApprovers($resource, $approverIds);
-        }
-        $resource->load('approvers');
+        return DB::transaction(function () use ($input) {
+            $approverIds = $this->takeApproverIds($input);
+            $resource = Resource::create($input);
+            if ($approverIds !== null) {
+                $this->syncApprovers($resource, $approverIds);
+            }
+            $resource->load('approvers');
 
-        $this->audit->logCreate(
-            AuditEntityType::RESOURCE,
-            $resource,
-            "Pridaná {$this->kind($resource)} „{$resource->identifier} – {$resource->name}“",
-            AuditSnapshot::resource($resource),
-        );
+            $this->audit->logCreate(
+                AuditEntityType::RESOURCE,
+                $resource,
+                "Pridaná {$this->kind($resource)} „{$resource->identifier} – {$resource->name}“",
+                AuditSnapshot::resource($resource),
+            );
 
-        return $resource;
+            return $resource;
+        });
     }
 
     public function update(string $id, array $input): Resource
     {
-        $resource = $this->requireExisting($id);
-        $before = AuditSnapshot::resource($resource);
+        return DB::transaction(function () use ($id, $input) {
+            $resource = $this->requireExisting($id);
+            $before = AuditSnapshot::resource($resource);
 
-        $approverIds = $this->takeApproverIds($input);
-        $resource->fill($input);
-        $resource->save();
-        if ($approverIds !== null) {
-            $this->syncApprovers($resource, $approverIds);
-        }
-        $resource->refresh()->load('approvers');
+            $approverIds = $this->takeApproverIds($input);
+            $resource->fill($input);
+            $resource->save();
+            if ($approverIds !== null) {
+                $this->syncApprovers($resource, $approverIds);
+            }
+            $resource->refresh()->load('approvers');
 
-        $this->audit->logUpdate(
-            AuditEntityType::RESOURCE,
-            $resource,
-            "Upravená {$this->kind($resource)} „{$resource->identifier}“",
-            $before,
-            AuditSnapshot::resource($resource),
-        );
+            $this->audit->logUpdate(
+                AuditEntityType::RESOURCE,
+                $resource,
+                "Upravená {$this->kind($resource)} „{$resource->identifier}“",
+                $before,
+                AuditSnapshot::resource($resource),
+            );
 
-        return $resource;
+            return $resource;
+        });
     }
 
     public function findById(string $id): Resource

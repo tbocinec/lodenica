@@ -195,11 +195,19 @@ class ResourcesApiTest extends TestCase
             'identifier' => 'S-3', 'type' => 'BOATHOUSE_SPACE', 'name' => 'X',
             'requiresApproval' => true, 'approverIds' => [$pending->id],
         ])->assertStatus(400)->assertJsonPath('code', 'VALIDATION_ERROR');
+        $this->assertDatabaseMissing('resources', ['identifier' => 'S-3']);
 
         $this->postJson('/api/v1/resources', [
             'identifier' => 'S-4', 'type' => 'BOATHOUSE_SPACE', 'name' => 'Y',
             'approverIds' => ['00000000-0000-0000-0000-000000000000'],
         ])->assertStatus(400);
+        $this->assertDatabaseMissing('resources', ['identifier' => 'S-4']);
+
+        $r = Resource::create(['identifier' => 'S-6', 'type' => ResourceType::BOATHOUSE_SPACE, 'name' => 'Pôvodný']);
+        $this->patchJson("/api/v1/resources/{$r->id}", [
+            'name' => 'Zmenený', 'approverIds' => [$pending->id],
+        ])->assertStatus(400);
+        $this->assertDatabaseHas('resources', ['identifier' => 'S-6', 'name' => 'Pôvodný']);
     }
 
     public function test_approvers_are_visible_to_members_only(): void
