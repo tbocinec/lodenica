@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router';
 import { availabilityApi } from '@/api/availability.api';
 import { reservationsApi } from '@/api/reservations.api';
 import type { DashboardSnapshot, Reservation } from '@/api/types';
+import { useApprovalsStore } from '@/stores/approvals.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
 import PaddlingTrafficLightWidget from '@/components/PaddlingTrafficLightWidget.vue';
@@ -24,6 +25,7 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const auth = useAuthStore();
 const resources = useResourcesStore();
+const approvals = useApprovalsStore();
 
 // Scroll-to targets for the clickable stat cards.
 const todayRef = ref<HTMLElement | null>(null);
@@ -80,9 +82,17 @@ async function load() {
   }
 }
 
+/** Slovak plural for "rezervácia": 1 rezervácia, 2–4 rezervácie, 5+ rezervácií. */
+function reservationsWord(n: number): string {
+  if (n === 1) return 'rezervácia';
+  if (n >= 2 && n <= 4) return 'rezervácie';
+  return 'rezervácií';
+}
+
 onMounted(() => {
   load();
   loadMine();
+  if (auth.isMember) void approvals.refresh();
 });
 </script>
 
@@ -122,6 +132,22 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- Approver's to-do: waiting requests this user may decide (REZ-060). -->
+  <RouterLink
+    v-if="approvals.pendingCount > 0"
+    to="/approvals"
+    class="mb-5 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 transition hover:bg-amber-100/60"
+  >
+    <span class="text-2xl" aria-hidden="true">⏳</span>
+    <div class="flex-1">
+      <p class="font-semibold text-amber-900">
+        Na tvoje schválenie čaká {{ approvals.pendingCount }} {{ reservationsWord(approvals.pendingCount) }}
+      </p>
+      <p class="text-sm text-amber-800">Otvor zoznam a rozhodni — termín je medzitým blokovaný.</p>
+    </div>
+    <span class="btn-primary text-xs">Rozhodnúť →</span>
+  </RouterLink>
 
   <!-- My reservations — logged-in users see their own bookings up top. -->
   <section

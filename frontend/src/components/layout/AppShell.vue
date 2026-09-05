@@ -3,11 +3,13 @@ import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 
 import { NAV_LABELS } from '@/i18n/labels';
+import { useApprovalsStore } from '@/stores/approvals.store';
 import { useAuthStore } from '@/stores/auth.store';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const approvals = useApprovalsStore();
 const navOpen = ref(false);
 
 interface NavItem {
@@ -18,9 +20,14 @@ interface NavItem {
   requires?: 'member' | 'confirmed' | 'admin';
   /** External URL — rendered as a regular <a target="_blank"> instead of a RouterLink. */
   external?: boolean;
+  /** Small count shown at the right edge (e.g. requests waiting for approval). */
+  badge?: number;
+  /** Hide the entry while `badge` is 0 — for pages only useful when there is work. */
+  hideWhenZero?: boolean;
 }
 
 function visible(item: NavItem): boolean {
+  if (item.hideWhenZero && !(item.badge && item.badge > 0)) return false;
   if (!item.requires) return true;
   if (item.requires === 'member') return auth.isAuthenticated;
   if (item.requires === 'confirmed') return auth.isMember;
@@ -38,6 +45,16 @@ const navItems = computed<NavItem[]>(() => {
     // "browse a whole month" → calendar). The top nav stays focused
     // on operational entries.
     { to: '/reservations', label: NAV_LABELS.reservations, icon: '📅' },
+    // Approvers see it while something waits; admins always (they can
+    // decide anything and it is where the approver e-mail links).
+    {
+      to: '/approvals',
+      label: NAV_LABELS.approvals,
+      icon: '✅',
+      requires: 'confirmed',
+      badge: approvals.pendingCount,
+      hideWhenZero: !auth.isAdmin,
+    },
     { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
     { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
     { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
@@ -94,6 +111,17 @@ const infoActive = computed(() =>
 );
 const infoOpen = ref(false);
 watch(infoActive, (active) => { if (active) infoOpen.value = true; }, { immediate: true });
+
+// Keep the approvals count in step with the session: load it when the user
+// becomes a confirmed member, drop it on logout.
+watch(
+  () => auth.isMember,
+  (member) => {
+    if (member) void approvals.refresh();
+    else approvals.clear();
+  },
+  { immediate: true },
+);
 
 async function logout(): Promise<void> {
   await auth.logout();
@@ -187,6 +215,10 @@ async function logout(): Promise<void> {
             >
               <span aria-hidden="true">{{ item.icon }}</span>
               <span>{{ item.label }}</span>
+              <span
+                v-if="item.badge"
+                class="ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
+              >{{ item.badge }}</span>
             </RouterLink>
           </template>
 

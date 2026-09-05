@@ -9,12 +9,14 @@ import DashboardView from './DashboardView.vue';
 
 const listReservations = vi.fn();
 const mineReservations = vi.fn();
+const approvalsList = vi.fn();
 const listResources = vi.fn();
 
 vi.mock('@/api/reservations.api', () => ({
   reservationsApi: {
     list: (...a: unknown[]) => listReservations(...a),
     mine: (...a: unknown[]) => mineReservations(...a),
+    approvals: (...a: unknown[]) => approvalsList(...a),
   },
 }));
 
@@ -89,6 +91,7 @@ describe('DashboardView — Moje rezervácie', () => {
     vi.setSystemTime(new Date('2026-09-05T14:30:00Z'));
     listReservations.mockReset().mockResolvedValue({ items: [], total: 0 });
     mineReservations.mockReset().mockResolvedValue({ items: [], total: 0 });
+    approvalsList.mockReset().mockResolvedValue({ items: [], total: 0 });
     listResources.mockReset().mockResolvedValue({ items: [kayak], total: 1 });
   });
 

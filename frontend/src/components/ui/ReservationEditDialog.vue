@@ -21,12 +21,15 @@ import { computed, reactive, ref, watch } from 'vue';
 import { auditApi } from '@/api/audit.api';
 import { reservationsApi } from '@/api/reservations.api';
 import { usersApi } from '@/api/users.api';
-import type { AuditLog, Reservation } from '@/api/types';
+import { ReservationStatus, type AuditLog, type Reservation } from '@/api/types';
 import { useAuthStore } from '@/stores/auth.store';
+import { useResourcesStore } from '@/stores/resources.store';
 import { formatDateTime, isoFromDateTime } from '@/utils/format';
 
+import ApprovalDecisionButtons from './ApprovalDecisionButtons.vue';
 import DateInput from './DateInput.vue';
 import LoadError from './LoadError.vue';
+import ReservationStatusPill from './ReservationStatusPill.vue';
 import Spinner from './Spinner.vue';
 
 const props = defineProps<{
@@ -52,9 +55,19 @@ const form = reactive({
 });
 
 const auth = useAuthStore();
+const resources = useResourcesStore();
 const error = ref<string | null>(null);
 const submitting = ref(false);
 const deleting = ref(false);
+
+/** The booked resource, for the approver check. Store may be empty on some screens → fetch once. */
+const resource = computed(() =>
+  props.reservation ? resources.byId.get(props.reservation.resourceId) ?? null : null,
+);
+/** REZ-054 mirrored for UX only — the API enforces it. */
+const canDecide = computed(
+  () => auth.isAdmin || !!resource.value?.approvers?.some((a) => a.id === auth.user?.id),
+);
 
 // When the contact is a valid e-mail, offer a "write message" link that opens
 // the device's mail client (works on mobile + desktop) with a prefilled subject.
@@ -136,6 +149,7 @@ watch(
     history.value = [];
     historyOpen.value = false;
     if (auth.isAdmin) void loadMembers();
+    if (resources.items.length === 0) void resources.fetch();
   },
   { immediate: true },
 );
@@ -206,7 +220,10 @@ async function remove(): Promise<void> {
     <div class="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
       <header class="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 class="text-lg font-semibold text-slate-900">Upraviť rezerváciu</h3>
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="text-lg font-semibold text-slate-900">Upraviť rezerváciu</h3>
+            <ReservationStatusPill :status="reservation.status" />
+          </div>
           <p v-if="resourceName" class="text-sm text-slate-500">{{ resourceName }}</p>
         </div>
         <button
@@ -218,6 +235,27 @@ async function remove(): Promise<void> {
           ✕
         </button>
       </header>
+
+      <!-- Approval workflow: decide here for those who may; explain for the rest. -->
+      <div
+        v-if="reservation.status === ReservationStatus.PENDING_APPROVAL && canDecide"
+        class="mb-4 rounded-lg border border-amber-200 bg-amber-50/60 p-3"
+      >
+        <p class="mb-2 text-sm font-medium text-amber-900">⏳ Táto rezervácia čaká na tvoje schválenie.</p>
+        <ApprovalDecisionButtons :reservation="reservation" @decided="emit('saved', $event)" />
+      </div>
+      <div
+        v-else-if="reservation.status === ReservationStatus.PENDING_APPROVAL"
+        class="mb-4 rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-900"
+      >
+        ⏳ Čaká na schválenie schvaľovateľom zdroja. Termín je medzitým blokovaný.
+      </div>
+      <div
+        v-else-if="reservation.status === ReservationStatus.REJECTED"
+        class="mb-4 rounded-lg border border-red-200 bg-red-50/60 p-3 text-sm text-red-900"
+      >
+        ✕ Zamietnutá schvaľovateľom<template v-if="reservation.decisionNote">: „{{ reservation.decisionNote }}“</template>.
+      </div>
 
       <form class="grid gap-3 sm:grid-cols-2" @submit.prevent="save">
         <div class="sm:col-span-2">

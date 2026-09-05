@@ -103,6 +103,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Vytvoriť rezerváciu' },
   },
   {
+    path: '/approvals',
+    name: 'approvals',
+    component: () => import('@/views/ApprovalsView.vue'),
+    meta: { title: 'Na schválenie', auth: 'confirmed' },
+  },
+  {
     path: '/events',
     name: 'events',
     component: () => import('@/views/EventsView.vue'),
