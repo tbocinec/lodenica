@@ -8,7 +8,7 @@ import { reservationsApi } from '@/api/reservations.api';
 import { resourcesApi } from '@/api/resources.api';
 import {
   DamageStatus,
-  ReservationStatus,
+  RESERVATION_BLOCKING_STATUSES,
   type Damage,
   type Reservation,
   type Resource,
@@ -18,6 +18,7 @@ import LoadError from '@/components/ui/LoadError.vue';
 import ColorDot from '@/components/ui/ColorDot.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
+import ReservationStatusPill from '@/components/ui/ReservationStatusPill.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { useAuthStore } from '@/stores/auth.store';
@@ -103,7 +104,7 @@ const reservedNow = computed<Reservation | null>(() => {
   return (
     reservations.value.find(
       (r) =>
-        r.status === ReservationStatus.CONFIRMED &&
+        RESERVATION_BLOCKING_STATUSES.includes(r.status) &&
         parseISO(r.startsAt) <= now &&
         parseISO(r.endsAt) > now,
     ) ?? null
@@ -113,7 +114,7 @@ const reservedNow = computed<Reservation | null>(() => {
 const upcomingReservations = computed<Reservation[]>(() =>
   reservations.value
     .filter(
-      (r) => r.status === ReservationStatus.CONFIRMED && parseISO(r.startsAt) > now,
+      (r) => RESERVATION_BLOCKING_STATUSES.includes(r.status) && parseISO(r.startsAt) > now,
     )
     .sort((a, b) => parseISO(a.startsAt).getTime() - parseISO(b.startsAt).getTime())
     .slice(0, 5),
@@ -174,6 +175,7 @@ onMounted(load);
           <p class="mt-1 text-sm text-amber-900">
             {{ reservedNow.customerName ?? '** rezervácia' }} ·
             {{ formatReservationRange(reservedNow.startsAt, reservedNow.endsAt) }}
+            <ReservationStatusPill :status="reservedNow.status" class="ml-2" />
           </p>
         </component>
       </template>
@@ -262,7 +264,10 @@ onMounted(load);
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                  <p class="font-medium text-slate-800">{{ r.customerName ?? '** rezervácia' }}</p>
+                  <p class="flex flex-wrap items-center gap-2 font-medium text-slate-800">
+                    {{ r.customerName ?? '** rezervácia' }}
+                    <ReservationStatusPill :status="r.status" />
+                  </p>
                   <p class="text-xs text-slate-500">
                     {{ formatReservationRange(r.startsAt, r.endsAt) }}
                   </p>

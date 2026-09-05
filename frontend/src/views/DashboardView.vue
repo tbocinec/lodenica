@@ -10,6 +10,7 @@ import { useResourcesStore } from '@/stores/resources.store';
 import PaddlingTrafficLightWidget from '@/components/PaddlingTrafficLightWidget.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
+import ReservationStatusPill from '@/components/ui/ReservationStatusPill.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
@@ -152,17 +153,10 @@ onMounted(() => {
           <p class="text-sm text-slate-500">{{ formatReservationRange(r.startsAt, r.endsAt) }}</p>
         </div>
         <div class="flex shrink-0 items-center gap-2">
-          <!-- Only cancelled bookings get a marker; confirmed ones don't
-               need a badge. -->
-          <span
-            v-if="r.status === 'CANCELLED'"
-            class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200"
-          >
-            Zrušená
-          </span>
+          <ReservationStatusPill :status="r.status" />
           <!-- Editing is confirmed-member only (the API gates it). -->
           <button
-            v-if="auth.isMember && r.status !== 'CANCELLED'"
+            v-if="auth.isMember && r.status !== 'CANCELLED' && r.status !== 'REJECTED'"
             type="button"
             class="btn-secondary text-xs"
             @click="editing = r"
@@ -219,6 +213,7 @@ onMounted(() => {
                   <ResourceTypeBadge :type="r.resource.type" />
                   <span class="font-mono text-sm font-semibold text-slate-900">{{ r.resource.identifier }}</span>
                   <span class="text-slate-600">{{ r.resource.name }}</span>
+                  <ReservationStatusPill :status="r.status" />
                 </div>
                 <p class="mt-1 text-sm text-slate-500">
                   {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
@@ -247,6 +242,7 @@ onMounted(() => {
                   <ResourceTypeBadge :type="r.resource.type" />
                   <span class="font-mono text-sm font-semibold text-slate-900">{{ r.resource.identifier }}</span>
                   <span class="text-slate-600">{{ r.resource.name }}</span>
+                  <ReservationStatusPill :status="r.status" />
                 </div>
                 <p class="mt-1 text-sm text-slate-500">
                   {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
@@ -296,6 +292,7 @@ onMounted(() => {
             >
               <div>
                 <p class="font-medium text-slate-800">{{ r.resource.name }}</p>
+                <ReservationStatusPill :status="r.status" />
                 <p class="mt-1 text-sm text-slate-500">
                   {{ r.customerName ?? '** meno skryté' }} · {{ formatReservationRange(r.startsAt, r.endsAt) }}
                 </p>

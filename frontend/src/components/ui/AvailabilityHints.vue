@@ -17,7 +17,7 @@ import { addDays, parseISO } from 'date-fns';
 import { computed, onUnmounted, ref, watch } from 'vue';
 
 import { reservationsApi } from '@/api/reservations.api';
-import type { Reservation } from '@/api/types';
+import { RESERVATION_BLOCKING_STATUSES, type Reservation } from '@/api/types';
 import { dayLabel, formatTime, isoFromDateTime, todayUtc, toIsoDate } from '@/utils/format';
 
 const props = defineProps<{
@@ -58,7 +58,7 @@ async function load() {
     const to = addDays(from, DAYS.value + 2);
     const { items } = await reservationsApi.list({
       resourceId: props.resourceId,
-      status: 'CONFIRMED',
+      status: [...RESERVATION_BLOCKING_STATUSES],
       from: from.toISOString(),
       to: to.toISOString(),
       pageSize: 200,

@@ -21,7 +21,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { reservationsApi } from '@/api/reservations.api';
-import { ResourceType, type Reservation, type Resource } from '@/api/types';
+import { RESERVATION_BLOCKING_STATUSES, ReservationStatus, ResourceType, type Reservation, type Resource } from '@/api/types';
 import DateInput from '@/components/ui/DateInput.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -129,7 +129,7 @@ async function load() {
       from: dataWindow.value.start.toISOString(),
       to: dataWindow.value.end.toISOString(),
       pageSize: 500,
-      status: 'CONFIRMED',
+      status: [...RESERVATION_BLOCKING_STATUSES],
     });
     reservations.value = items;
   } catch (e) {
@@ -342,11 +342,17 @@ function blockLabel(r: Reservation): string {
   // Backend strips customerName for non-members; fall back to a
   // privacy-preserving placeholder. See docs/AUTH-AND-PERMISSIONS.md.
   const name = r.customerName ?? '** rezervácia';
-  if (startsAtMidnight && endsAtMidnight) return name;
-  return `${formatTime(r.startsAt)}–${formatTime(r.endsAt)} ${name}`;
+  const prefix = r.status === ReservationStatus.PENDING_APPROVAL ? '⏳ ' : '';
+  if (startsAtMidnight && endsAtMidnight) return prefix + name;
+  return `${prefix}${formatTime(r.startsAt)}–${formatTime(r.endsAt)} ${name}`;
 }
 
 function blockColor(r: Reservation): string {
+  // A waiting request holds the slot but is not a done deal — dashed amber
+  // instead of the booker's solid colour (REZ-061).
+  if (r.status === ReservationStatus.PENDING_APPROVAL) {
+    return 'bg-amber-50 text-amber-900 ring-amber-400 border border-dashed border-amber-500';
+  }
   let hash = 0;
   // Colour-by-name groups same booker's blocks. Falls back to a
   // stable bucket for non-member viewers who don't get the name.

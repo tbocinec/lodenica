@@ -140,4 +140,26 @@ describe('ReservationsView — "iba moje" filter', () => {
 
     expect(w.text()).toContain('Zrušiť filtre');
   });
+
+  it('asks for confirmed AND waiting reservations by default, everything once "zrušené" is on', async () => {
+    const { w } = await mountView();
+    expect(lastQuery().status).toEqual(['CONFIRMED', 'PENDING_APPROVAL']);
+
+    await w.find('input#r-cancelled').setValue(true);
+    await flushPromises();
+    expect(lastQuery().status).toBeUndefined();
+  });
+
+  it('labels a waiting request in the table', async () => {
+    listReservations.mockResolvedValue({
+      items: [{
+        id: 'r-1', resourceId: 'res-1', eventId: null, customerName: 'Peter', customerContact: null,
+        createdById: 'u1', startsAt: '2027-06-01T09:00:00+00:00', endsAt: '2027-06-01T12:00:00+00:00',
+        note: null, status: 'PENDING_APPROVAL', createdAt: '2027-05-01T00:00:00+00:00', updatedAt: '2027-05-01T00:00:00+00:00',
+      }],
+      total: 1,
+    });
+    const { w } = await mountView();
+    expect(w.text()).toContain('Čaká na schválenie');
+  });
 });

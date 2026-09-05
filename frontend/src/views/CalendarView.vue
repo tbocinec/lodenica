@@ -19,10 +19,11 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
 import { reservationsApi } from '@/api/reservations.api';
-import type { Reservation } from '@/api/types';
+import { RESERVATION_BLOCKING_STATUSES, type Reservation } from '@/api/types';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
+import ReservationStatusPill from '@/components/ui/ReservationStatusPill.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
@@ -90,7 +91,7 @@ async function load() {
       from: range.value.start.toISOString(),
       to: addDays(range.value.end, 1).toISOString(),
       pageSize: 500,
-      status: 'CONFIRMED',
+      status: [...RESERVATION_BLOCKING_STATUSES],
     });
     reservations.value = items;
   } catch (e) {
@@ -234,6 +235,7 @@ onMounted(async () => {
             :title="tooltip(r)"
             @click.stop="openReservation(r)"
           >
+            <span v-if="r.status === 'PENDING_APPROVAL'" aria-hidden="true">⏳</span>
             <span class="font-medium text-brand-700">{{ formatTime(r.startsAt) }}</span>
             {{ resources.byId.get(r.resourceId)?.identifier ?? '?' }} ·
             {{ r.customerName ?? '** rezervácia' }}
@@ -275,6 +277,7 @@ onMounted(async () => {
             :title="tooltip(r)"
             @click.stop="openReservation(r)"
           >
+            <span v-if="r.status === 'PENDING_APPROVAL'" aria-hidden="true">⏳</span>
             <span class="font-medium text-brand-700">
               {{ formatTime(r.startsAt) }}
             </span>
@@ -318,6 +321,7 @@ onMounted(async () => {
               <ResourceTypeBadge v-if="resources.byId.get(r.resourceId)" :type="resources.byId.get(r.resourceId)!.type" />
               <span class="font-mono text-sm font-semibold text-slate-900">{{ resources.byId.get(r.resourceId)?.identifier ?? '?' }}</span>
               <span class="text-slate-600">{{ resources.byId.get(r.resourceId)?.name ?? '' }}</span>
+              <ReservationStatusPill :status="r.status" />
               <span v-if="auth.isMember" aria-hidden="true" class="ml-auto text-slate-300">✏️</span>
             </div>
             <p class="mt-1 text-sm text-slate-500">

@@ -4,11 +4,12 @@ import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { reservationsApi } from '@/api/reservations.api';
-import { ResourceType, type Reservation } from '@/api/types';
+import { RESERVATION_BLOCKING_STATUSES, ResourceType, type Reservation } from '@/api/types';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
+import ReservationStatusPill from '@/components/ui/ReservationStatusPill.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
@@ -47,7 +48,7 @@ async function load() {
     const data = await reservationsApi.list({
       from: today.toISOString(),
       to: horizon.toISOString(),
-      status: 'CONFIRMED',
+      status: [...RESERVATION_BLOCKING_STATUSES],
       pageSize: 200,
     });
     reservations.value = data.items.filter(
@@ -106,7 +107,10 @@ onMounted(load);
             @click="auth.isMember && (editing = r)"
           >
             <div class="flex items-baseline justify-between gap-3">
-              <p class="font-medium text-slate-800">{{ r.customerName ?? '** rezervácia' }}</p>
+              <p class="flex flex-wrap items-center gap-2 font-medium text-slate-800">
+                {{ r.customerName ?? '** rezervácia' }}
+                <ReservationStatusPill :status="r.status" />
+              </p>
               <span class="shrink-0 text-xs text-slate-500">
                 {{ formatReservationRange(r.startsAt, r.endsAt) }}
               </span>

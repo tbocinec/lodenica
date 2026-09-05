@@ -5,7 +5,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { eventsApi } from '@/api/events.api';
 import { reservationsApi } from '@/api/reservations.api';
 import {
-  ReservationStatus,
+  RESERVATION_BLOCKING_STATUSES,
   ResourceType,
   type Event,
   type EventParticipant,
@@ -76,7 +76,7 @@ async function load() {
       reservationsApi.list({
         from: ev.startsAt,
         to: ev.endsAt,
-        status: ReservationStatus.CONFIRMED,
+        status: [...RESERVATION_BLOCKING_STATUSES],
         pageSize: 500,
       }),
       resources.fetch(),
@@ -94,7 +94,7 @@ async function load() {
 const attachedResourceIds = computed(() => {
   return new Set(
     reservations.value
-      .filter((r) => r.status === ReservationStatus.CONFIRMED)
+      .filter((r) => RESERVATION_BLOCKING_STATUSES.includes(r.status))
       .map((r) => r.resourceId),
   );
 });

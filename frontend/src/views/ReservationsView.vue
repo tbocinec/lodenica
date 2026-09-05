@@ -4,13 +4,13 @@
  *
  * Filter parameters round-trip through GET /api/v1/reservations:
  *   - search       (LIKE on customerName / customerContact / note)
- *   - status       (CONFIRMED / CANCELLED)
+ *   - status (CONFIRMED / PENDING_APPROVAL / CANCELLED / REJECTED, several allowed)
  *   - resourceId   (one specific resource)
  *   - from / to    (ISO date — half-open bounds, both optional)
  *   - page / pageSize (page is 1-based)
  *
  * The UI has three "everyday" toggles on top of the explicit fields:
- *   - "Zobraziť zrušené"       → drop the default status=CONFIRMED filter
+ *   - "Zobraziť zrušené a zamietnuté" → drop the default status filter (confirmed + waiting)
  *   - "Zobraziť minulé"        → drop the default from=today filter
  *   - "Iba moje rezervácie"    → add mine=1 (logged-in visitors only)
  * The first two leave the underlying field empty (= no constraint);
@@ -25,13 +25,14 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
 import { reservationsApi } from '@/api/reservations.api';
-import { ReservationStatus, type Reservation } from '@/api/types';
+import { RESERVATION_BLOCKING_STATUSES, type Reservation } from '@/api/types';
 import DateInput from '@/components/ui/DateInput.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import { useAuthStore } from '@/stores/auth.store';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
+import ReservationStatusPill from '@/components/ui/ReservationStatusPill.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { useResourcesStore } from '@/stores/resources.store';
@@ -94,7 +95,7 @@ async function load() {
       pageSize: PAGE_SIZE,
       search: search.value.trim() || undefined,
       resourceId: resourceIdFilter.value || undefined,
-      status: showCancelled.value ? undefined : ReservationStatus.CONFIRMED,
+      status: showCancelled.value ? undefined : [...RESERVATION_BLOCKING_STATUSES],
       mine: showMine.value || undefined,
       // An explicit "Od" always wins; otherwise the list starts at today
       // unless the user opted into the past.
@@ -293,7 +294,7 @@ onMounted(load);
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
       <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
         <input id="r-cancelled" v-model="showCancelled" type="checkbox" class="h-4 w-4 rounded" />
-        Zobraziť zrušené
+        Zobraziť zrušené a zamietnuté
       </label>
       <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
         <input id="r-past" v-model="showPast" type="checkbox" class="h-4 w-4 rounded" />
@@ -361,7 +362,12 @@ onMounted(load);
               :class="auth.isMember ? 'cursor-pointer hover:bg-brand-50/40' : ''"
               @click="auth.isMember && (editing = r)"
             >
-              <td class="font-medium">{{ formatReservationRange(r.startsAt, r.endsAt) }}</td>
+              <td class="font-medium">
+                <div class="flex flex-wrap items-center gap-2">
+                  {{ formatReservationRange(r.startsAt, r.endsAt) }}
+                  <ReservationStatusPill :status="r.status" />
+                </div>
+              </td>
               <td>
                 <div class="flex items-center gap-2">
                   <ResourceTypeBadge
@@ -432,6 +438,7 @@ onMounted(load);
             </p>
             <p class="text-xs text-slate-500">
               {{ formatReservationRange(r.startsAt, r.endsAt) }}
+              <ReservationStatusPill :status="r.status" class="ml-1" />
             </p>
           </div>
         </div>
