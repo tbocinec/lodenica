@@ -7,6 +7,7 @@ use App\Domain\Enums\DamageStatus;
 use App\Domain\Enums\ResourceType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -31,6 +32,7 @@ class Resource extends Model
      */
     protected $attributes = [
         'isActive' => true,
+        'requiresApproval' => false,
     ];
 
     protected $casts = [
@@ -39,6 +41,7 @@ class Resource extends Model
         'lengthCm' => 'integer',
         'weightKg' => 'integer',
         'isActive' => 'boolean',
+        'requiresApproval' => 'boolean',
         'createdAt' => 'datetime',
         'updatedAt' => 'datetime',
     ];
@@ -102,5 +105,26 @@ class Resource extends Model
     public function isBoathouseSpace(): bool
     {
         return $this->type === ResourceType::BOATHOUSE_SPACE;
+    }
+
+    /**
+     * Members who may approve a booking of this resource (REZ-050). Admins
+     * may always decide and are not listed here.
+     */
+    public function approvers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'resource_approvers', 'resourceId', 'userId')
+            ->withPivot('createdAt');
+    }
+
+    public function isApprover(User $user): bool
+    {
+        return $this->approvers()->whereKey($user->id)->exists();
+    }
+
+    /** "K-1 – Kayak 1" — the form used in audit summaries and e-mails. */
+    public function label(): string
+    {
+        return "{$this->identifier} – {$this->name}";
     }
 }

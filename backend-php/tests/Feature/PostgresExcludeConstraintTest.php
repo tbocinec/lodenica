@@ -12,9 +12,10 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Verifies the Postgres `EXCLUDE USING gist` constraint that protects against
- * overlapping CONFIRMED reservations at the DB level — the safety net for
- * race conditions where two requests pass application-layer overlap checks
+ * Verifies the Postgres `EXCLUDE USING gist` constraint that protects
+ * against overlapping slot-blocking reservations (CONFIRMED and
+ * PENDING_APPROVAL, REZ-052) at the DB level — the safety net for race
+ * conditions where two requests pass application-layer overlap checks
  * concurrently. Skipped on non-Postgres drivers.
  */
 class PostgresExcludeConstraintTest extends TestCase
@@ -152,5 +153,70 @@ class PostgresExcludeConstraintTest extends TestCase
             ->where('status', 'CONFIRMED')
             ->count();
         $this->assertSame(1, $confirmed);
+    }
+
+    public function test_exclude_constraint_treats_pending_approval_as_occupied(): void
+    {
+        $space = Resource::create([
+            'identifier' => 'TEST-EXCL-4',
+            'type' => ResourceType::BOATHOUSE_SPACE,
+            'name' => 'Excl test 4',
+            'requiresApproval' => true,
+        ]);
+
+        $start = CarbonImmutable::parse('2099-04-01T09:00:00Z');
+        Reservation::create([
+            'resourceId' => $space->id,
+            'customerName' => 'A',
+            'startsAt' => $start,
+            'endsAt' => $start->addHours(3),
+            'status' => ReservationStatus::PENDING_APPROVAL,
+        ]);
+
+        $caught = null;
+        try {
+            DB::table('reservations')->insert([
+                'id' => (string) \Ramsey\Uuid\Uuid::uuid4(),
+                'resourceId' => $space->id,
+                'customerName' => 'B',
+                'startsAt' => $start->addHour(),
+                'endsAt' => $start->addHours(2),
+                'status' => 'CONFIRMED',
+            ]);
+        } catch (QueryException $e) {
+            $caught = $e;
+        }
+
+        $this->assertNotNull($caught, 'A pending request must hold its slot.');
+        $this->assertSame('23P01', $caught->getCode());
+    }
+
+    public function test_exclude_constraint_ignores_rejected_reservations(): void
+    {
+        $space = Resource::create([
+            'identifier' => 'TEST-EXCL-5',
+            'type' => ResourceType::BOATHOUSE_SPACE,
+            'name' => 'Excl test 5',
+            'requiresApproval' => true,
+        ]);
+
+        $start = CarbonImmutable::parse('2099-05-01T09:00:00Z');
+        Reservation::create([
+            'resourceId' => $space->id,
+            'customerName' => 'A',
+            'startsAt' => $start,
+            'endsAt' => $start->addHours(3),
+            'status' => ReservationStatus::REJECTED,
+        ]);
+
+        Reservation::create([
+            'resourceId' => $space->id,
+            'customerName' => 'B',
+            'startsAt' => $start,
+            'endsAt' => $start->addHours(3),
+            'status' => ReservationStatus::CONFIRMED,
+        ]);
+
+        $this->assertSame(2, DB::table('reservations')->where('resourceId', $space->id)->count());
     }
 }

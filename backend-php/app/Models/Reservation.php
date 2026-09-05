@@ -27,6 +27,7 @@ class Reservation extends Model
         'startsAt' => 'datetime',
         'endsAt' => 'datetime',
         'status' => ReservationStatus::class,
+        'decidedAt' => 'datetime',
         'createdAt' => 'datetime',
         'updatedAt' => 'datetime',
     ];
@@ -47,6 +48,12 @@ class Reservation extends Model
         return $this->belongsTo(User::class, 'createdById');
     }
 
+    /** The approver who confirmed or rejected the request (null while waiting). */
+    public function decidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'decidedById');
+    }
+
     public function range(): TimeRange
     {
         return TimeRange::fromInstants($this->startsAt, $this->endsAt);
@@ -55,5 +62,28 @@ class Reservation extends Model
     public function isConfirmed(): bool
     {
         return $this->status === ReservationStatus::CONFIRMED;
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->status === ReservationStatus::PENDING_APPROVAL;
+    }
+
+    public function blocksSlot(): bool
+    {
+        return $this->status->blocksSlot();
+    }
+
+    /**
+     * "2026-09-10 09:00 – 2026-09-10 12:00" in the wall-clock UTC convention:
+     * what the user typed is what we display. Shared by audit summaries and
+     * e-mails so they never drift apart.
+     */
+    public function rangeLabel(): string
+    {
+        $start = $this->startsAt instanceof \DateTimeInterface ? $this->startsAt : new \DateTimeImmutable((string) $this->startsAt);
+        $end = $this->endsAt instanceof \DateTimeInterface ? $this->endsAt : new \DateTimeImmutable((string) $this->endsAt);
+
+        return $start->format('Y-m-d H:i').' – '.$end->format('Y-m-d H:i');
     }
 }

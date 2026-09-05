@@ -8,6 +8,8 @@ enum AuditAction: string
     case UPDATE = 'UPDATE';
     case DELETE = 'DELETE';
     case CANCEL = 'CANCEL';
+    case APPROVE = 'APPROVE';
+    case REJECT = 'REJECT';
     case ACTIVATE = 'ACTIVATE';
     case DEACTIVATE = 'DEACTIVATE';
     case ATTACH_RESOURCES = 'ATTACH_RESOURCES';

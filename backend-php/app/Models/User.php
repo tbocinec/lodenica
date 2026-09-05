@@ -38,6 +38,7 @@ class User extends Authenticatable
         'rulesAckAt' => 'datetime',
         'createdAt' => 'datetime',
         'updatedAt' => 'datetime',
+        'notificationPrefs' => 'array',
     ];
 
     public function isAdmin(): bool
