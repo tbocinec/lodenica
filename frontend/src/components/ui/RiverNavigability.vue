@@ -15,6 +15,10 @@ import {
   type NavLevel,
   type NavSegment,
 } from '@/config/navigability';
+import { useSiteStore } from '@/stores/site.store';
+import ExtLink from './ExtLink.vue';
+
+const site = useSiteStore();
 
 const props = defineProps<{ area: NavArea; level: number | null }>();
 
@@ -115,7 +119,7 @@ const legend = computed(() =>
       class="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500 ring-1 ring-slate-200"
     >
       Limity splavnosti zatiaľ nie sú stanovené. Ak ich poznáš,
-      <a href="mailto:rezervacie@lodenicakvs.sk?subject=Limity%20splavnosti" class="font-medium text-brand-700 hover:underline">pošli nám ich</a>.
+      <ExtLink :href="site.config.contactEmail ? `mailto:${site.config.contactEmail}?subject=Limity%20splavnosti` : null">pošli nám ich</ExtLink>.
     </p>
 
     <template v-else>

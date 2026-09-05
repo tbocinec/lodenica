@@ -19,6 +19,9 @@ import Spinner from '@/components/ui/Spinner.vue';
 import StatCard from '@/components/ui/StatCard.vue';
 import { DAMAGE_STATUS_LABEL, RESOURCE_TYPE_LABEL } from '@/i18n/labels';
 import { formatReservationRange, startOfTodayIso } from '@/utils/format';
+import { useSiteStore } from '@/stores/site.store';
+
+const site = useSiteStore();
 
 const snapshot = ref<DashboardSnapshot | null>(null);
 const loading = ref(false);
@@ -125,9 +128,9 @@ onMounted(() => {
           účet posúdi a po potvrdení budeš môcť rezervovať lode, vidieť
           mená rezervujúcich a upravovať rezervácie.
         </p>
-        <p class="mt-2 text-xs text-amber-700">
+        <p v-if="site.config.contactEmail" class="mt-2 text-xs text-amber-700">
           V prípade otázok napíš na
-          <a class="font-medium underline" href="mailto:rezervacie@lodenicakvs.sk">rezervacie@lodenicakvs.sk</a>.
+          <a class="font-medium underline" :href="`mailto:${site.config.contactEmail}`">{{ site.config.contactEmail }}</a>.
         </p>
       </div>
     </div>
@@ -207,7 +210,7 @@ onMounted(() => {
        self-hides if its upstream feed is down; the counts wait for the
        dashboard snapshot. -->
   <div class="mb-6 grid items-stretch gap-4 xl:grid-cols-2">
-    <PaddlingTrafficLightWidget />
+    <PaddlingTrafficLightWidget v-if="site.config.features.paddlingTrafficLight" />
     <section v-if="snapshot" class="grid grid-cols-2 gap-3">
       <button type="button" class="block w-full text-left" @click="scrollTo(todayRef)">
         <StatCard label="Dnes obsadené" :value="snapshot.occupiedToday.length" tone="amber" />
@@ -359,13 +362,14 @@ onMounted(() => {
     </section>
 
     <footer
+      v-if="site.config.contactEmail"
       class="mt-10 rounded-2xl bg-slate-50 px-6 py-5 text-center text-sm text-slate-600 ring-1 ring-slate-200"
     >
       Ak niečo nefunguje alebo máte návrh na zlepšenie, napíšte na
       <a
         class="font-medium text-brand-700 hover:underline"
-        href="mailto:rezervacie@lodenicakvs.sk?subject=Lodenica%20KVS%20%E2%80%94%20feedback"
-      >rezervacie@lodenicakvs.sk</a>.
+        :href="`mailto:${site.config.contactEmail}?subject=${encodeURIComponent(site.config.shortName + ' — spätná väzba')}`"
+      >{{ site.config.contactEmail }}</a>.
     </footer>
   </template>
 </template>

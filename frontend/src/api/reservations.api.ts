@@ -23,12 +23,12 @@ export function reservationIcsUrl(id: string): string {
  *
  * `dates` requires the compact ICS-style UTC format with no separators.
  */
-const KVS_LOCATION =
-  'Klub vodných športov Karlova Ves, Botanická 20/59, 841 04 Bratislava-Karlova Ves, Slovakia';
-const KVS_MAPS_URL = 'https://maps.app.goo.gl/zZwKA168QCeugSxA8';
-
 export function reservationGoogleCalendarUrl(opts: {
   title: string;
+  /** Boathouse address from the site config (may be empty). */
+  location: string;
+  /** Maps link from the site config; when set it opens the description. */
+  mapsUrl: string | null;
   /** ISO-8601 datetime, UTC. */
   startsAt: string;
   /** ISO-8601 datetime, UTC. */
@@ -44,7 +44,7 @@ export function reservationGoogleCalendarUrl(opts: {
   // Description: Maps URL first (tappable in Google Calendar), then the
   // reservation details. \n becomes a soft line break in the GCal UI.
   const description = [
-    KVS_MAPS_URL,
+    opts.mapsUrl,
     `Rezervácia pre: ${opts.customerName}`,
     opts.resourceLabel ? `Zdroj: ${opts.resourceLabel}` : null,
     opts.note ? `Poznámka: ${opts.note}` : null,
@@ -57,7 +57,7 @@ export function reservationGoogleCalendarUrl(opts: {
     text: opts.title,
     dates: `${toCompactUtc(opts.startsAt)}/${toCompactUtc(opts.endsAt)}`,
     details: description,
-    location: KVS_LOCATION,
+    location: opts.location,
   });
   return `https://www.google.com/calendar/render?${params.toString()}`;
 }
