@@ -74,6 +74,10 @@ auth.isPending         // strict PENDING
 | Own-bookings filter on the list (`GET /reservations?mine=1`) | ✅ (empty page) | ✅ (own) | ✅ (own) | ✅ (own) |
 | Audit log | ❌ (401) | ✅ | ✅ | ✅ |
 | Admin pages (users, usage, data, settings edit) | ❌ | ❌ | ❌ | ✅ |
+| `approvers` (who may approve) on a resource | ❌ (null) | ❌ (null) | ✅ | ✅ |
+| `decisionNote` on a reservation | ❌ (null) | ❌ (null) | ✅ | ✅ |
+| Pending approvals list (`GET /reservations/approvals`) | ❌ (401) | ❌ (403) | ✅ (resources they approve) | ✅ (all) |
+| Own e-mail preferences (`GET /profile/notifications`) | ❌ (401) | ✅ | ✅ | ✅ |
 
 ### Write access (who can mutate)
 
@@ -104,6 +108,10 @@ auth.isPending         // strict PENDING
 | Reset ANY user's password (`PATCH /users/{id}`) | ❌ | ❌ | ❌ | ✅ |
 | Invite a member — single (`POST /users/invite`) or bulk CSV (`POST /users/import`); both auto-confirm as MEMBER | ❌ | ❌ | ❌ | ✅ |
 | Export DB / CSV, purge reservations | ❌ | ❌ | ❌ | ✅ |
+| Book a resource that `requiresApproval` (`POST /reservations`) → lands `PENDING_APPROVAL` | ❌ (403) | ❌ (403) | ✅ | ✅ |
+| Approve / reject a pending reservation (`POST /reservations/{id}/approve`, `…/reject`) | ❌ (401) | ❌ (403) | ✅ only if listed approver of that resource, else 403 | ✅ |
+| Set `requiresApproval` + `approverIds` on a resource | ❌ | ❌ | ❌ | ✅ |
+| Change own e-mail preferences (`PATCH /profile/notifications`) | ❌ (401) | ✅ | ✅ | ✅ |
 
 ## Where the gating actually lives
 
@@ -117,8 +125,8 @@ sync. When you add a new permission-sensitive feature, touch all three.
 | Middleware stack | Who passes | Use for |
 | --- | --- | --- |
 | (none) | anonymous + all roles | Public reads + low-friction writes (create reservation, report damage); auth entry points (`login`, `register`, `captcha`, `forgot-password`, `reset-password`, `providers`, `oauth/*`); event list + single-event reads |
-| `auth:sanctum` | any logged-in role (incl. PENDING) | `/auth/me`, `/auth/logout`, audit log, **own** profile (change password, link/unlink identity), **own** reservations (`/reservations/mine`) |
-| `auth:sanctum`, `member` | MEMBER + ADMIN | Edits/cancels/deletes on reservations; event create/update/delete + participants + attach-boats |
+| `auth:sanctum` | any logged-in role (incl. PENDING) | `/auth/me`, `/auth/logout`, audit log, **own** profile (change password, link/unlink identity), **own** reservations (`/reservations/mine`), own e-mail preferences (/profile/notifications) |
+| `auth:sanctum`, `member` | MEMBER + ADMIN | Edits/cancels/deletes on reservations; event create/update/delete + participants + attach-boats; approvals list + approve/reject (approver check inside ReservationApprovalService) |
 | `auth:sanctum`, `admin` | ADMIN only | Resource edits, user management, bulk import, settings, exports |
 
 > **Public-route guard gotcha.** On a route with no `auth:sanctum`
@@ -153,6 +161,7 @@ Two places to update if you add a new private field:
 - `app/Services/AvailabilityService.php::renderReservation()` — same
   rule, applied to the dashboard payload (separate code path because
   it's not a JsonResource).
+- `app/Http/Resources/ResourceResource.php` — approvers is null for non-members (member names are member-only, CORE-030).
 
 Pattern (note the explicit `sanctum` guard — these run on public routes):
 
@@ -298,8 +307,13 @@ gets to see what, the docs are stale — fix the file before merging.
 - `backend-php/tests/Feature/Api/OAuthDormantApiTest.php` +
   `tests/Feature/OAuthServiceTest.php` — dormant providers 404, identity
   create/link/unlink logic.
+- `backend-php/tests/Feature/Api/ReservationApprovalApiTest.php` — gated
+  booking (403 for anon/PENDING), approver/admin decisions, 403 for
+  non-approvers, scoped approvals list.
+- `backend-php/tests/Feature/UserNotificationPreferencesTest.php` — own
+  preference switches.
 
 > **SPA route gate `confirmed`.** `router/index.ts` adds a third
 > `meta.auth` value: `'member'` = any authenticated (incl. PENDING, e.g.
 > profile/audit), `'confirmed'` = MEMBER/ADMIN only (PENDING bounced, e.g.
-> creating events), `'admin'` = ADMIN.
+> creating events), `'admin'` = ADMIN. `/approvals` is `'confirmed'`.
