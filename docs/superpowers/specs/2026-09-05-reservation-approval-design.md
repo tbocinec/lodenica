@@ -116,6 +116,18 @@ Migration 1 must run and commit before 2 because a new enum value cannot be
 referenced in the same transaction that adds it. The timestamp order
 guarantees this.
 
+Ownership fallback (added 2026-09-05 after the test-env check): on the managed
+hosting the enum types of `kvsrez_test` are owned by the `postgres` superuser
+while the tables belong to `pgrez`, so `ALTER TYPE … ADD VALUE` fails there
+with SQLSTATE 42501. Migration 1 therefore checks `pg_has_role(current_user,
+typowner, 'USAGE')` first; when the role may not alter the type it detaches
+`reservations.status` from the enum instead — column becomes `TEXT`, values
+kept via `::text`, default `'CONFIRMED'` restored, a `reservations_status_chk`
+CHECK with the four statuses added, the EXCLUDE constraint recreated — all in
+one explicit transaction. Migration 2's constraint swap works on either shape.
+Production `kvsrez` owns its types (`pgrez`), so it takes the ALTER TYPE path.
+Verified against a local Postgres 16 in both shapes.
+
 ## 5. Backend
 
 ### 5.1 Enums
