@@ -255,7 +255,7 @@ async function runPurge(): Promise<void> {
   <section class="card-padded mb-6 border-amber-200 bg-amber-50/30">
     <h2 class="mb-2 text-lg font-semibold text-amber-900">🧹 Vyčistiť rezervácie</h2>
     <p class="mb-3 text-sm text-amber-800">
-      Hromadné mazanie rezervácií. CONFIRMED aj CANCELLED — všetky.
+      Hromadné mazanie rezervácií. Všetky stavy (potvrdené, čakajúce, zrušené aj zamietnuté).
     </p>
 
     <div class="space-y-2">

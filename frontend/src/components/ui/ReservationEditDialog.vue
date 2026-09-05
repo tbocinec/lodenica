@@ -149,7 +149,9 @@ watch(
     history.value = [];
     historyOpen.value = false;
     if (auth.isAdmin) void loadMembers();
-    if (resources.items.length === 0) void resources.fetch();
+    // Some screens fill the store partially (Priestory loads spaces only) —
+    // make sure the booked resource is present so canDecide can see its approvers.
+    if (!resources.byId.has(r.resourceId)) void resources.fetch();
   },
   { immediate: true },
 );
