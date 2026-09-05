@@ -153,6 +153,7 @@ onMounted(load);
     <div class="mb-4 flex flex-wrap items-center gap-2">
       <ResourceTypeBadge :type="resource.type" />
       <span v-if="!resource.isActive" class="pill-slate">Neaktívny</span>
+      <span v-if="resource.requiresApproval" class="pill-amber">🔒 Schvaľuje sa</span>
     </div>
 
     <!-- Today / status banner -->
@@ -199,6 +200,17 @@ onMounted(load);
 
           <dt class="text-slate-500">Identifikátor</dt>
           <dd class="col-span-2 font-mono text-xs text-slate-700">{{ resource.identifier }}</dd>
+
+          <template v-if="resource.requiresApproval">
+            <dt class="text-slate-500">Schvaľovanie</dt>
+            <dd class="col-span-2 text-slate-800">
+              Rezervácia čaká na schválenie.
+              <template v-if="resource.approvers && resource.approvers.length">
+                Schvaľuje: {{ resource.approvers.map((a) => a.name).join(', ') }}.
+              </template>
+              <template v-else-if="resource.approvers">Schvaľujú administrátori.</template>
+            </dd>
+          </template>
 
           <template v-if="resource.model">
             <dt class="text-slate-500">Model</dt>

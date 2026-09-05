@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { resourcesApi } from '@/api/resources.api';
-import { RESOURCE_TYPE_VALUES, ResourceType } from '@/api/types';
+import { RESOURCE_TYPE_VALUES, ResourceType, type User } from '@/api/types';
+import { usersApi } from '@/api/users.api';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import { RESOURCE_TYPE_LABEL } from '@/i18n/labels';
@@ -25,6 +26,8 @@ const form = reactive({
   note: '',
   imageUrl: '',
   isActive: true,
+  requiresApproval: false,
+  approverIds: [] as string[],
 });
 
 const error = ref<string | null>(null);
@@ -52,10 +55,41 @@ async function load() {
       note: r.note ?? '',
       imageUrl: r.imageUrl ?? '',
       isActive: r.isActive,
+      requiresApproval: r.requiresApproval,
+      approverIds: r.approvers?.map((a) => a.id) ?? [],
     });
   } catch (e) {
     error.value = (e as Error).message;
   }
+}
+
+// Approver picker (REZ-050): confirmed members + admins, searchable.
+const members = ref<User[]>([]);
+const approverSearch = ref('');
+
+async function loadMembers(): Promise<void> {
+  try {
+    const data = await usersApi.list({ pageSize: 500 });
+    members.value = data.items
+      .filter((u) => u.isActive && (u.role === 'MEMBER' || u.role === 'ADMIN'))
+      .sort((a, b) => a.name.localeCompare(b.name, 'sk'));
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+}
+
+const filteredMembers = computed(() => {
+  const q = approverSearch.value.trim().toLowerCase();
+  if (!q) return members.value;
+  return members.value.filter(
+    (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+  );
+});
+
+function toggleApprover(id: string): void {
+  const i = form.approverIds.indexOf(id);
+  if (i >= 0) form.approverIds.splice(i, 1);
+  else form.approverIds.push(id);
 }
 
 async function onPhotoSelected(event: Event): Promise<void> {
@@ -112,7 +146,10 @@ async function submit() {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  void load();
+  void loadMembers();
+});
 </script>
 
 <template>
@@ -295,6 +332,52 @@ onMounted(load);
     <div class="sm:col-span-2 flex items-center gap-2">
       <input id="active" v-model="form.isActive" type="checkbox" class="h-4 w-4 rounded" />
       <label for="active" class="text-sm font-medium text-slate-700">Aktívny zdroj</label>
+    </div>
+
+    <!-- Approval workflow (REZ-050). -->
+    <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
+      <label class="flex items-center gap-2">
+        <input id="requiresApproval" v-model="form.requiresApproval" type="checkbox" class="h-4 w-4 rounded" />
+        <span class="text-sm font-medium text-slate-700">Vyžaduje schválenie pred rezerváciou</span>
+      </label>
+      <p class="mt-1 text-xs text-slate-500">
+        Rezervácia tohto zdroja bude čakať, kým ju niekto zo schvaľovateľov schváli.
+        Rezervovať ho môžu iba prihlásení členovia; termín je medzitým blokovaný.
+      </p>
+
+      <div v-if="form.requiresApproval" class="mt-3">
+        <span class="label">Schvaľovatelia</span>
+        <p class="mt-1 text-xs text-slate-500">
+          Ak nevyberieš nikoho, žiadosti pôjdu na klubovú adresu administrátorom.
+          Správcovia môžu schvaľovať vždy, aj keď tu nie sú.
+        </p>
+        <input
+          v-model="approverSearch"
+          type="search"
+          class="input mt-2 text-sm"
+          placeholder="Hľadať člena — meno alebo e-mail…"
+          maxlength="60"
+        />
+        <ul class="mt-2 max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">
+          <li v-for="u in filteredMembers" :key="u.id">
+            <label class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50">
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded"
+                :checked="form.approverIds.includes(u.id)"
+                @change="toggleApprover(u.id)"
+              />
+              <span class="font-medium text-slate-800">{{ u.name }}</span>
+              <span class="text-xs text-slate-400">{{ u.email }}</span>
+              <span v-if="u.role === 'ADMIN'" class="ml-auto text-[10px] font-semibold uppercase text-amber-700">admin</span>
+            </label>
+          </li>
+          <li v-if="filteredMembers.length === 0" class="px-3 py-2 text-sm text-slate-400">
+            Žiadny člen nezodpovedá hľadaniu.
+          </li>
+        </ul>
+        <p class="mt-1 text-xs text-slate-500">Vybraní schvaľovatelia: {{ form.approverIds.length }}</p>
+      </div>
     </div>
 
     <LoadError class="sm:col-span-2" :message="error" />

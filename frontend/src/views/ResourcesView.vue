@@ -142,6 +142,7 @@ watch([search, typeFilter, onlyActive], () => {
               <span :class="r.isActive ? 'pill-green' : 'pill-slate'">
                 {{ r.isActive ? 'Aktívny' : 'Neaktívny' }}
               </span>
+              <span v-if="r.requiresApproval" class="pill-amber ml-1">🔒 Schvaľuje sa</span>
             </td>
             <td class="text-right">
               <RouterLink :to="`/resources/${r.id}`" class="btn-secondary mr-2">
