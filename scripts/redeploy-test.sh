@@ -13,7 +13,6 @@ set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 SECRETS=".deploy-secrets.test"
-STAGE="${LODENICA_DEPLOY_STAGE:-/tmp/lodenica-rezervacie-deploy}"
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 
@@ -32,6 +31,7 @@ scripts/deploy-rezervacie.sh --secrets "$SECRETS" || echo "‼  Deploy skript sk
 
 # Load secrets for verification + the serial fallback upload.
 set -a; . "./$SECRETS"; set +a
+STAGE="${LODENICA_DEPLOY_STAGE:-/tmp/lodenica-deploy-$PROD_DOMAIN}"
 
 served_chunk() { curl -sk "https://$PROD_DOMAIN/" | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1; }
 spa_ok() {

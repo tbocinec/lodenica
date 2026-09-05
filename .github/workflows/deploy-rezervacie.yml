@@ -1,4 +1,5 @@
-# Deploy the PHP backend + Vue SPA to rezervacie.lodenicakvs.sk.
+# Deploy the PHP backend + Vue SPA for one client (one GitHub Environment
+# per client; the default is the original KVŠ site).
 #
 # Manual only (workflow_dispatch). GitHub runners have unrestricted port 22
 # outbound, so this gets around the corporate-VPN block that prevents the
@@ -30,12 +31,29 @@
 #   REZERVACIE_DOMAIN            e.g. rezervacie.lodenicakvs.sk
 #   REZERVACIE_LARAVEL_REMOTE    /laravel
 #   REZERVACIE_DOCROOT_REMOTE    /
+#   REZERVACIE_SITE_NAME         e.g. Lodenica KVŠ (REQUIRED — the club's name)
+#   REZERVACIE_SITE_SHORT_NAME   e.g. Rezervácie KVŠ (optional)
+#   REZERVACIE_SITE_CLUB_NAME    full club name (optional)
+#   REZERVACIE_SITE_CONTACT_EMAIL contact e-mail (optional)
+#   REZERVACIE_SITE_FEATURE_TRAFFIC_LIGHT  true|false (optional)
+#   REZERVACIE_MAIL_USERNAME / REZERVACIE_MAIL_FROM_ADDRESS  SMTP sender (optional)
+#   REZERVACIE_ADMIN_EMAIL       first-install admin (optional)
+# Secrets (optional):
+#   REZERVACIE_MAIL_PASSWORD     SMTP password (without it e-mail goes to the log)
+#   REZERVACIE_ADMIN_PASSWORD    first-install admin password
+#
+# A NEW CLIENT = a new GitHub Environment with the same variable names;
+# run the workflow with `environment=<its name>`.
 
-name: Deploy rezervacie.lodenicakvs.sk
+name: Deploy a client site
 
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'GitHub Environment holding the client''s REZERVACIE_* values'
+        type: string
+        default: rezervace.kvs
       ref:
         description: 'Branch / tag / commit to deploy (default: main)'
         type: string
@@ -46,8 +64,9 @@ on:
         default: false
 
 concurrency:
-  # Block parallel deploys — they'd race over .env / install.php.
-  group: deploy-rezervacie
+  # Block parallel deploys of the SAME client — they'd race over .env /
+  # install.php. Different clients may deploy side by side.
+  group: deploy-${{ inputs.environment }}
   cancel-in-progress: false
 
 permissions:
@@ -55,18 +74,16 @@ permissions:
 
 jobs:
   deploy:
-    name: Build & deploy to rezervacie.lodenicakvs.sk
+    name: Build & deploy ${{ inputs.environment }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    # Secrets + variables live under the `rezervace.kvs` GitHub Environment
-    # (Settings → Environments → rezervace.kvs). Declaring it here gives this
-    # job access to the environment-scoped vault and shows the deployment in
-    # the repo's Deployments tab.
-    # NOTE: `environment.url` cannot reference the `secrets` context (GitHub
-    # restricts it to vars/inputs/github/etc.), so the domain is hardcoded.
+    # Secrets + variables live under the chosen GitHub Environment
+    # (Settings → Environments). Declaring it here gives this job access to
+    # the environment-scoped vault and shows the deployment in the repo's
+    # Deployments tab. `environment.url` may read `vars`, not `secrets`.
     environment:
-      name: rezervace.kvs
-      url: https://rezervacie.lodenicakvs.sk
+      name: ${{ inputs.environment }}
+      url: https://${{ vars.REZERVACIE_DOMAIN }}
 
     steps:
       - name: Checkout ${{ inputs.ref }}
@@ -124,9 +141,10 @@ jobs:
           DB_PASSWORD:   ${{ vars.REZERVACIE_DB_PASSWORD   || secrets.REZERVACIE_DB_PASSWORD }}
           APP_KEY:       ${{ vars.REZERVACIE_APP_KEY       || secrets.REZERVACIE_APP_KEY }}
           DOMAIN:        ${{ vars.REZERVACIE_DOMAIN        || secrets.REZERVACIE_DOMAIN }}
+          SITE_NAME:     ${{ vars.REZERVACIE_SITE_NAME     || secrets.REZERVACIE_SITE_NAME }}
         run: |
           missing=()
-          for v in SFTP_HOST SFTP_USER SFTP_PASSWORD DB_NAME DB_USER DB_PASSWORD APP_KEY DOMAIN; do
+          for v in SFTP_HOST SFTP_USER SFTP_PASSWORD DB_NAME DB_USER DB_PASSWORD APP_KEY DOMAIN SITE_NAME; do
             if [ -z "${!v:-}" ]; then missing+=("$v"); fi
           done
           if [ ${#missing[@]} -gt 0 ]; then
@@ -152,6 +170,16 @@ jobs:
           DOMAIN:         ${{ vars.REZERVACIE_DOMAIN         || secrets.REZERVACIE_DOMAIN }}
           LARAVEL_REMOTE: ${{ vars.REZERVACIE_LARAVEL_REMOTE || secrets.REZERVACIE_LARAVEL_REMOTE }}
           DOCROOT_REMOTE: ${{ vars.REZERVACIE_DOCROOT_REMOTE || secrets.REZERVACIE_DOCROOT_REMOTE }}
+          SITE_NAME:            ${{ vars.REZERVACIE_SITE_NAME            || secrets.REZERVACIE_SITE_NAME }}
+          SITE_SHORT_NAME:      ${{ vars.REZERVACIE_SITE_SHORT_NAME      || secrets.REZERVACIE_SITE_SHORT_NAME }}
+          SITE_CLUB_NAME:       ${{ vars.REZERVACIE_SITE_CLUB_NAME       || secrets.REZERVACIE_SITE_CLUB_NAME }}
+          SITE_CONTACT_EMAIL:   ${{ vars.REZERVACIE_SITE_CONTACT_EMAIL   || secrets.REZERVACIE_SITE_CONTACT_EMAIL }}
+          SITE_FEATURE_TRAFFIC_LIGHT: ${{ vars.REZERVACIE_SITE_FEATURE_TRAFFIC_LIGHT || secrets.REZERVACIE_SITE_FEATURE_TRAFFIC_LIGHT }}
+          MAIL_USERNAME:        ${{ vars.REZERVACIE_MAIL_USERNAME        || secrets.REZERVACIE_MAIL_USERNAME }}
+          MAIL_FROM_ADDRESS:    ${{ vars.REZERVACIE_MAIL_FROM_ADDRESS    || secrets.REZERVACIE_MAIL_FROM_ADDRESS }}
+          MAIL_PASSWORD:        ${{ secrets.REZERVACIE_MAIL_PASSWORD }}
+          ADMIN_EMAIL:          ${{ vars.REZERVACIE_ADMIN_EMAIL          || secrets.REZERVACIE_ADMIN_EMAIL }}
+          ADMIN_PASSWORD:       ${{ secrets.REZERVACIE_ADMIN_PASSWORD }}
         run: |
           # printf prints each value literally, so passwords with `$`,
           # backticks, brackets etc. survive unescaped (mirror what the
@@ -171,6 +199,13 @@ jobs:
             printf 'PROD_DB_PASSWORD=%s\n'         "$DB_PASSWORD"
             printf 'PROD_DOMAIN=%s\n'              "$DOMAIN"
             printf 'PROD_BASE_URL=https://%s\n'    "$DOMAIN"
+            # Site identity + optional sender/admin; absent values stay absent
+            # so the app's own defaults apply.
+            printf 'SITE_NAME=%s\n'                "$SITE_NAME"
+            for v in SITE_SHORT_NAME SITE_CLUB_NAME SITE_CONTACT_EMAIL SITE_FEATURE_TRAFFIC_LIGHT \
+                     MAIL_USERNAME MAIL_FROM_ADDRESS MAIL_PASSWORD ADMIN_EMAIL ADMIN_PASSWORD; do
+              [ -n "${!v:-}" ] && printf '%s=%s\n' "$v" "${!v}"
+            done
           } > .deploy-secrets
           chmod 600 .deploy-secrets
 
@@ -196,6 +231,7 @@ jobs:
           {
             echo "### Deploy status — ${{ job.status }}"
             echo ""
+            echo "- **Client environment:** \`${{ inputs.environment }}\`"
             echo "- **Ref deployed:** \`${{ inputs.ref }}\`"
             echo "- **Sheet re-imported:** ${{ inputs.import_sheet }}"
             echo "- **Live URL:** https://$DOMAIN/"
