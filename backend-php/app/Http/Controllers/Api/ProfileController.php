@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -101,17 +102,19 @@ class ProfileController extends Controller
     {
         $known = array_map(fn (MailNotification $t) => $t->value, UserNotificationPreferences::configurable());
 
-        $unknown = array_diff(array_keys($request->all()), $known);
+        $changes = $request->isJson() ? $request->json()->all() : $request->post();
+
+        $unknown = array_diff(array_keys($changes), $known);
         if ($unknown !== []) {
             throw ValidationException::withMessages([
                 'notifications' => 'Túto notifikáciu si nemôžeš nastaviť: '.implode(', ', $unknown),
             ]);
         }
-        $request->validate(array_fill_keys($known, ['sometimes', 'boolean']));
+        Validator::make($changes, array_fill_keys($known, ['sometimes', 'boolean']))->validate();
 
         /** @var User $user */
         $user = $request->user();
-        $state = $prefs->update($user, $request->all());
+        $state = $prefs->update($user, $changes);
 
         return new JsonResponse(['notifications' => $this->presentPreferences($state)]);
     }

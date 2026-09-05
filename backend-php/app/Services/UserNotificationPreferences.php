@@ -60,6 +60,10 @@ class UserNotificationPreferences
             }
         }
 
+        if ($next === $before) {
+            return $next;
+        }
+
         $user->notificationPrefs = $next;
         $user->save();
 

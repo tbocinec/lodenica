@@ -70,6 +70,15 @@ class UserNotificationPreferencesTest extends TestCase
         $this->assertArrayNotHasKey('password_reset', $state);
     }
 
+    public function test_a_no_op_update_writes_no_audit_row(): void
+    {
+        $user = $this->member();
+
+        $this->prefs()->update($user, ['reservation_decided' => true]);
+
+        $this->assertSame(0, AuditLog::query()->where('entityId', $user->id)->count());
+    }
+
     public function test_a_change_is_audited_on_the_user(): void
     {
         $user = $this->member();

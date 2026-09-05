@@ -113,6 +113,18 @@ class ProfileApiTest extends TestCase
         $this->patchJson('/api/v1/profile/notifications', ['reservation_decided' => 'nie'])->assertStatus(400);
     }
 
+    public function test_notification_preferences_ignore_the_query_string(): void
+    {
+        $user = User::create([
+            'name' => 'Self', 'email' => 'prefs3@example.test',
+            'password' => 'currentpass1', 'role' => UserRole::MEMBER, 'isActive' => true,
+        ]);
+        \Laravel\Sanctum\Sanctum::actingAs($user, ['*']);
+
+        $this->patchJson('/api/v1/profile/notifications?foo=1', ['reservation_decided' => false])
+            ->assertOk();
+    }
+
     public function test_notification_preferences_require_login(): void
     {
         $this->getJson('/api/v1/profile/notifications')->assertStatus(401);
