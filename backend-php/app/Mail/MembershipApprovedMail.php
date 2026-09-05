@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\SiteConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -17,8 +18,10 @@ class MembershipApprovedMail extends Mailable
 
     public function build(): self
     {
+        $siteName = app(SiteConfig::class)->siteName();
+
         return $this
-            ->subject('Vaše členstvo bolo schválené — Lodenica KVŠ')
+            ->subject("Vaše členstvo bolo schválené — {$siteName}")
             ->view('emails.membership-approved', [
                 'name' => $this->name,
                 'loginUrl' => $this->loginUrl,

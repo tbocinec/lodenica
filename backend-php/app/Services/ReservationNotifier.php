@@ -18,7 +18,10 @@ use Illuminate\Support\Facades\Log;
  */
 class ReservationNotifier
 {
-    public function __construct(private readonly NotificationMailer $mailer) {}
+    public function __construct(
+        private readonly NotificationMailer $mailer,
+        private readonly SiteConfig $site,
+    ) {}
 
     /**
      * Tell every active approver who is still a confirmed member that a
@@ -46,7 +49,7 @@ class ReservationNotifier
                 ->whereIn('users.role', [UserRole::MEMBER->value, UserRole::ADMIN->value])
                 ->get();
             if ($approvers->isEmpty()) {
-                $to = (string) config('mail.admin_address');
+                $to = (string) $this->site->adminEmail();
                 if ($to !== '') {
                     $this->mailer->send(MailNotification::RESERVATION_APPROVAL_REQUESTED, $to, $mail(false));
                 }

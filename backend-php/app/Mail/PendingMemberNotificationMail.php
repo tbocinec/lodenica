@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\SiteConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -23,8 +24,10 @@ class PendingMemberNotificationMail extends Mailable
 
     public function build(): self
     {
+        $siteName = app(SiteConfig::class)->siteName();
+
         return $this
-            ->subject('Nový člen čaká na schválenie — Lodenica KVŠ')
+            ->subject("Nový člen čaká na schválenie — {$siteName}")
             ->view('emails.pending-member', [
                 'memberName' => $this->memberName,
                 'memberEmail' => $this->memberEmail,

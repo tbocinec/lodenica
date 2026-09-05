@@ -14,12 +14,15 @@ use Illuminate\Support\Facades\Log;
  */
 class AdminNotifier
 {
-    public function __construct(private readonly NotificationMailer $mailer) {}
+    public function __construct(
+        private readonly NotificationMailer $mailer,
+        private readonly SiteConfig $site,
+    ) {}
 
     public function pendingMemberAwaitingApproval(User $user): void
     {
         try {
-            $to = (string) config('mail.admin_address');
+            $to = (string) $this->site->adminEmail();
             if ($to === '') {
                 return;
             }

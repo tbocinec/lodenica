@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\SiteConfig;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,5 +22,11 @@ class AppServiceProvider extends ServiceProvider
         // flat `{ items, total, page, pageSize }` shape; this aligns the
         // single-resource and collection-resource paths with that.
         JsonResource::withoutWrapping();
+
+        // The e-mail layout's header and <title> carry the installation's
+        // name. A composer keeps every template from having to pass it.
+        View::composer('emails.layout', function (\Illuminate\View\View $view): void {
+            $view->with('siteName', app(SiteConfig::class)->siteName());
+        });
     }
 }

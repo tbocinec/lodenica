@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\SiteConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -19,8 +20,10 @@ class AccountInvitationMail extends Mailable
 
     public function build(): self
     {
+        $siteName = app(SiteConfig::class)->siteName();
+
         return $this
-            ->subject('Boli ste pridaný do systému — Lodenica KVŠ')
+            ->subject("Boli ste pridaný do systému — {$siteName}")
             ->view('emails.account-invitation', [
                 'email' => $this->email,
                 'name' => $this->name,

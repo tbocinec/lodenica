@@ -123,6 +123,8 @@ return [
     | approval"). Read via config (not env()) so it survives config:cache.
     */
 
-    'admin_address' => env('MAIL_ADMIN_ADDRESS', 'rezervacie@lodenicakvs.sk'),
+    // Superseded by config('site.admin_email') / SiteConfig::adminEmail();
+    // kept so nothing that still reads this key breaks.
+    'admin_address' => env('MAIL_ADMIN_ADDRESS'),
 
 ];

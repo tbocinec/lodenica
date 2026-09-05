@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\SiteConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -23,9 +24,10 @@ class ReservationDecidedMail extends Mailable
     public function build(): self
     {
         $outcome = $this->approved ? 'schválená' : 'zamietnutá';
+        $siteName = app(SiteConfig::class)->siteName();
 
         return $this
-            ->subject("Rezervácia {$outcome}: {$this->resourceLabel} — Lodenica KVŠ")
+            ->subject("Rezervácia {$outcome}: {$this->resourceLabel} — {$siteName}")
             ->view('emails.reservation-decided', [
                 'approved' => $this->approved,
                 'name' => $this->name,

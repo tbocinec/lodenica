@@ -59,7 +59,7 @@ class MailDiagnosticsApiTest extends TestCase
             'mail.mailers.smtp.password' => 'super-secret-value',
             'mail.from.address' => 'robot@example.test',
             'mail.from.name' => 'Lodenica',
-            'mail.admin_address' => 'admin@example.test',
+            'site.admin_email' => 'admin@example.test',
         ]);
 
         $r = $this->getJson('/api/v1/admin/mail/config')->assertOk();

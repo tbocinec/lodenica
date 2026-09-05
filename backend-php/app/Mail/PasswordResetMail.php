@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\SiteConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -18,8 +19,10 @@ class PasswordResetMail extends Mailable
 
     public function build(): self
     {
+        $siteName = app(SiteConfig::class)->siteName();
+
         return $this
-            ->subject('Obnova hesla — Lodenica KVŠ')
+            ->subject("Obnova hesla — {$siteName}")
             ->view('emails.password-reset', [
                 'email' => $this->email,
                 'resetUrl' => $this->resetUrl,
