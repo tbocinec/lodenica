@@ -1,7 +1,7 @@
 # Reservation approval workflow + per-user e-mail notification preferences
 
 **Date:** 2026-09-05
-**Status:** approved design, not yet implemented
+**Status:** implemented — see docs/superpowers/plans/2026-09-05-reservation-approval.md
 **Scope:** `backend-php/`, `frontend/`, `docs/spec/02-reservations.md`, `docs/AUTH-AND-PERMISSIONS.md`
 
 ## 1. Goal
