@@ -12,6 +12,8 @@ class PaddlingTrafficLightApiTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        // The module is off by default (Danube clubs only) — switch it on here.
+        config(['site.features.paddling_traffic_light' => true]);
     }
 
     public function test_proxies_and_relays_the_traffic_light_payload(): void

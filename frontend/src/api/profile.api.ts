@@ -1,5 +1,5 @@
 import { http } from './http';
-import type { NotificationPreference, UserIdentity } from './types';
+import type { NotificationPreference, User, UserIdentity } from './types';
 
 /**
  * The signed-in user's own-account operations. Changing OTHER users'
@@ -30,5 +30,10 @@ export const profileApi = {
   async setNotifications(changes: Record<string, boolean>): Promise<NotificationPreference[]> {
     const { data } = await http.patch<{ notifications: NotificationPreference[] }>('/profile/notifications', changes);
     return data.notifications;
+  },
+  /** Own colour theme; null = the site default (THEME-001). Returns the updated user. */
+  async setAppearance(theme: string | null): Promise<User> {
+    const { data } = await http.patch<User>('/profile/appearance', { theme });
+    return data;
   },
 };

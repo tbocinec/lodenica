@@ -29,7 +29,7 @@ async function exportDb(): Promise<void> {
   info.value = null;
   try {
     const blob = await adminDataApi.downloadDatabaseJson();
-    saveBlobAs(blob, `lodenica-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    saveBlobAs(blob, `zaloha-${new Date().toISOString().slice(0, 10)}.json`);
     info.value = 'JSON záloha stiahnutá.';
   } catch (e) {
     error.value = (e as Error).message;
@@ -43,7 +43,7 @@ async function exportReservationsCsv(): Promise<void> {
   info.value = null;
   try {
     const blob = await adminDataApi.downloadReservationsCsv();
-    saveBlobAs(blob, `lodenica-rezervacie-${new Date().toISOString().slice(0, 10)}.csv`);
+    saveBlobAs(blob, `rezervacie-${new Date().toISOString().slice(0, 10)}.csv`);
     info.value = 'CSV rezervácií stiahnuté.';
   } catch (e) {
     error.value = (e as Error).message;
@@ -57,7 +57,7 @@ async function exportResourcesCsv(): Promise<void> {
   info.value = null;
   try {
     const blob = await adminDataApi.downloadResourcesCsv();
-    saveBlobAs(blob, `lodenica-lode-${new Date().toISOString().slice(0, 10)}.csv`);
+    saveBlobAs(blob, `lode-${new Date().toISOString().slice(0, 10)}.csv`);
     info.value = 'CSV lodí stiahnuté.';
   } catch (e) {
     error.value = (e as Error).message;
@@ -71,7 +71,7 @@ async function exportMembersCsv(): Promise<void> {
   info.value = null;
   try {
     const blob = await adminDataApi.downloadMembersCsv();
-    saveBlobAs(blob, `lodenica-clenovia-${new Date().toISOString().slice(0, 10)}.csv`);
+    saveBlobAs(blob, `clenovia-${new Date().toISOString().slice(0, 10)}.csv`);
     info.value = 'CSV členov stiahnuté.';
   } catch (e) {
     error.value = (e as Error).message;

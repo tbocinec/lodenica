@@ -6,8 +6,7 @@ import QRCode from 'qrcode';
  * `quick=3h`). Absolute URL so a printed/scanned code works from any device.
  */
 export function resourceBookingUrl(resourceId: string): string {
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : 'https://rezervacie.lodenicakvs.sk';
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
   return `${origin}/reservations/new?resourceId=${encodeURIComponent(resourceId)}&quick=3h`;
 }
 

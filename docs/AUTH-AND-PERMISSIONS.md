@@ -78,6 +78,9 @@ auth.isPending         // strict PENDING
 | `decisionNote` on a reservation | ❌ (null) | ❌ (null) | ✅ | ✅ |
 | Pending approvals list (`GET /reservations/approvals`) | ❌ (401) | ❌ (403) | ✅ (resources they approve) | ✅ (all) |
 | Own e-mail preferences (`GET /profile/notifications`) | ❌ (401) | ✅ | ✅ | ✅ |
+| Site config without `adminEmail` (`GET /site`, `GET /site/logo`) | ✅ | ✅ | ✅ | ✅ |
+| Site config incl. `adminEmail` (`GET /admin/site`) | ❌ | ❌ | ❌ | ✅ |
+| Own `theme` on `/auth/me` | ❌ (401) | ✅ | ✅ | ✅ |
 
 ### Write access (who can mutate)
 
@@ -112,6 +115,8 @@ auth.isPending         // strict PENDING
 | Approve / reject a pending reservation (`POST /reservations/{id}/approve`, `…/reject`) | ❌ (401) | ❌ (403) | ✅ only if listed approver of that resource, else 403 | ✅ |
 | Set `requiresApproval` + `approverIds` on a resource | ❌ | ❌ | ❌ | ✅ |
 | Change own e-mail preferences (`PATCH /profile/notifications`) | ❌ (401) | ✅ | ✅ | ✅ |
+| Set own colour theme (`PATCH /profile/appearance`) | ❌ (401) | ✅ | ✅ | ✅ |
+| Edit site config / logo (`PATCH /admin/site`, `POST/DELETE /admin/site/logo`) | ❌ | ❌ | ❌ | ✅ |
 
 ## Where the gating actually lives
 

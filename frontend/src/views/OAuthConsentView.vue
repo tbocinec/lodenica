@@ -13,6 +13,9 @@ import GdprConsentFields from '@/components/ui/GdprConsentFields.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSiteStore } from '@/stores/site.store';
+
+const site = useSiteStore();
 
 const route = useRoute();
 const router = useRouter();
@@ -55,7 +58,7 @@ async function submit(): Promise<void> {
   <div class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
     <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div class="mb-6 text-center">
-        <h1 class="text-2xl font-semibold text-slate-900">Rezervácie KVŠ</h1>
+        <h1 class="text-2xl font-semibold text-slate-900">{{ site.config.shortName }}</h1>
         <p class="mt-1 text-sm text-slate-500">Dokončenie registrácie</p>
       </div>
 

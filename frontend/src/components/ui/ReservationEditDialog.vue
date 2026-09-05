@@ -31,6 +31,9 @@ import DateInput from './DateInput.vue';
 import LoadError from './LoadError.vue';
 import ReservationStatusPill from './ReservationStatusPill.vue';
 import Spinner from './Spinner.vue';
+import { useSiteStore } from '@/stores/site.store';
+
+const site = useSiteStore();
 
 const props = defineProps<{
   reservation: Reservation | null;
@@ -77,7 +80,7 @@ const contactEmail = computed(() => {
 });
 const mailtoHref = computed(() => {
   if (!contactEmail.value) return '';
-  const subject = `Rezervácia — ${props.resourceName ?? 'Lodenica KVŠ'}`;
+  const subject = `Rezervácia — ${props.resourceName ?? site.config.siteName}`;
   return `mailto:${contactEmail.value}?subject=${encodeURIComponent(subject)}`;
 });
 

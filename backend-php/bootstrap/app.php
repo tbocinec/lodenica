@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
             'member' => \App\Http\Middleware\EnsureMember::class,
+            // feature:<name> — 404 unless the site config switched the module on.
+            'feature' => \App\Http\Middleware\EnsureFeature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

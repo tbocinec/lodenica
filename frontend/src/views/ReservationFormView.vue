@@ -19,6 +19,9 @@ import { RESOURCE_TYPE_LABEL, RESOURCE_TYPE_LABEL_PLURAL } from '@/i18n/labels';
 import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
 import { formatReservationRange, isoFromDateTime, toIsoDate } from '@/utils/format';
+import { useSiteStore } from '@/stores/site.store';
+
+const site = useSiteStore();
 
 const route = useRoute();
 const router = useRouter();
@@ -121,7 +124,9 @@ const icsHref = computed(() =>
 const googleCalendarHref = computed(() => {
   if (!createdReservation.value || !selectedResource.value) return null;
   return reservationGoogleCalendarUrl({
-    title: `Lodenica KVŠ: ${selectedResource.value.identifier} – ${selectedResource.value.name}`,
+    title: `${site.config.siteName}: ${selectedResource.value.identifier} – ${selectedResource.value.name}`,
+    location: site.config.address,
+    mapsUrl: site.config.mapsUrl,
     startsAt: createdReservation.value.startsAt,
     endsAt: createdReservation.value.endsAt,
     customerName: createdReservation.value.customerName ?? form.customerName,
@@ -435,7 +440,7 @@ const showLoginPrompt = ref(false);
 
 function goLogin(): void {
   try {
-    sessionStorage.setItem('kvs_resv_prompt', '1');
+    sessionStorage.setItem('app.resvPrompt', '1');
   } catch {
     /* ignore */
   }
@@ -444,7 +449,7 @@ function goLogin(): void {
 
 function continueWithoutLogin(): void {
   try {
-    sessionStorage.setItem('kvs_resv_prompt', '1');
+    sessionStorage.setItem('app.resvPrompt', '1');
   } catch {
     /* ignore */
   }
@@ -462,7 +467,7 @@ onMounted(async () => {
   if (!auth.isAuthenticated) {
     let dismissed = false;
     try {
-      dismissed = sessionStorage.getItem('kvs_resv_prompt') === '1';
+      dismissed = sessionStorage.getItem('app.resvPrompt') === '1';
     } catch {
       /* ignore */
     }
@@ -942,15 +947,18 @@ onMounted(async () => {
         <RouterLink to="/rules" target="_blank" class="font-medium text-brand-700 hover:underline">
           Pravidlami rezervácie
         </RouterLink>
-        a som si vedomý/á
-        <a
-          href="https://www.lodenicakvs.sk/?page_id=4578"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="font-medium text-brand-700 hover:underline"
-        >
-          Lodeničného poriadku KVŠ
-        </a>.
+        <template v-if="site.config.rulesUrl">
+          a som si vedomý/á
+          <a
+            :href="site.config.rulesUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-medium text-brand-700 hover:underline"
+          >
+            prevádzkového poriadku lodenice
+          </a>.
+        </template>
+        <template v-else>.</template>
         <span class="text-rose-700">*</span>
       </span>
     </label>

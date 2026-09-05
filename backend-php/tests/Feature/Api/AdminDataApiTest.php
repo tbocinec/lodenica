@@ -46,7 +46,7 @@ class AdminDataApiTest extends TestCase
 
         $r = $this->getJson('/api/v1/admin/export/database.json');
         $r->assertOk()
-            ->assertHeader('content-disposition', 'attachment; filename="lodenica-backup-'.date('Y-m-d').'.json"')
+            ->assertHeader('content-disposition', 'attachment; filename="zaloha-'.date('Y-m-d').'.json"')
             ->assertJsonStructure([
                 'exportedAt', 'version',
                 'tables' => [

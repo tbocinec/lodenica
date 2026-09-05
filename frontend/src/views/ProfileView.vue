@@ -8,8 +8,11 @@ import { authApi } from '@/api/auth.api';
 import { profileApi } from '@/api/profile.api';
 import type { NotificationPreference, OAuthProviderInfo, UserIdentity } from '@/api/types';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSiteStore } from '@/stores/site.store';
+import { THEME_KEYS, THEMES } from '@/theme/themes';
 
 const auth = useAuthStore();
+const site = useSiteStore();
 const route = useRoute();
 
 const ROLE_LABEL: Record<string, string> = {
@@ -125,6 +128,24 @@ async function togglePref(p: NotificationPreference): Promise<void> {
   }
 }
 
+// Appearance (THEME-001): the user's own theme or the site default. The
+// chrome composable re-applies the theme as soon as auth.user changes.
+const themeBusy = ref(false);
+const themeError = ref<string | null>(null);
+
+async function chooseTheme(theme: string | null): Promise<void> {
+  if ((auth.user?.theme ?? null) === theme) return;
+  themeBusy.value = true;
+  themeError.value = null;
+  try {
+    auth.user = await profileApi.setAppearance(theme);
+  } catch (e) {
+    themeError.value = (e as Error).message;
+  } finally {
+    themeBusy.value = false;
+  }
+}
+
 onMounted(() => {
   void loadLinks();
   void loadPrefs();
@@ -215,6 +236,51 @@ onMounted(() => {
           </li>
         </ul>
       </template>
+    </section>
+
+    <!-- Appearance -->
+    <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Vzhľad</h2>
+      <p class="mt-1 text-xs text-slate-500">
+        Farebná téma aplikácie. Bez vlastnej voľby sa použije predvolená téma stránky
+        („{{ THEMES[site.config.theme as keyof typeof THEMES]?.label ?? site.config.theme }}“).
+      </p>
+      <LoadError class="mt-3" :message="themeError" />
+      <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm"
+          :class="auth.user?.theme === null || auth.user?.theme === undefined
+            ? 'border-brand-500 ring-2 ring-brand-200'
+            : 'border-slate-200 hover:bg-slate-50'"
+          :disabled="themeBusy"
+          data-theme-choice="default"
+          @click="chooseTheme(null)"
+        >
+          <span aria-hidden="true">✨</span>
+          <span class="font-medium text-slate-700">Predvolená téma stránky</span>
+        </button>
+        <button
+          v-for="key in THEME_KEYS"
+          :key="key"
+          type="button"
+          class="flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm"
+          :class="auth.user?.theme === key ? 'border-brand-500 ring-2 ring-brand-200' : 'border-slate-200 hover:bg-slate-50'"
+          :disabled="themeBusy"
+          :data-theme-choice="key"
+          @click="chooseTheme(key)"
+        >
+          <span class="flex shrink-0 overflow-hidden rounded-full ring-1 ring-slate-200" aria-hidden="true">
+            <span
+              v-for="shade in [300, 500, 700] as const"
+              :key="shade"
+              class="h-4 w-4"
+              :style="{ background: `rgb(${THEMES[key].colors[shade]})` }"
+            />
+          </span>
+          <span class="font-medium text-slate-700">{{ THEMES[key].label }}</span>
+        </button>
+      </div>
     </section>
 
     <!-- Linked social logins -->

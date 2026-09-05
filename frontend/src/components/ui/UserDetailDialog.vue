@@ -19,6 +19,9 @@ import { formatDateTime } from '@/utils/format';
 
 import LoadError from './LoadError.vue';
 import Spinner from './Spinner.vue';
+import { useSiteStore } from '@/stores/site.store';
+
+const site = useSiteStore();
 
 const props = defineProps<{ userId: string | null }>();
 const emit = defineEmits<{
@@ -157,7 +160,7 @@ async function unlink(provider: string, label: string): Promise<void> {
           </div>
           <div>
             <label class="label" for="ud-mid">Členské ID</label>
-            <input id="ud-mid" v-model="memberId" class="input mt-1" maxlength="100" placeholder="napr. KVS-001" />
+            <input id="ud-mid" v-model="memberId" class="input mt-1" maxlength="100" :placeholder="`napr. ${site.config.memberIdExample}`" />
           </div>
         </div>
 

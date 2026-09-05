@@ -7,6 +7,7 @@ use App\Domain\Enums\AuditEntityType;
 use App\Http\Controllers\Controller;
 use App\Mail\MailTestMail;
 use App\Services\AuditLogger;
+use App\Services\SiteConfig;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class MailDiagnosticsController extends Controller
      * than env() so this reports what the app uses after `config:cache`,
      * which is where a stale deploy shows up.
      */
-    public function config(): JsonResponse
+    public function config(SiteConfig $site): JsonResponse
     {
         $mailerName = (string) config('mail.default', '');
         $mailers = (array) config('mail.mailers', []);
@@ -66,7 +67,7 @@ class MailDiagnosticsController extends Controller
             'passwordSet' => (string) ($active['password'] ?? '') !== '',
             'fromAddress' => config('mail.from.address'),
             'fromName' => config('mail.from.name'),
-            'adminAddress' => config('mail.admin_address'),
+            'adminAddress' => $site->adminEmail(),
             'appUrl' => config('app.url'),
             'queueConnection' => config('queue.default'),
             // Blade's compile directory. E-mails are the only Blade

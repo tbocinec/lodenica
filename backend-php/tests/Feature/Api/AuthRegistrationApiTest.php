@@ -28,6 +28,7 @@ class AuthRegistrationApiTest extends TestCase
     public function test_registration_notifies_admin_of_pending_member(): void
     {
         Mail::fake();
+        config(['site.admin_email' => 'admins@example.test']);
 
         $this->postJson('/api/v1/auth/register', $this->payload([
             'name' => 'Čakateľ', 'email' => 'waiting@example.test',

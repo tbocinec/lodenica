@@ -13,17 +13,18 @@
  * and `rulesAck` (boolean — the operating-rules acknowledgement). The parent
  * decides validity (rulesAck === true && dataConsent !== null).
  */
+import { useSiteStore } from '@/stores/site.store';
+
+import ExtLink from './ExtLink.vue';
+
 const dataConsent = defineModel<boolean | null>('dataConsent', { default: null });
 const rulesAck = defineModel<boolean>('rulesAck', { default: false });
 
 defineProps<{ showErrors?: boolean }>();
 
-// Kompletné Oznámenie o spracúvaní osobných údajov.
-const NOTICE = 'https://www.lodenicakvs.sk/?page_id=5024';
-// Podmienky GDPR súhlasu dotknutej osoby.
-const PROMO = 'https://www.lodenicakvs.sk/?page_id=5036';
-const STATUTES = 'https://www.lodenicakvs.sk/?page_id=4698';
-const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
+// The operator sentence and the four documents come from the site config;
+// a missing document renders as plain text (ExtLink).
+const site = useSiteStore();
 </script>
 
 <template>
@@ -36,11 +37,10 @@ const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
         Oznámenie o spracúvaní osobných údajov – Informačná povinnosť
       </h3>
       <p class="mt-1 text-xs leading-relaxed text-slate-600">
-        Prevádzkovateľ: Klub vodných športov, Karlova Ves (KVŠ), Botanická 59,
-        841 04 Bratislava, IČO: 17315115. Odoslaním prihlášky potvrdzujem, že som sa
-        oboznámil/a s kompletným
-        <a :href="NOTICE" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">Oznámením o spracúvaní osobných údajov</a>
-        na účely spojené s členstvom v KVŠ.
+        <template v-if="site.config.operatorNotice">{{ site.config.operatorNotice }} </template>
+        Odoslaním prihlášky potvrdzujem, že som sa oboznámil/a s kompletným
+        <ExtLink :href="site.config.gdprNoticeUrl">Oznámením o spracúvaní osobných údajov</ExtLink>
+        na účely spojené s členstvom v klube.
       </p>
     </div>
 
@@ -49,8 +49,8 @@ const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
       <h3 class="text-xs font-semibold text-slate-700">GDPR súhlas dotknutej osoby</h3>
       <p class="mt-1 text-xs leading-relaxed text-slate-600">
         Súhlasím so zverejňovaním fotografií a videí mojej osoby z klubových akcií na
-        účely propagácie KVŠ (web, sociálne siete, materiály klubu) podľa podmienok
-        <a :href="PROMO" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">GDPR súhlasu dotknutej osoby</a>.
+        účely propagácie klubu (web, sociálne siete, materiály klubu) podľa podmienok
+        <ExtLink :href="site.config.gdprConsentUrl">GDPR súhlasu dotknutej osoby</ExtLink>.
         Súhlas je odvolateľný.
       </p>
       <div class="mt-2 grid grid-cols-2 gap-2">
@@ -87,9 +87,9 @@ const RULES = 'https://www.lodenicakvs.sk/?page_id=4578';
         <input v-model="rulesAck" type="checkbox" class="mt-0.5 h-4 w-4 shrink-0 rounded" />
         <span>
           Vyhlasujem, že som sa oboznámil so
-          <a :href="STATUTES" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">stanovami KVŠ</a>
+          <ExtLink :href="site.config.statutesUrl">stanovami klubu</ExtLink>
           a
-          <a :href="RULES" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">prevádzkovým poriadkom areálu lodenice KVŠ</a>
+          <ExtLink :href="site.config.rulesUrl">prevádzkovým poriadkom areálu lodenice</ExtLink>
           a zaväzujem sa ich dodržiavať.
           <span class="text-rose-600">*</span>
         </span>

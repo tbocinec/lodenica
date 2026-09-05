@@ -12,6 +12,9 @@ import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { formatDate } from '@/utils/format';
+import { useSiteStore } from '@/stores/site.store';
+
+const site = useSiteStore();
 
 const items = ref<MemberRosterEntry[]>([]);
 const total = ref(0);
@@ -176,7 +179,7 @@ onMounted(load);
     </div>
     <div>
       <label class="label" for="r-id">Členské ID</label>
-      <input id="r-id" v-model="addForm.memberId" class="input mt-1" maxlength="100" placeholder="napr. KVS-001" />
+      <input id="r-id" v-model="addForm.memberId" class="input mt-1" maxlength="100" :placeholder="`napr. ${site.config.memberIdExample}`" />
     </div>
     <div>
       <label class="label" for="r-name">Meno</label>
@@ -204,7 +207,7 @@ onMounted(load);
       v-model="csvText"
       class="input font-mono text-xs"
       rows="6"
-      placeholder="KVS-001,Ján Novák,jan@example.com&#10;KVS-002,Eva Malá,eva@example.com"
+      :placeholder="`${site.config.memberIdExample},Ján Novák,jan@example.com&#10;${site.config.memberIdExample},Eva Malá,eva@example.com`"
     ></textarea>
     <div class="flex items-center justify-end gap-2">
       <button type="button" class="btn-secondary" @click="showImport = false">Zavrieť</button>

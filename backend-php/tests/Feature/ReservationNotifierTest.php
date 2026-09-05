@@ -29,7 +29,7 @@ class ReservationNotifierTest extends TestCase
     {
         parent::setUp();
         Mail::fake();
-        config(['mail.admin_address' => 'admins@example.test', 'app.url' => 'https://rez.example.test']);
+        config(['site.admin_email' => 'admins@example.test', 'app.url' => 'https://rez.example.test']);
         $this->space = Resource::create([
             'identifier' => 'S-1', 'type' => ResourceType::BOATHOUSE_SPACE,
             'name' => 'Klubovňa', 'requiresApproval' => true,

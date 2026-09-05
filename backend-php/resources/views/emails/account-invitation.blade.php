@@ -3,7 +3,7 @@
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">
         Dobrý deň{{ $name ? ', '.$name : '' }}, váš účet
         (<strong>{{ $email }}</strong>) bol pridaný do systému na správu
-        rezervácií lodenice KVŠ. Kliknutím na tlačidlo nižšie si nastavíte
+        rezervácií lodenice. Kliknutím na tlačidlo nižšie si nastavíte
         heslo a aktivujete prihlásenie.
     </p>
     <p style="margin:0 0 24px;">

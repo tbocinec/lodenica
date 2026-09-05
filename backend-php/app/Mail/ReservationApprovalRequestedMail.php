@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\SiteConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -26,8 +27,10 @@ class ReservationApprovalRequestedMail extends Mailable
 
     public function build(): self
     {
+        $siteName = app(SiteConfig::class)->siteName();
+
         return $this
-            ->subject("Rezervácia čaká na schválenie: {$this->resourceLabel} — Lodenica KVŠ")
+            ->subject("Rezervácia čaká na schválenie: {$this->resourceLabel} — {$siteName}")
             ->view('emails.reservation-approval-requested', [
                 'resourceLabel' => $this->resourceLabel,
                 'range' => $this->range,

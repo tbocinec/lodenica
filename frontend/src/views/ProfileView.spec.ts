@@ -9,11 +9,13 @@ import ProfileView from './ProfileView.vue';
 
 const notifications = vi.fn();
 const setNotifications = vi.fn();
+const setAppearance = vi.fn();
 
 vi.mock('@/api/profile.api', () => ({
   profileApi: {
     notifications: (...a: unknown[]) => notifications(...a),
     setNotifications: (...a: unknown[]) => setNotifications(...a),
+    setAppearance: (...a: unknown[]) => setAppearance(...a),
     identities: vi.fn().mockResolvedValue([]),
     unlinkIdentity: vi.fn(),
     linkUrl: vi.fn(),
@@ -32,7 +34,7 @@ async function mountView() {
   setActivePinia(createPinia());
   const auth = useAuthStore();
   auth.token = 't';
-  auth.user = { id: 'u1', name: 'Janko', email: 'j@example.test', role: 'MEMBER' } as never;
+  auth.user = { id: 'u1', name: 'Janko', email: 'j@example.test', role: 'MEMBER', theme: null } as never;
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/profil', component: ProfileView }] });
   await router.push('/profil');
   await router.isReady();
@@ -60,5 +62,37 @@ describe('ProfileView — e-mail preferences', () => {
 
     expect(setNotifications).toHaveBeenCalledWith({ reservation_decided: false });
     expect((w.find('input#pref-reservation_decided').element as HTMLInputElement).checked).toBe(false);
+  });
+});
+
+describe('ProfileView — appearance (THEME-001)', () => {
+  beforeEach(() => {
+    notifications.mockReset().mockResolvedValue(prefs);
+    setAppearance.mockReset().mockImplementation(async (theme: string | null) => ({
+      id: 'u1', name: 'Janko', email: 'j@example.test', role: 'MEMBER', theme,
+    }));
+  });
+
+  it('picking a theme saves it on the user', async () => {
+    const w = await mountView();
+    expect(w.text()).toContain('Vzhľad');
+
+    await w.find('[data-theme-choice="forest"]').trigger('click');
+    await flushPromises();
+
+    expect(setAppearance).toHaveBeenCalledWith('forest');
+    expect(useAuthStore().user?.theme).toBe('forest');
+  });
+
+  it('"Predvolená téma stránky" clears the choice', async () => {
+    const w = await mountView();
+    useAuthStore().user = { ...useAuthStore().user, theme: 'berry' } as never;
+    await flushPromises();
+
+    await w.find('[data-theme-choice="default"]').trigger('click');
+    await flushPromises();
+
+    expect(setAppearance).toHaveBeenCalledWith(null);
+    expect(useAuthStore().user?.theme).toBeNull();
   });
 });

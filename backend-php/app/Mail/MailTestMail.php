@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\SiteConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -18,8 +19,15 @@ class MailTestMail extends Mailable
 
     public function build(): self
     {
+        $siteName = app(SiteConfig::class)->siteName();
+        // Bypasses NotificationMailer on purpose, so set the from-name here.
+        $from = (string) config('mail.from.address');
+        if ($from !== '') {
+            $this->from($from, $siteName);
+        }
+
         return $this
-            ->subject('Testovací e-mail — Lodenica KVŠ')
+            ->subject("Testovací e-mail — {$siteName}")
             ->view('emails.test', [
                 'triggeredBy' => $this->triggeredBy,
                 'sentAt' => $this->sentAt,

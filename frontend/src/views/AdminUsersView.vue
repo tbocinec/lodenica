@@ -17,6 +17,9 @@ import Spinner from '@/components/ui/Spinner.vue';
 import UserDetailDialog from '@/components/ui/UserDetailDialog.vue';
 import { useAuthStore } from '@/stores/auth.store';
 import { formatDate } from '@/utils/format';
+import { useSiteStore } from '@/stores/site.store';
+
+const site = useSiteStore();
 
 const auth = useAuthStore();
 const items = ref<User[]>([]);
@@ -282,7 +285,7 @@ onMounted(load);
     </div>
     <div>
       <label class="label" for="inv-mid">Členské ID</label>
-      <input id="inv-mid" v-model="inviteForm.memberId" class="input mt-1" maxlength="100" placeholder="napr. KVS-001" />
+      <input id="inv-mid" v-model="inviteForm.memberId" class="input mt-1" maxlength="100" :placeholder="`napr. ${site.config.memberIdExample}`" />
     </div>
     <div class="flex items-end">
       <button type="submit" class="btn-primary" :disabled="inviting || !inviteForm.name.trim() || !inviteForm.email.trim()">
@@ -321,7 +324,7 @@ onMounted(load);
       v-model="csvText"
       class="input font-mono text-xs"
       rows="6"
-      placeholder="KVS-001,Ján Novák,jan@example.com&#10;KVS-002,Eva Malá,eva@example.com"
+      :placeholder="`${site.config.memberIdExample},Ján Novák,jan@example.com&#10;${site.config.memberIdExample},Eva Malá,eva@example.com`"
     ></textarea>
     <div class="flex items-center justify-end gap-2">
       <button type="button" class="btn-secondary" @click="showImport = false">Zavrieť</button>
@@ -381,7 +384,7 @@ onMounted(load);
     </div>
     <div>
       <label class="label" for="nu-mid">Členské ID</label>
-      <input id="nu-mid" v-model="newUser.memberId" class="input mt-1" maxlength="100" placeholder="napr. KVS-001" />
+      <input id="nu-mid" v-model="newUser.memberId" class="input mt-1" maxlength="100" :placeholder="`napr. ${site.config.memberIdExample}`" />
     </div>
     <div class="sm:col-span-4 flex justify-end gap-2">
       <button type="button" class="btn-secondary" @click="showCreate = false">Zrušiť</button>

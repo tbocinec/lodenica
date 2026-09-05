@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title ?? 'Lodenica KVŠ' }}</title>
+    <title>{{ $title ?? $siteName }}</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
@@ -12,7 +12,7 @@
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
                     <tr>
                         <td style="background:#0f172a;padding:20px 28px;">
-                            <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:.3px;">Lodenica KVŠ</span>
+                            <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:.3px;">{{ $siteName }}</span>
                         </td>
                     </tr>
                     <tr>

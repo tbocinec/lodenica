@@ -163,6 +163,7 @@ class MailNotificationTogglesTest extends TestCase
     public function test_pending_member_notice_is_sent_when_enabled(): void
     {
         Mail::fake();
+        config(['site.admin_email' => 'admins@example.test']);
         $user = $this->member('novy@example.test');
 
         app(AdminNotifier::class)->pendingMemberAwaitingApproval($user);

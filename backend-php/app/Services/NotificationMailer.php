@@ -23,6 +23,7 @@ class NotificationMailer
     public function __construct(
         private readonly MailNotificationSettings $settings,
         private readonly UserNotificationPreferences $preferences,
+        private readonly SiteConfig $site,
     ) {}
 
     /**
@@ -35,6 +36,13 @@ class NotificationMailer
             Log::info("E-mail „{$type->label()}“ preskočený (vypnutý správcom) — príjemca {$to}");
 
             return false;
+        }
+
+        // The sender name is the installation's name; the address stays
+        // MAIL_FROM_ADDRESS (it has to match the SMTP account).
+        $from = (string) config('mail.from.address');
+        if ($from !== '') {
+            $mail->from($from, $this->site->siteName());
         }
 
         Mail::to($to)->send($mail);

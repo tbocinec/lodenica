@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ReservationApprovalsController;
 use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
 use App\Http\Controllers\Api\ResourcesController;
+use App\Http\Controllers\Api\SiteController;
 use App\Http\Controllers\Api\UsageController;
 use App\Http\Controllers\Api\MailDiagnosticsController;
 use App\Http\Controllers\Api\MailNotificationsController;
@@ -47,15 +48,24 @@ Route::get('auth/oauth/{provider}/callback', [OAuthController::class, 'callback'
 // Finalises a first-time social registration after GDPR consents.
 Route::post('auth/oauth/complete', [OAuthController::class, 'complete']);
 
+// Site identity — name, links, feature switches, logo. Public because the
+// SPA paints the header before anyone logs in; writes are in the admin
+// group below. See docs/spec/13-site-configuration.md.
+Route::get('site', [SiteController::class, 'show']);
+Route::get('site/logo', [SiteController::class, 'logo']);
+
 Route::get('availability/dashboard', [AvailabilityController::class, 'dashboard']);
 
-// Paddling traffic light (proxied + cached from dunajcik.sk). Public.
-Route::get('paddling-traffic-light', [PaddlingTrafficLightController::class, 'show']);
+// Paddling traffic light (proxied + cached from dunajcik.sk). Public, but
+// only on installations that switched the module on (Danube clubs).
+Route::get('paddling-traffic-light', [PaddlingTrafficLightController::class, 'show'])
+    ->middleware('feature:paddlingTrafficLight');
 
 // Expedition photo streaming is public-by-URL (UUIDs) so <img> tags can load
 // it without the bearer token, like damage/resource photos. The expedition
 // data itself stays member-gated (see the member group below).
-Route::get('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'showPhoto']);
+Route::get('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'showPhoto'])
+    ->middleware('feature:expeditions');
 
 // Anonymous usage beacon (pageview / visit). No PII collected. Tightly
 // throttled — a real client pings ~once per page load, so 20/min/IP is
@@ -125,6 +135,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Own e-mail switches for the user-configurable notifications (REZ-062).
     Route::get('profile/notifications', [ProfileController::class, 'notifications']);
     Route::patch('profile/notifications', [ProfileController::class, 'updateNotifications']);
+    // Own colour theme (THEME-001); null = site default.
+    Route::patch('profile/appearance', [ProfileController::class, 'updateAppearance']);
 
     // Audit log is technical and shown to everyone with a verified
     // account (including pending — useful for "did I really submit
@@ -168,13 +180,15 @@ Route::middleware(['auth:sanctum', 'member'])->group(function () {
 
     // Expedície — members' world map of paddled places. Read + create for any
     // member; edit/delete an entry or its photos is author-or-admin (enforced
-    // in the controller).
-    Route::get('expeditions', [ExpeditionsController::class, 'index']);
-    Route::post('expeditions', [ExpeditionsController::class, 'store']);
-    Route::patch('expeditions/{id}', [ExpeditionsController::class, 'update']);
-    Route::delete('expeditions/{id}', [ExpeditionsController::class, 'destroy']);
-    Route::post('expeditions/{id}/photos', [ExpeditionsController::class, 'addPhoto']);
-    Route::delete('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'removePhoto']);
+    // in the controller). The whole module can be switched off per site.
+    Route::middleware('feature:expeditions')->group(function () {
+        Route::get('expeditions', [ExpeditionsController::class, 'index']);
+        Route::post('expeditions', [ExpeditionsController::class, 'store']);
+        Route::patch('expeditions/{id}', [ExpeditionsController::class, 'update']);
+        Route::delete('expeditions/{id}', [ExpeditionsController::class, 'destroy']);
+        Route::post('expeditions/{id}/photos', [ExpeditionsController::class, 'addPhoto']);
+        Route::delete('expeditions/{id}/photos/{photoId}', [ExpeditionsController::class, 'removePhoto']);
+    });
 });
 
 /*
@@ -209,6 +223,12 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
     Route::patch('faq', [FaqController::class, 'update']);
+
+    // Site identity (Administrácia → Systém → Nastavenia stránky).
+    Route::get('admin/site', [SiteController::class, 'adminShow']);
+    Route::patch('admin/site', [SiteController::class, 'update']);
+    Route::post('admin/site/logo', [SiteController::class, 'uploadLogo']);
+    Route::delete('admin/site/logo', [SiteController::class, 'removeLogo']);
 
     Route::get('admin/usage-stats', [UsageStatsController::class, 'show']);
 

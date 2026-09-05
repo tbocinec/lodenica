@@ -68,6 +68,15 @@ services:
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
       CACHE_STORE: array
+      # Site identity for local dev (the admin can override it in the SPA).
+      SITE_NAME: "Lodenica (dev)"
+      SITE_SHORT_NAME: "Rezervácie (dev)"
+      SITE_CONTACT_EMAIL: dev@example.test
+      SITE_FEATURE_TRAFFIC_LIGHT: "true"
+      # First-install admin. `local` would fall back to these anyway; being
+      # explicit documents where they come from.
+      ADMIN_EMAIL: admin@lodenica.sk
+      ADMIN_PASSWORD: "Lodenica2026!"
     volumes:
       # Bind-mount specific subdirs for hot edits. We deliberately AVOID
       # bind-mounting the whole ./backend-php so the developer's host

@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 #
-# Deploy the Lodenica PHP backend + Vue SPA to a Websupport hosting that
-# only exposes SFTP (no SSH, no Composer on the box). Run it with your VPN
-# disabled — port 22 outbound through a corporate VPN is typically blocked.
+# Deploy the Lodenica PHP backend + Vue SPA for ONE client to a Websupport
+# hosting that only exposes SFTP (no SSH, no Composer on the box). Run it
+# with your VPN disabled — port 22 outbound through a corporate VPN is
+# typically blocked.
 #
-# Reads connection details and DB credentials from `.deploy-secrets` at
-# the repo root (gitignored). What it does, in order:
+# One codebase serves several clubs: each client is a `.deploy-secrets.<slug>`
+# file (gitignored) holding its SFTP/DB credentials, domain and SITE_*
+# identity. Pick it with `--client <slug>` (or `--secrets PATH`); the plain
+# `.deploy-secrets` is the default. `scripts/deploy-all.sh` loops over all
+# of them. What this script does, in order:
 #
 #   1. composer install --no-dev --optimize-autoloader   (locally)
 #   2. pnpm build with VITE_API_BASE_URL = https://$PROD_DOMAIN/api/v1
@@ -22,7 +26,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRETS="${LODENICA_DEPLOY_SECRETS:-$REPO_ROOT/.deploy-secrets}"
-STAGE="${LODENICA_DEPLOY_STAGE:-/tmp/lodenica-rezervacie-deploy}"
+# Resolved after the secrets are loaded: one stage per domain, so two
+# clients never share a build directory.
+STAGE_OVERRIDE="${LODENICA_DEPLOY_STAGE:-}"
 
 #────────────────────────────────────────────────────────────────────────────
 # Flags
@@ -49,6 +55,8 @@ Safe for both first install AND repeated code updates by default:
                         DESTRUCTIVE — wipes the live DB of resources,
                         reservations, events and damages. Use ONLY for the
                         first install or a deliberate inventory refresh.
+  --client SLUG         Shortcut for --secrets .deploy-secrets.SLUG — one file
+                        per client (see docs/CLIENT-ONBOARDING.md).
   --secrets PATH        Source deploy credentials from a custom file instead
                         of .deploy-secrets. Useful for test/staging targets:
                           scripts/deploy-rezervacie.sh --secrets .deploy-secrets.test
@@ -59,15 +67,22 @@ Safe for both first install AND repeated code updates by default:
   --no-smoke            Skip the post-deploy curl smoke tests.
   -h, --help
 
-Required env in .deploy-secrets:
+Required env in the secrets file:
   DEPLOY_SFTP_HOST DEPLOY_SFTP_PORT DEPLOY_SFTP_USER DEPLOY_SFTP_PASSWORD
   DEPLOY_LARAVEL_APP_REMOTE   (e.g. /laravel)
   DEPLOY_DOCROOT_REMOTE       (e.g. /  or  /sub/rezervacie)
   PROD_DB_HOST PROD_DB_PORT PROD_DB_NAME PROD_DB_USER PROD_DB_PASSWORD
-  PROD_DOMAIN                 (e.g. rezervacie.lodenicakvs.sk)
+  PROD_DOMAIN                 (e.g. rezervacie.<club-domain>)
+  SITE_NAME                   the club's site name (install-time default)
 
-Optional:
+Optional (see .deploy-secrets.example for the full list):
   DEPLOY_APP_KEY              persist a base64: key here after first deploy
+  SITE_*                      identity defaults (short name, contact e-mail,
+                              links, modules, theme) — the admin can override
+                              every value later in Nastavenia stránky
+  SITE_LOGO_FILE              local PNG/JPG/WebP uploaded as the site logo
+  ADMIN_EMAIL ADMIN_PASSWORD  first-install admin (ignored once one exists)
+  MAIL_USERNAME MAIL_FROM_ADDRESS MAIL_PASSWORD   SMTP sender (all three)
 USAGE
 }
 
@@ -77,6 +92,8 @@ while [[ $# -gt 0 ]]; do
         --import-sheet|--import) DO_IMPORT=1 ;;
         --secrets)         shift; [[ -n "${1:-}" ]] || { echo "--secrets needs a path" >&2; exit 2; }; SECRETS="$1" ;;
         --secrets=*)       SECRETS="${1#--secrets=}" ;;
+        --client)          shift; [[ -n "${1:-}" ]] || { echo "--client needs a slug" >&2; exit 2; }; SECRETS="$REPO_ROOT/.deploy-secrets.$1" ;;
+        --client=*)        SECRETS="$REPO_ROOT/.deploy-secrets.${1#--client=}" ;;
         --no-build)        DO_BUILD=0 ;;
         --no-upload)       DO_UPLOAD=0 ;;
         --no-install)      DO_INSTALL=0 ;;
@@ -108,8 +125,12 @@ require_var() {
 require_var DEPLOY_SFTP_HOST DEPLOY_SFTP_USER DEPLOY_SFTP_PASSWORD \
             PROD_DB_HOST PROD_DB_NAME PROD_DB_USER PROD_DB_PASSWORD \
             PROD_DOMAIN
+# The club's identity. Without it a fresh install would call itself
+# "Lodenica" and e-mail nobody — fail early instead.
+require_var SITE_NAME
 DEPLOY_SFTP_PORT="${DEPLOY_SFTP_PORT:-22}"
 PROD_DB_PORT="${PROD_DB_PORT:-5432}"
+STAGE="${STAGE_OVERRIDE:-/tmp/lodenica-deploy-$PROD_DOMAIN}"
 
 require_cmd() {
     for c in "$@"; do
@@ -155,7 +176,7 @@ bye
 LFTP
     cat <<EXPLAIN
 
-The Lodenica hosting at $DEPLOY_SFTP_HOST puts the SFTP root *inside* the
+A Websupport sub-hosting at $DEPLOY_SFTP_HOST puts the SFTP root *inside* the
 subdomain docroot (everything you see above is web-accessible). Use the
 all-in-docroot layout:
 
@@ -243,13 +264,16 @@ if (( DO_BUILD )); then
     if [[ "$MAIL_MAILER_EFFECTIVE" == "log" ]]; then
         warn "MAIL_PASSWORD is empty — deploying with MAIL_MAILER=log."
         warn "No e-mail will actually be delivered until you set it in the secrets file."
+    else
+        # The sender identity is per client — no defaults here.
+        require_var MAIL_USERNAME MAIL_FROM_ADDRESS
     fi
 
     # printf is literal — special chars (`+`, `]`, `|`, `\`) in passwords
     # survive unescaped, which is what Laravel's dotenv parser wants when
     # the value has no surrounding double quotes.
     {
-        printf 'APP_NAME=Lodenica\n'
+        printf 'APP_NAME="%s"\n' "$SITE_NAME"
         printf 'APP_ENV=production\n'
         printf 'APP_KEY=%s\n' "$APP_KEY"
         printf 'APP_DEBUG=false\n'
@@ -280,20 +304,41 @@ if (( DO_BUILD )); then
         printf 'BROADCAST_CONNECTION=log\n'
         printf 'FILESYSTEM_DISK=local\n'
         printf '\n'
-        # Transactional email (Websupport SMTP). Password comes from
-        # .deploy-secrets (MAIL_PASSWORD); host/port/from are fixed here.
+        # Site identity — install-time defaults for App\Services\SiteConfig.
+        # The admin overrides any of them in Administrácia → Nastavenia
+        # stránky; only SITE_NAME is mandatory.
+        printf '# Site identity (defaults; the admin overrides them in the SPA)\n'
+        printf 'SITE_NAME="%s"\n' "$SITE_NAME"
+        for v in SITE_SHORT_NAME SITE_CLUB_NAME SITE_CONTACT_EMAIL SITE_ADDRESS SITE_MAPS_URL \
+                 SITE_WEBSITE_URL SITE_RULES_URL SITE_GDPR_NOTICE_URL SITE_GDPR_CONSENT_URL \
+                 SITE_STATUTES_URL SITE_OPERATOR_NOTICE SITE_MEMBER_ID_EXAMPLE SITE_THEME \
+                 SITE_FEATURE_TRAFFIC_LIGHT SITE_FEATURE_EXPEDITIONS MAIL_ADMIN_ADDRESS; do
+            [[ -n "${!v:-}" ]] && printf '%s="%s"\n' "$v" "${!v}"
+        done
+        printf '\n'
+        # First-install admin. AdminSeeder ignores these once an admin exists;
+        # a production install WITHOUT them and without an admin fails the
+        # seed step on purpose (no well-known default password).
+        printf '# First-install admin (ignored once an admin account exists)\n'
+        printf 'ADMIN_EMAIL=%s\n' "${ADMIN_EMAIL:-}"
+        printf 'ADMIN_PASSWORD="%s"\n' "${ADMIN_PASSWORD:-}"
+        printf 'ADMIN_NAME="%s"\n' "${ADMIN_NAME:-}"
+        printf '\n'
+        # Transactional email (Websupport SMTP). Host/port are hosting
+        # defaults; the sender account is per client and comes from the
+        # secrets file (required when MAIL_PASSWORD is set).
         printf 'MAIL_MAILER=%s\n' "$MAIL_MAILER_EFFECTIVE"
         printf 'MAIL_SCHEME=smtps\n'
         printf 'MAIL_HOST=%s\n' "${MAIL_HOST:-smtp.m1.websupport.sk}"
         printf 'MAIL_PORT=%s\n' "${MAIL_PORT:-465}"
-        printf 'MAIL_USERNAME=%s\n' "${MAIL_USERNAME:-potvrdenie.rezervacie@lodenicakvs.sk}"
+        printf 'MAIL_USERNAME=%s\n' "${MAIL_USERNAME:-}"
         # Double-quote values that may contain spaces or special chars.
-        # phpdotenv FATALS on an unquoted value with a space (e.g. the
-        # "Lodenica KVŠ" from-name), which breaks the whole app before the
+        # phpdotenv FATALS on an unquoted value with a space (e.g. a
+        # from-name with a space), which breaks the whole app before the
         # logger boots. The password is quoted defensively too.
         printf 'MAIL_PASSWORD="%s"\n' "${MAIL_PASSWORD:-}"
-        printf 'MAIL_FROM_ADDRESS=%s\n' "${MAIL_FROM_ADDRESS:-potvrdenie.rezervacie@lodenicakvs.sk}"
-        printf 'MAIL_FROM_NAME="%s"\n' "${MAIL_FROM_NAME:-Lodenica KVŠ}"
+        printf 'MAIL_FROM_ADDRESS=%s\n' "${MAIL_FROM_ADDRESS:-}"
+        printf 'MAIL_FROM_NAME="%s"\n' "${MAIL_FROM_NAME:-$SITE_NAME}"
         printf '\n'
         # OAuth (Socialite). Empty values keep the providers dormant; the
         # SPA hides the buttons and the callback routes stay inert.
@@ -412,6 +457,26 @@ put -O $DEPLOY_DOCROOT_REMOTE/ $DOCROOT_STAGE/install.php
 
 bye
 LFTP
+    # Optional client logo. Lands on the `local` disk next to the uploaded
+    # photos (protected from --delete above); SiteConfig picks it up without
+    # a DB row, and the admin can replace it later in the SPA.
+    if [[ -n "${SITE_LOGO_FILE:-}" ]]; then
+        LOGO_PATH="$SITE_LOGO_FILE"
+        [[ "$LOGO_PATH" = /* ]] || LOGO_PATH="$REPO_ROOT/$LOGO_PATH"
+        [[ -r "$LOGO_PATH" ]] || die "SITE_LOGO_FILE not readable: $LOGO_PATH"
+        LOGO_EXT="${LOGO_PATH##*.}"
+        case "$LOGO_EXT" in png|jpg|jpeg|webp) ;; *) die "SITE_LOGO_FILE must be png/jpg/jpeg/webp" ;; esac
+        log "Uploading site logo ($LOGO_PATH) → storage/app/private/site/logo.$LOGO_EXT"
+        lftp -u "$DEPLOY_SFTP_USER,$DEPLOY_SFTP_PASSWORD" -p "$DEPLOY_SFTP_PORT" \
+            "sftp://$DEPLOY_SFTP_HOST" <<LFTP
+set sftp:auto-confirm yes
+set xfer:clobber yes
+mkdir -fp $DEPLOY_LARAVEL_APP_REMOTE/storage/app/private/site
+put -O $DEPLOY_LARAVEL_APP_REMOTE/storage/app/private/site/ "$LOGO_PATH" -o logo.$LOGO_EXT
+bye
+LFTP
+    fi
+
     log "Upload complete."
 else
     log "Skipping upload (--no-upload)."
@@ -430,9 +495,9 @@ if (( DO_INSTALL )); then
         sleep 5
     fi
     log "Triggering installer: $URL"
-    # 90s budget: lodenica:import-sheet fetches the sheet + inserts ~76 rows.
+    # 120s budget: lodenica:import-sheet fetches the sheet + inserts ~76 rows.
     if ! curl -sk --max-time 120 --fail-with-body "$URL"; then
-        die "install.php returned non-2xx. Re-run with --no-build --no-upload after fixing."
+        die "install.php returned non-2xx (a first install without ADMIN_EMAIL/ADMIN_PASSWORD fails the seed step on purpose). Re-run with --no-build --no-upload after fixing."
     fi
     log "Installer ran cleanly + self-deleted."
 fi

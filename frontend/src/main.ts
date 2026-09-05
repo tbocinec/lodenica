@@ -5,6 +5,8 @@ import { usageApi } from './api/usage.api';
 import App from './App.vue';
 import { router } from './router';
 import { useAuthStore } from './stores/auth.store';
+import { useSiteStore } from './stores/site.store';
+import { applyTheme, readCachedTheme } from './theme/themes';
 import './styles/main.css';
 
 const app = createApp(App);
@@ -17,8 +19,8 @@ app.use(router);
 function trackVisit(): void {
   let first = false;
   try {
-    first = !sessionStorage.getItem('kvs_visit');
-    if (first) sessionStorage.setItem('kvs_visit', '1');
+    first = !sessionStorage.getItem('app.visit');
+    if (first) sessionStorage.setItem('app.visit', '1');
   } catch {
     /* sessionStorage unavailable (private mode) — count as a non-first load */
   }
@@ -26,11 +28,16 @@ function trackVisit(): void {
   usageApi.trackVisit(first);
 }
 
-// Validate any stored bearer token before mounting so the first render
-// already knows whether we're authenticated. Either way mount the app —
-// /auth/me failure simply clears the local session.
+// Validate any stored bearer token and load the site identity before
+// mounting, so the first render already knows who we are and whose club
+// this is. Either failure is tolerated — /auth/me clears the local session,
+// /site falls back to the cached / default config.
 const auth = useAuthStore(pinia);
-auth.bootstrap().finally(() => {
+const site = useSiteStore(pinia);
+// Paint the last known theme immediately; useSiteChrome() refines it once
+// the user and site config are known.
+applyTheme(readCachedTheme() ?? site.config.theme);
+Promise.all([auth.bootstrap(), site.load()]).finally(() => {
   app.mount('#app');
   trackVisit();
 });
