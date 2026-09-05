@@ -112,4 +112,22 @@ class EventsApiTest extends TestCase
         $this->patchJson("/api/v1/events/{$event->id}", ['title' => 'X'])
             ->assertStatus(401);
     }
+
+    public function test_attaching_resources_stamps_the_actor_and_respects_approval(): void
+    {
+        $member = $this->actingAsMember();
+        $kayak = Resource::create(['identifier' => 'K-A', 'type' => ResourceType::WW_KAYAK, 'name' => 'A']);
+        $gated = Resource::create(['identifier' => 'S-A', 'type' => ResourceType::BOATHOUSE_SPACE, 'name' => 'Klubovňa', 'requiresApproval' => true]);
+        $eventId = $this->postJson('/api/v1/events', [
+            'title' => 'Splav', 'startsAt' => '2027-07-01T08:00:00Z', 'endsAt' => '2027-07-01T18:00:00Z',
+        ])->assertCreated()->json('id');
+
+        $r = $this->postJson("/api/v1/events/{$eventId}/reservations", ['resourceIds' => [$kayak->id, $gated->id]])->assertCreated();
+
+        $byResource = collect($r->json())->keyBy('resourceId');
+        $this->assertSame('CONFIRMED', $byResource[$kayak->id]['status']);
+        $this->assertSame('PENDING_APPROVAL', $byResource[$gated->id]['status']);
+        $this->assertSame($member->id, $byResource[$kayak->id]['createdById']);
+        $this->assertSame($member->id, $byResource[$gated->id]['createdById']);
+    }
 }

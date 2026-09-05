@@ -9,6 +9,7 @@ use App\Exceptions\NotFoundDomainException;
 use App\Models\Event;
 use App\Models\EventParticipant;
 use App\Models\Reservation;
+use App\Models\User;
 
 class EventsService
 {
@@ -122,17 +123,13 @@ class EventsService
     }
 
     /**
-     * Bulk-attach resources to an event. Each resource becomes one reservation
-     * using the event's time window. Sequential to surface clear per-resource
-     * conflicts; the DB exclusion constraint is the ultimate safeguard.
-     *
-     * The per-reservation audit rows are written by ReservationsService;
-     * we add a single event-level summary on top so the audit log has both
-     * granularities side-by-side.
+     * Book the given resources for the event's whole window. The acting member
+     * is stamped as creator so a resource that requires approval can be
+     * attached at all (REZ-051) — it then waits like any other request.
      *
      * @return Reservation[]
      */
-    public function attachResources(string $eventId, array $resourceIds): array
+    public function attachResources(string $eventId, array $resourceIds, ?User $actor = null): array
     {
         $event = $this->requireExisting($eventId);
         $created = [];
@@ -143,6 +140,8 @@ class EventsService
                 'customerName' => $event->title,
                 'startsAt' => $event->startsAt,
                 'endsAt' => $event->endsAt,
+                'createdById' => $actor?->id,
+                'memberId' => $actor?->memberId,
             ]);
         }
 

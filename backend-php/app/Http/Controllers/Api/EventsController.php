@@ -93,7 +93,11 @@ class EventsController extends Controller
 
     public function attachResources(AttachResourcesRequest $request, string $id): JsonResponse
     {
-        $reservations = $this->events->attachResources($id, $request->validated('resourceIds'));
+        $reservations = $this->events->attachResources(
+            $id,
+            $request->validated('resourceIds'),
+            $request->user(),
+        );
 
         return ReservationResource::collection($reservations)
             ->response()
