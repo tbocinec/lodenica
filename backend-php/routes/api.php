@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ReservationApprovalsController;
 use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
 use App\Http\Controllers\Api\ResourcesController;
+use App\Http\Controllers\Api\SiteController;
 use App\Http\Controllers\Api\UsageController;
 use App\Http\Controllers\Api\MailDiagnosticsController;
 use App\Http\Controllers\Api\MailNotificationsController;
@@ -46,6 +47,12 @@ Route::get('auth/oauth/{provider}/redirect', [OAuthController::class, 'redirect'
 Route::get('auth/oauth/{provider}/callback', [OAuthController::class, 'callback']);
 // Finalises a first-time social registration after GDPR consents.
 Route::post('auth/oauth/complete', [OAuthController::class, 'complete']);
+
+// Site identity — name, links, feature switches, logo. Public because the
+// SPA paints the header before anyone logs in; writes are in the admin
+// group below. See docs/spec/13-site-configuration.md.
+Route::get('site', [SiteController::class, 'show']);
+Route::get('site/logo', [SiteController::class, 'logo']);
 
 Route::get('availability/dashboard', [AvailabilityController::class, 'dashboard']);
 
@@ -209,6 +216,12 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::patch('reservation-rules', [ReservationRulesController::class, 'update']);
     Route::patch('faq', [FaqController::class, 'update']);
+
+    // Site identity (Administrácia → Systém → Nastavenia stránky).
+    Route::get('admin/site', [SiteController::class, 'adminShow']);
+    Route::patch('admin/site', [SiteController::class, 'update']);
+    Route::post('admin/site/logo', [SiteController::class, 'uploadLogo']);
+    Route::delete('admin/site/logo', [SiteController::class, 'removeLogo']);
 
     Route::get('admin/usage-stats', [UsageStatsController::class, 'show']);
 
