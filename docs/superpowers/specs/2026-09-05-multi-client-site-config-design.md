@@ -195,9 +195,11 @@ and MUST NOT see *História zmien* twice.
   `[data-theme="<key>"]` overrides.
 - `applyTheme(key)` sets `document.documentElement.dataset.theme` and the
   `theme-color` meta. Unknown key → `ocean`.
-- Resolution order: `auth.user.theme` → `localStorage['app.theme']` →
-  `site.theme`. Re-applied when the user logs in/out or the site config
-  loads.
+- Resolution: `auth.user.theme` when set, otherwise `site.theme`.
+  Re-applied whenever the user logs in/out or the site config changes.
+  `localStorage['app.theme']` only caches the last applied theme so the
+  first paint before `/auth/me` and `/site` answer has no flash; there is
+  no theme picker for anonymous visitors.
 - Persistence: new nullable column `users.theme VARCHAR(32)`;
   `PATCH /api/v1/profile/appearance { theme: slug|null }` (any
   authenticated user; validates the slug pattern; audited). `UserResource`
@@ -207,7 +209,7 @@ and MUST NOT see *História zmien* twice.
   default.
 
 **THEME-001** — A user's own theme MUST win over the site default; an
-anonymous visitor's choice persists in the browser only.
+anonymous visitor always sees the site default.
 
 ## 6. Clean install, many clients
 
