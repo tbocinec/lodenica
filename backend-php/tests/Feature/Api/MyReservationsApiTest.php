@@ -164,4 +164,39 @@ class MyReservationsApiTest extends TestCase
         $this->assertSame('2027-08-01T08:00:00+00:00', $items[0]['startsAt']);
         $this->assertSame('2027-08-05T09:00:00+00:00', $items[1]['startsAt']);
     }
+
+
+    /**
+     * Axios (and most HTTP clients) serialise a boolean query param as
+     * the string "true" — which Laravel's `boolean` rule rejects on its
+     * own. The SPA sends exactly this, so it is the shape that counts.
+     */
+    public function test_index_mine_filter_accepts_the_string_true(): void
+    {
+        $member = $this->actingAsMember();
+
+        $this->postJson('/api/v1/reservations', [
+            'resourceId' => $this->kayak->id,
+            'startsAt' => '2027-09-01T09:00:00Z',
+            'endsAt' => '2027-09-01T12:00:00Z',
+        ])->assertCreated();
+
+        \App\Models\Reservation::create([
+            'resourceId' => $this->kayak->id,
+            'createdById' => null,
+            'customerName' => 'Niekto Iný',
+            'startsAt' => '2027-09-02T09:00:00Z',
+            'endsAt' => '2027-09-02T12:00:00Z',
+        ]);
+
+        $this->getJson('/api/v1/reservations?mine=true')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('items.0.createdById', $member->id);
+
+        // …and "false" is a filter that was switched off, not a 400.
+        $this->getJson('/api/v1/reservations?mine=false')
+            ->assertOk()
+            ->assertJsonPath('total', 2);
+    }
 }

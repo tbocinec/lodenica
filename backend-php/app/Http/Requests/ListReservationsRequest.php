@@ -29,4 +29,19 @@ class ListReservationsRequest extends FormRequest
             'mine' => ['nullable', 'boolean'],
         ];
     }
+
+    public function prepareForValidation(): void
+    {
+        // Accept ?mine=true / false as strings (typical query string usage —
+        // it is what axios puts on the wire for a boolean). Same treatment
+        // as `isActive` on ListResourcesRequest.
+        if ($this->has('mine')) {
+            $raw = $this->input('mine');
+            if ($raw === 'true' || $raw === true) {
+                $this->merge(['mine' => true]);
+            } elseif ($raw === 'false' || $raw === false) {
+                $this->merge(['mine' => false]);
+            }
+        }
+    }
 }
