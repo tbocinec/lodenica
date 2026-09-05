@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\OAuthController;
 use App\Http\Controllers\Api\PaddlingTrafficLightController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ReservationApprovalsController;
 use App\Http\Controllers\Api\ReservationRulesController;
 use App\Http\Controllers\Api\ReservationsController;
 use App\Http\Controllers\Api\ResourcesController;
@@ -76,6 +77,10 @@ Route::get('reservations', [ReservationsController::class, 'index']);
 // It carries its own auth middleware (any authenticated user).
 Route::get('reservations/mine', [ReservationsController::class, 'mine'])
     ->middleware('auth:sanctum');
+// `approvals` likewise MUST precede `{id}`. Confirmed members only; whether
+// the caller may decide a given reservation is enforced in the service.
+Route::get('reservations/approvals', [ReservationApprovalsController::class, 'index'])
+    ->middleware(['auth:sanctum', 'member']);
 Route::get('reservations/{id}', [ReservationsController::class, 'show']);
 Route::post('reservations', [ReservationsController::class, 'store']);
 Route::get('reservations/{id}/ics', [ReservationsController::class, 'ics']);
@@ -141,6 +146,10 @@ Route::middleware(['auth:sanctum', 'member'])->group(function () {
     Route::patch('reservations/{id}', [ReservationsController::class, 'update']);
     Route::delete('reservations/{id}', [ReservationsController::class, 'destroy']);
     Route::patch('reservations/{id}/cancel', [ReservationsController::class, 'cancel']);
+
+    // Approval workflow (REZ-054…): approvers and admins decide waiting requests.
+    Route::post('reservations/{id}/approve', [ReservationApprovalsController::class, 'approve']);
+    Route::post('reservations/{id}/reject', [ReservationApprovalsController::class, 'reject']);
 
     // Event writes + the people/boats on an event are member-only. Anonymous
     // visitors can read the event list + metadata (public routes above) but
