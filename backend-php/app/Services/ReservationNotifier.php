@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Domain\Enums\MailNotification;
 use App\Domain\Enums\ReservationStatus;
+use App\Domain\Enums\UserRole;
 use App\Mail\ReservationApprovalRequestedMail;
 use App\Mail\ReservationDecidedMail;
 use App\Models\Reservation;
@@ -20,29 +21,34 @@ class ReservationNotifier
     public function __construct(private readonly NotificationMailer $mailer) {}
 
     /**
-     * Tell every active approver of the resource that a request is waiting;
-     * the club address when nobody is listed. One mailable per recipient —
-     * a Mailable's `to` list accumulates, so sharing an instance would leak
-     * approver A's address into approver B's copy.
+     * Tell every active approver who is still a confirmed member that a
+     * request is waiting; the club address when nobody is listed. One
+     * mailable per recipient — a Mailable's `to` list accumulates, so
+     * sharing an instance would leak approver A's address into approver
+     * B's copy.
      */
     public function approvalRequested(Reservation $reservation): void
     {
         try {
             $resource = $reservation->resource;
-            $mail = fn () => new ReservationApprovalRequestedMail(
+            $mail = fn (bool $personal = true) => new ReservationApprovalRequestedMail(
                 resourceLabel: $resource->label(),
                 range: $reservation->rangeLabel(),
                 customerName: $reservation->customerName,
                 customerContact: $reservation->customerContact,
                 note: $reservation->note,
                 approvalsUrl: rtrim((string) config('app.url'), '/').'/approvals',
+                personal: $personal,
             );
 
-            $approvers = $resource->approvers()->where('users.isActive', true)->get();
+            $approvers = $resource->approvers()
+                ->where('users.isActive', true)
+                ->whereIn('users.role', [UserRole::MEMBER->value, UserRole::ADMIN->value])
+                ->get();
             if ($approvers->isEmpty()) {
                 $to = (string) config('mail.admin_address');
                 if ($to !== '') {
-                    $this->mailer->send(MailNotification::RESERVATION_APPROVAL_REQUESTED, $to, $mail());
+                    $this->mailer->send(MailNotification::RESERVATION_APPROVAL_REQUESTED, $to, $mail(false));
                 }
 
                 return;

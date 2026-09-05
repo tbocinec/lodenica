@@ -21,6 +21,7 @@
     </p>
     <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">
         Schváliť alebo zamietnuť môžeš na stránke „Na schválenie“ alebo
-        priamo v detaile rezervácie. Tieto e-maily si vieš vypnúť v profile.
+        priamo v detaile rezervácie.
+        @if($personal) Tieto e-maily si vieš vypnúť v profile. @endif
     </p>
 @endcomponent

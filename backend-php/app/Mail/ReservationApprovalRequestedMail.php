@@ -21,6 +21,7 @@ class ReservationApprovalRequestedMail extends Mailable
         public readonly ?string $customerContact,
         public readonly ?string $note,
         public readonly string $approvalsUrl,
+        public readonly bool $personal = true,
     ) {}
 
     public function build(): self
@@ -34,6 +35,7 @@ class ReservationApprovalRequestedMail extends Mailable
                 'customerContact' => $this->customerContact,
                 'note' => $this->note,
                 'approvalsUrl' => $this->approvalsUrl,
+                'personal' => $this->personal,
             ]);
     }
 }

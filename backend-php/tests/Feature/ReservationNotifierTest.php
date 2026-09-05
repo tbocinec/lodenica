@@ -76,6 +76,20 @@ class ReservationNotifierTest extends TestCase
         Mail::assertSent(ReservationApprovalRequestedMail::class, fn ($m) => $m->hasTo('a@example.test') && !$m->hasTo('b@example.test'));
         Mail::assertSent(ReservationApprovalRequestedMail::class, fn ($m) => $m->hasTo('b@example.test') && !$m->hasTo('a@example.test'));
         Mail::assertNotSent(ReservationApprovalRequestedMail::class, fn ($m) => $m->hasTo('off@example.test'));
+        Mail::assertSent(ReservationApprovalRequestedMail::class, fn (ReservationApprovalRequestedMail $m) => $m->hasTo('a@example.test') && $m->personal === true);
+    }
+
+    public function test_an_approver_demoted_to_pending_is_not_mailed(): void
+    {
+        $member = $this->user('m@example.test');
+        $demoted = $this->user('p@example.test', role: UserRole::PENDING);
+        $this->space->approvers()->attach([$member->id, $demoted->id]);
+
+        $this->notifier()->approvalRequested($this->pending());
+
+        Mail::assertSent(ReservationApprovalRequestedMail::class, 1);
+        Mail::assertSent(ReservationApprovalRequestedMail::class, fn ($m) => $m->hasTo('m@example.test'));
+        Mail::assertNotSent(ReservationApprovalRequestedMail::class, fn ($m) => $m->hasTo('p@example.test'));
     }
 
     public function test_without_approvers_the_club_address_is_notified(): void
@@ -84,6 +98,7 @@ class ReservationNotifierTest extends TestCase
 
         Mail::assertSent(ReservationApprovalRequestedMail::class, 1);
         Mail::assertSent(ReservationApprovalRequestedMail::class, fn ($m) => $m->hasTo('admins@example.test'));
+        Mail::assertSent(ReservationApprovalRequestedMail::class, fn (ReservationApprovalRequestedMail $m) => $m->personal === false);
     }
 
     public function test_the_mail_carries_the_booking_details_and_the_approvals_link(): void
