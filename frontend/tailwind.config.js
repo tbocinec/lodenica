@@ -1,22 +1,16 @@
+const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{vue,ts,js}'],
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#eef7ff',
-          100: '#d9ecff',
-          200: '#bcdfff',
-          300: '#8ecbff',
-          400: '#59afff',
-          500: '#2d8eff',
-          600: '#1971ec',
-          700: '#155bc1',
-          800: '#164b96',
-          900: '#163f78',
-          950: '#0e2447',
-        },
+        // Themeable brand palette: the values live in CSS variables set by
+        // src/theme/themes.ts (RGB triplets), so `brand-600/50` keeps working.
+        brand: Object.fromEntries(
+          shades.map((shade) => [shade, `rgb(var(--brand-${shade}) / <alpha-value>)`]),
+        ),
       },
       fontFamily: {
         sans: [

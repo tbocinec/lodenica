@@ -19,6 +19,22 @@
 }
 
 @layer base {
+  /* Brand palette as RGB triplets — the `ocean` theme, so the first paint
+     before any script runs matches the default. src/theme/themes.ts swaps
+     these for the chosen theme. */
+  :root {
+    --brand-50: 238 247 255;
+    --brand-100: 217 236 255;
+    --brand-200: 188 223 255;
+    --brand-300: 142 203 255;
+    --brand-400: 89 175 255;
+    --brand-500: 45 142 255;
+    --brand-600: 25 113 236;
+    --brand-700: 21 91 193;
+    --brand-800: 22 75 150;
+    --brand-900: 22 63 120;
+    --brand-950: 14 36 71;
+  }
   html {
     -webkit-text-size-adjust: 100%;
   }
