@@ -198,6 +198,7 @@ class ReservationApprovalApiTest extends TestCase
         Reservation::whereKey($id)->update(['status' => 'REJECTED']);
 
         $this->patchJson("/api/v1/reservations/{$id}/cancel")->assertOk()->assertJsonPath('status', 'REJECTED');
+        $this->assertSame(0, AuditLog::query()->where('entityId', $id)->where('action', AuditAction::CANCEL->value)->count());
     }
 
     /* ────────────── Visibility ────────────── */
