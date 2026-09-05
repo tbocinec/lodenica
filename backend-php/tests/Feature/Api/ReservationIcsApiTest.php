@@ -52,4 +52,16 @@ class ReservationIcsApiTest extends TestCase
         $this->get('/api/v1/reservations/00000000-0000-0000-0000-000000000000/ics')
             ->assertStatus(404);
     }
+
+    public function test_ics_marks_a_pending_reservation_tentative(): void
+    {
+        $this->actingAsMember();
+        $space = Resource::create(['identifier' => 'S-ICS', 'type' => ResourceType::BOATHOUSE_SPACE, 'name' => 'Klubovňa', 'requiresApproval' => true]);
+        $id = $this->postJson('/api/v1/reservations', [
+            'resourceId' => $space->id, 'customerName' => 'P',
+            'startsAt' => '2099-08-12T09:00:00Z', 'endsAt' => '2099-08-12T12:00:00Z',
+        ])->assertCreated()->json('id');
+
+        $this->assertStringContainsString('STATUS:TENTATIVE', $this->get("/api/v1/reservations/{$id}/ics")->getContent());
+    }
 }

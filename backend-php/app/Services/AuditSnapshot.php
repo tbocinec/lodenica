@@ -45,6 +45,7 @@ final class AuditSnapshot
             'endsAt' => self::iso($r->endsAt),
             'note' => $r->note,
             'status' => $r->status?->value,
+            'decisionNote' => $r->decisionNote,
         ];
     }
 

@@ -20,7 +20,10 @@ class ListReservationsRequest extends FormRequest
             'pageSize' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'resourceId' => ['nullable', 'uuid'],
             'eventId' => ['nullable', 'uuid'],
-            'status' => ['nullable', new Enum(ReservationStatus::class)],
+            // One value (`?status=CONFIRMED`) or several (`?status[]=…&status[]=…`),
+            // normalised to an array below. REZ-061.
+            'status' => ['nullable', 'array'],
+            'status.*' => [new Enum(ReservationStatus::class)],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date'],
             'search' => ['nullable', 'string', 'max:120'],
@@ -42,6 +45,13 @@ class ListReservationsRequest extends FormRequest
             } elseif ($raw === 'false' || $raw === false) {
                 $this->merge(['mine' => false]);
             }
+        }
+
+        // A scalar status becomes a one-element list so the rules above
+        // cover both `?status=X` and `?status[]=X&status[]=Y`.
+        if ($this->has('status') && !is_array($this->input('status'))) {
+            $raw = $this->input('status');
+            $this->merge(['status' => ($raw === null || $raw === '') ? null : [$raw]]);
         }
     }
 }

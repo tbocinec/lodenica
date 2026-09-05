@@ -199,7 +199,12 @@ class ReservationsController extends Controller
             'SUMMARY:'.$this->icalEscape($summary),
             'DESCRIPTION:'.$this->icalEscape($description),
             'LOCATION:'.$this->icalEscape('Klub vodných športov Karlova Ves, Botanická 20/59, 841 04 Bratislava-Karlova Ves, Slovakia'),
-            'STATUS:'.($reservation->status->value === 'CONFIRMED' ? 'CONFIRMED' : 'CANCELLED'),
+            // REZ-063: a waiting request is tentative in the user's calendar.
+            'STATUS:'.match ($reservation->status) {
+                \App\Domain\Enums\ReservationStatus::CONFIRMED => 'CONFIRMED',
+                \App\Domain\Enums\ReservationStatus::PENDING_APPROVAL => 'TENTATIVE',
+                default => 'CANCELLED',
+            },
             'END:VEVENT',
             'END:VCALENDAR',
         ];

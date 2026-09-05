@@ -43,6 +43,11 @@ class ReservationResource extends JsonResource
             'endsAt' => $this->endsAt?->toIso8601String(),
             'note' => $this->note,
             'status' => $this->status->value,
+            // Approval record (REZ-055). The approver's note may explain a
+            // refusal in personal terms, so it follows the member-only rule.
+            'decidedById' => $this->decidedById,
+            'decidedAt' => $this->decidedAt?->toIso8601String(),
+            'decisionNote' => $isMember ? $this->decisionNote : null,
             'createdAt' => $this->createdAt?->toIso8601String(),
             'updatedAt' => $this->updatedAt?->toIso8601String(),
         ];

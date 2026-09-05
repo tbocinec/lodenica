@@ -267,4 +267,20 @@ class ReservationsApiTest extends TestCase
             ->assertJsonPath('total', 1)
             ->assertJsonPath('items.0.customerName', 'Bohuš');
     }
+
+    public function test_list_accepts_multiple_statuses(): void
+    {
+        $member = $this->actingAsMember();
+        $space = Resource::create(['identifier' => 'S-1', 'type' => ResourceType::BOATHOUSE_SPACE, 'name' => 'Klubovňa', 'requiresApproval' => true]);
+        $this->postJson('/api/v1/reservations', ['resourceId' => $space->id, 'customerName' => 'P', 'startsAt' => '2027-01-01T09:00:00Z', 'endsAt' => '2027-01-01T10:00:00Z'])->assertCreated();
+        $confirmed = $this->postJson('/api/v1/reservations', ['resourceId' => $this->kayak->id, 'customerName' => 'C', 'startsAt' => '2027-01-01T09:00:00Z', 'endsAt' => '2027-01-01T10:00:00Z'])->assertCreated()->json('id');
+        $this->patchJson("/api/v1/reservations/{$confirmed}/cancel")->assertOk();
+        $this->postJson('/api/v1/reservations', ['resourceId' => $this->kayak->id, 'customerName' => 'C2', 'startsAt' => '2027-01-02T09:00:00Z', 'endsAt' => '2027-01-02T10:00:00Z'])->assertCreated();
+
+        $both = $this->getJson('/api/v1/reservations?status[]=CONFIRMED&status[]=PENDING_APPROVAL')->assertOk()->json('items');
+        $this->assertSame(['CONFIRMED', 'PENDING_APPROVAL'], collect($both)->pluck('status')->sort()->values()->all());
+
+        $this->getJson('/api/v1/reservations?status=CONFIRMED')->assertOk()->assertJsonPath('total', 1);
+        $this->getJson('/api/v1/reservations?status[]=nezmysel')->assertStatus(400);
+    }
 }

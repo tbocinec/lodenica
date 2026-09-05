@@ -6,11 +6,14 @@ use App\Domain\Enums\AuditAction;
 use App\Domain\Enums\AuditEntityType;
 use App\Domain\Enums\ReservationStatus;
 use App\Domain\ValueObjects\TimeRange;
+use App\Exceptions\ApprovalMemberRequiredException;
 use App\Exceptions\InactiveResourceException;
 use App\Exceptions\NotFoundDomainException;
 use App\Exceptions\ReservationOverlapException;
+use App\Exceptions\ReservationStatusLockedException;
 use App\Models\Reservation;
 use App\Models\Resource;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -21,10 +24,17 @@ use Illuminate\Database\Eloquent\Builder;
  * Every reservation is `[startsAt, endsAt)` — a single uniform shape.
  * "All-day" or multi-day reservations are just longer ranges; the model
  * does not distinguish them.
+ *
+ * Approval (REZ-050…): a resource flagged `requiresApproval` produces a
+ * PENDING_APPROVAL reservation that holds its slot until an approver
+ * decides — see ReservationApprovalService for the decision itself.
  */
 class ReservationsService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly ReservationNotifier $notifier,
+    ) {}
 
     public function create(array $cmd): Reservation
     {
@@ -36,6 +46,17 @@ class ReservationsService
         }
         if (!$resource->isActive) {
             throw new InactiveResourceException($resource->id);
+        }
+
+        // REZ-051 / REZ-052: a gated resource may only be requested by a
+        // confirmed member, and the request waits for an approver.
+        $status = ReservationStatus::CONFIRMED;
+        if ($resource->requiresApproval) {
+            $actor = isset($cmd['createdById']) ? User::find($cmd['createdById']) : null;
+            if (!$actor instanceof User || !$actor->isMember()) {
+                throw new ApprovalMemberRequiredException($resource->id);
+            }
+            $status = ReservationStatus::PENDING_APPROVAL;
         }
 
         $this->assertNoOverlap($cmd['resourceId'], $range);
@@ -50,15 +71,22 @@ class ReservationsService
             'startsAt' => $range->startsAt,
             'endsAt' => $range->endsAt,
             'note' => $cmd['note'] ?? null,
-            'status' => ReservationStatus::CONFIRMED,
+            'status' => $status,
         ]);
 
+        $pending = $status === ReservationStatus::PENDING_APPROVAL;
         $this->audit->logCreate(
             AuditEntityType::RESERVATION,
             $reservation,
-            "Pridaná rezervácia „{$reservation->customerName}“ pre „{$resource->identifier} – {$resource->name}“ ({$this->fmtRange($reservation)})",
+            ($pending ? 'Požiadaná' : 'Pridaná')
+                ." rezervácia „{$reservation->customerName}“ pre „{$resource->label()}“ ({$reservation->rangeLabel()})"
+                .($pending ? ' — čaká na schválenie' : ''),
             AuditSnapshot::reservation($reservation),
         );
+
+        if ($pending) {
+            $this->notifier->approvalRequested($reservation);
+        }
 
         return $reservation;
     }
@@ -67,6 +95,14 @@ class ReservationsService
     {
         $existing = $this->requireExisting($id);
         $before = AuditSnapshot::reservation($existing);
+
+        $newStatus = isset($cmd['status'])
+            ? ($cmd['status'] instanceof ReservationStatus
+                ? $cmd['status']
+                : ReservationStatus::from($cmd['status']))
+            : $existing->status;
+
+        $this->assertStatusChangeAllowed($existing, $newStatus);
 
         $newStartsAt = $existing->startsAt;
         $newEndsAt = $existing->endsAt;
@@ -81,13 +117,7 @@ class ReservationsService
             $newEndsAt = $range->endsAt;
             $rangeChanged = true;
 
-            $newStatus = isset($cmd['status'])
-                ? ($cmd['status'] instanceof ReservationStatus
-                    ? $cmd['status']
-                    : ReservationStatus::from($cmd['status']))
-                : $existing->status;
-
-            if ($newStatus === ReservationStatus::CONFIRMED) {
+            if ($newStatus->blocksSlot()) {
                 $this->assertNoOverlap($existing->resourceId, $range, $id);
             }
         }
@@ -117,7 +147,7 @@ class ReservationsService
                 : null;
             $existing->memberId = $memberId;
             $existing->createdById = $memberId !== null
-                ? \App\Models\User::query()->where('memberId', $memberId)->value('id')
+                ? User::query()->where('memberId', $memberId)->value('id')
                 : null;
         }
 
@@ -127,7 +157,7 @@ class ReservationsService
         $this->audit->logUpdate(
             AuditEntityType::RESERVATION,
             $existing,
-            "Upravená rezervácia „{$existing->customerName}“ ({$this->fmtRange($existing)})",
+            "Upravená rezervácia „{$existing->customerName}“ ({$existing->rangeLabel()})",
             $before,
             AuditSnapshot::reservation($existing),
         );
@@ -135,23 +165,30 @@ class ReservationsService
         return $existing;
     }
 
+    /**
+     * REZ-059 (and REZ-024): only a slot-blocking reservation has anything
+     * to cancel. Cancelling an already cancelled or rejected one changes
+     * nothing and writes no audit row.
+     */
     public function cancel(string $id): Reservation
     {
         $existing = $this->requireExisting($id);
-        $wasConfirmed = $existing->isConfirmed();
+        $previous = $existing->status;
+        if (!$previous->blocksSlot()) {
+            return $existing;
+        }
+
         $existing->status = ReservationStatus::CANCELLED;
         $existing->save();
         $existing->refresh();
 
-        if ($wasConfirmed) {
-            $this->audit->logAction(
-                AuditEntityType::RESERVATION,
-                $existing->id,
-                AuditAction::CANCEL,
-                "Zrušená rezervácia „{$existing->customerName}“ ({$this->fmtRange($existing)})",
-                ['before' => ['status' => 'CONFIRMED'], 'after' => ['status' => 'CANCELLED']],
-            );
-        }
+        $this->audit->logAction(
+            AuditEntityType::RESERVATION,
+            $existing->id,
+            AuditAction::CANCEL,
+            "Zrušená rezervácia „{$existing->customerName}“ ({$existing->rangeLabel()})",
+            ['before' => ['status' => $previous->value], 'after' => ['status' => ReservationStatus::CANCELLED->value]],
+        );
 
         return $existing;
     }
@@ -160,7 +197,7 @@ class ReservationsService
     {
         $existing = $this->requireExisting($id);
         $snapshot = AuditSnapshot::reservation($existing);
-        $summary = "Zmazaná rezervácia „{$existing->customerName}“ ({$this->fmtRange($existing)})";
+        $summary = "Zmazaná rezervácia „{$existing->customerName}“ ({$existing->rangeLabel()})";
         $existing->delete();
 
         $this->audit->logDelete(
@@ -208,11 +245,14 @@ class ReservationsService
                 }
             });
         }
+        // One status or several (REZ-061) — the schedule views ask for
+        // "confirmed + waiting" in one request.
         if (!empty($options['status'])) {
-            $status = $options['status'] instanceof ReservationStatus
-                ? $options['status']
-                : ReservationStatus::from($options['status']);
-            $query->where('status', $status->value);
+            $statuses = is_array($options['status']) ? $options['status'] : [$options['status']];
+            $query->whereIn('status', array_map(
+                fn ($s) => $s instanceof ReservationStatus ? $s->value : ReservationStatus::from($s)->value,
+                $statuses,
+            ));
         }
         if (!empty($options['range'])) {
             /** @var TimeRange $range */
@@ -280,26 +320,43 @@ class ReservationsService
     }
 
     /**
+     * Slot-blocking reservations (CONFIRMED + PENDING_APPROVAL, REZ-010)
+     * that intersect the range.
+     *
      * @return \Illuminate\Support\Collection<int, Reservation>
      */
     public function findOverlapping(string $resourceId, TimeRange $range, ?string $excludeId = null)
     {
         return Reservation::query()
             ->where('resourceId', $resourceId)
-            ->where('status', ReservationStatus::CONFIRMED->value)
+            ->whereIn('status', ReservationStatus::blockingValues())
             ->where('startsAt', '<', $range->endsAt)
             ->where('endsAt', '>', $range->startsAt)
             ->when($excludeId, fn (Builder $q, $id) => $q->where('id', '!=', $id))
             ->get();
     }
 
-    private function fmtRange(Reservation $r): string
+    /**
+     * REZ-058. A waiting or rejected reservation changes status only through
+     * approve / reject / cancel, and on a resource that requires approval the
+     * only door into CONFIRMED is an approver's decision — otherwise a member
+     * could PATCH their own request straight past the approver.
+     */
+    private function assertStatusChangeAllowed(Reservation $existing, ReservationStatus $newStatus): void
     {
-        // Wall-clock UTC convention — what the user typed is what we display.
-        $start = $r->startsAt instanceof \DateTimeInterface ? $r->startsAt : new \DateTimeImmutable((string) $r->startsAt);
-        $end = $r->endsAt instanceof \DateTimeInterface ? $r->endsAt : new \DateTimeImmutable((string) $r->endsAt);
-
-        return $start->format('Y-m-d H:i').' – '.$end->format('Y-m-d H:i');
+        if ($newStatus === $existing->status) {
+            return;
+        }
+        if (in_array($existing->status, [ReservationStatus::PENDING_APPROVAL, ReservationStatus::REJECTED], true)) {
+            throw new ReservationStatusLockedException(
+                'Stav tejto rezervácie sa dá zmeniť iba schválením, zamietnutím alebo zrušením.',
+            );
+        }
+        if ($newStatus === ReservationStatus::CONFIRMED && $existing->resource?->requiresApproval) {
+            throw new ReservationStatusLockedException(
+                'Rezerváciu tohto zdroja môže potvrdiť iba schvaľovateľ.',
+            );
+        }
     }
 
     private function assertNoOverlap(string $resourceId, TimeRange $range, ?string $excludeId = null): void
