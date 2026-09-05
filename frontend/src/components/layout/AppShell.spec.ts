@@ -9,8 +9,17 @@ import { useSiteStore } from '@/stores/site.store';
 
 import AppShell from './AppShell.vue';
 
+let pendingApprovals = 0;
 vi.mock('@/api/reservations.api', () => ({
-  reservationsApi: { approvals: () => Promise.resolve({ items: [], total: 0, page: 1, pageSize: 1 }) },
+  reservationsApi: {
+    approvals: () =>
+      Promise.resolve({
+        items: Array.from({ length: pendingApprovals }, (_, i) => ({ id: `r${i}` })),
+        total: pendingApprovals,
+        page: 1,
+        pageSize: 1,
+      }),
+  },
 }));
 
 type Role = 'ADMIN' | 'MEMBER' | null;
@@ -28,7 +37,10 @@ async function mountShell(role: Role, site: Partial<SiteConfig> = {}) {
   const Stub = { template: '<div />' };
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: ['/', '/audit', '/admin/site', '/rules', '/vodacky-semafor'].map((path) => ({ path, component: Stub })),
+    routes: ['/', '/audit', '/admin/site', '/rules', '/vodacky-semafor', '/resources', '/approvals'].map((path) => ({
+      path,
+      component: Stub,
+    })),
   });
   await router.push('/');
   await router.isReady();
@@ -42,8 +54,15 @@ function count(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1;
 }
 
+function linksTo(w: { findAll: (sel: string) => { text: () => string }[] }, path: string) {
+  return w.findAll(`a[href="${path}"]`);
+}
+
 describe('AppShell navigation', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    pendingApprovals = 0;
+  });
 
   it('shows the site short name in the header', async () => {
     const w = await mountShell(null);
@@ -60,6 +79,36 @@ describe('AppShell navigation', () => {
     expect(text).toContain('Používatelia');
     expect(text).toContain('Diagnostika e-mailov');
     expect(count(text, 'História zmien')).toBe(1);
+  });
+
+  it('admin finds Zdroje and Na schválenie under Správa, not in the main nav', async () => {
+    pendingApprovals = 2;
+    const w = await mountShell('ADMIN');
+
+    const resources = linksTo(w, '/resources');
+    expect(resources).toHaveLength(1);
+    expect(resources[0].text()).toContain('Zdroje');
+    const approvals = linksTo(w, '/approvals');
+    expect(approvals).toHaveLength(1);
+    expect(approvals[0].text()).toContain('Na schválenie');
+    expect(approvals[0].text()).toContain('2');
+    expect(count(w.text(), 'Na schválenie')).toBe(1);
+  });
+
+  it('member keeps Lode in the main nav and sees Na schválenie only while something waits', async () => {
+    const idle = await mountShell('MEMBER');
+    expect(linksTo(idle, '/resources')[0].text()).toContain('Lode');
+    expect(linksTo(idle, '/approvals')).toHaveLength(0);
+
+    pendingApprovals = 1;
+    const busy = await mountShell('MEMBER');
+    expect(linksTo(busy, '/approvals')).toHaveLength(1);
+    expect(busy.text()).not.toContain('Zdroje');
+  });
+
+  it('anonymous visitors still reach Lode from the main nav', async () => {
+    const w = await mountShell(null);
+    expect(linksTo(w, '/resources')).toHaveLength(1);
   });
 
   it('member sees História zmien in the main nav and no Administrácia (NAV-002)', async () => {

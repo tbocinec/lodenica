@@ -61,13 +61,15 @@ Test: `FeatureGateTest`, `AppShell.spec.ts`
 ## Navigation
 
 **NAV-001** — An admin MUST find every admin page inside the
-*Administrácia* group (sub-groups *Správa* and *Systém*) and MUST NOT see
-*História zmien* twice.
+*Administrácia* group (sub-groups *Správa* and *Systém*). *Zdroje* (the
+resource list), *Na schválenie* and *História zmien* appear there for an
+admin and MUST NOT be repeated in the main navigation.
 Enforced: `AppShell.vue`
 Test: `AppShell.spec.ts`
 
-**NAV-002** — A member MUST NOT see the *Administrácia* group; *História
-zmien* stays in the main navigation for them.
+**NAV-002** — A member MUST NOT see the *Administrácia* group; *Lode*,
+*História zmien* and (while something waits for them) *Na schválenie* stay
+in the main navigation for them. Anonymous visitors keep *Lode*.
 Enforced: `AppShell.vue`
 Test: `AppShell.spec.ts`
 

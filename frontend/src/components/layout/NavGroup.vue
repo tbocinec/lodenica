@@ -5,7 +5,7 @@
  * the user left it. Subgroups render as small headings, not as nested
  * collapsibles — two levels is as deep as the menu goes.
  */
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { groupIsActive, isActivePath, type NavGroup } from './nav';
@@ -18,6 +18,15 @@ const props = defineProps<{
 const emit = defineEmits<{ navigate: [] }>();
 
 const open = ref(false);
+
+/** Sum of item badges — shown on the header while the group is collapsed. */
+const totalBadge = computed(() =>
+  [...props.group.items, ...(props.group.subgroups ?? []).flatMap((s) => s.items)].reduce(
+    (sum, item) => sum + (item.badge ?? 0),
+    0,
+  ),
+);
+
 watch(
   () => groupIsActive(props.group, props.activePath),
   (active) => {
@@ -39,9 +48,13 @@ watch(
       <span aria-hidden="true">{{ group.icon }}</span>
       <span>{{ group.label }}</span>
       <span
+        v-if="!open && totalBadge"
+        class="ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
+      >{{ totalBadge }}</span>
+      <span
         aria-hidden="true"
-        class="ml-auto text-xs text-slate-400 transition-transform"
-        :class="open ? 'rotate-90' : ''"
+        class="text-xs text-slate-400 transition-transform"
+        :class="[open ? 'rotate-90' : '', !open && totalBadge ? 'ml-2' : 'ml-auto']"
       >▶</span>
     </button>
 
@@ -89,6 +102,10 @@ watch(
         >
           <span aria-hidden="true">{{ item.icon }}</span>
           <span>{{ item.label }}</span>
+          <span
+            v-if="item.badge"
+            class="ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
+          >{{ item.badge }}</span>
         </RouterLink>
       </template>
     </div>

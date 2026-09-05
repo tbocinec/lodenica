@@ -21,25 +21,27 @@ const navOpen = ref(false);
 /**
  * Everyday operational entries. /timeline and /calendar still exist as
  * routes; they're surfaced from inside ReservationsView so members reach
- * them when the task fits. Lode come last in this section — it's the
- * equipment encyclopaedia, not an operational screen.
+ * them when the task fits. Admins find Na schválenie, Lode (as Zdroje)
+ * and História zmien under Administrácia → Správa instead (NAV-001).
  */
 const mainItems = computed<NavItem[]>(() => {
   const items: NavItem[] = [
     { to: '/', label: NAV_LABELS.dashboard, icon: '📊' },
     { to: '/reservations', label: NAV_LABELS.reservations, icon: '📅' },
   ];
-  // Approvers see it while something waits; admins always (they can decide
-  // anything and it is where the approver e-mail links).
-  if (auth.isMember && (auth.isAdmin || approvals.pendingCount > 0)) {
+  // A non-admin approver sees it while something waits for them.
+  if (auth.isMember && !auth.isAdmin && approvals.pendingCount > 0) {
     items.push({ to: '/approvals', label: NAV_LABELS.approvals, icon: '✅', badge: approvals.pendingCount });
   }
   items.push(
     { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
     { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
     { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
-    { to: '/resources', label: NAV_LABELS.resources, icon: '🛶' },
   );
+  // The equipment list is public; admins manage it from Administrácia.
+  if (!auth.isAdmin) {
+    items.push({ to: '/resources', label: NAV_LABELS.resources, icon: '🛶' });
+  }
   if (auth.isMember && site.config.features.expeditions) {
     items.push({ to: '/expeditions', label: 'Expedície', icon: '🗺️' });
   }
@@ -83,6 +85,8 @@ const adminGroup = computed<NavGroupModel | null>(() =>
           {
             label: 'Správa',
             items: [
+              { to: '/resources', label: 'Zdroje', icon: '🛶' },
+              { to: '/approvals', label: NAV_LABELS.approvals, icon: '✅', badge: approvals.pendingCount },
               { to: '/admin/users', label: 'Používatelia', icon: '👥' },
               { to: '/member-roster', label: 'Číselník členov', icon: '📇' },
               { to: '/admin/usage', label: 'Štatistiky', icon: '📈' },

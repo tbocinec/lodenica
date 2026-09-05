@@ -161,17 +161,18 @@ SPA MUST come from the site store. Guarded by a Vitest test that greps
 ## 4. Navigation
 
 ```
-Prehľad · Rezervácie · Na schválenie · Udalosti · Priestory · Poškodenia ·
-Lode · Expedície (feature, confirmed) · Môj profil (member) ·
+Prehľad · Rezervácie · Na schválenie (approver, hidden for admin) ·
+Udalosti · Priestory · Poškodenia · Lode (hidden for admin) ·
+Expedície (feature, confirmed) · Môj profil (member) ·
 História zmien (member, hidden for admin)
 
 Informácie ▸  Vodácky semafor (feature) · Pravidlá rezervácie ·
               Otázky a odpovede · [websiteUrl] · [gdprNoticeUrl] ·
               [gdprConsentUrl] · [rulesUrl]        (external, from config)
 
-Administrácia ▸ (admin only; auto-expands on /admin/*, /audit, /member-roster)
-   Správa   Používatelia · Číselník členov · Štatistiky · História zmien ·
-            QR kódy lodí
+Administrácia ▸ (admin only; auto-expands on its pages)
+   Správa   Zdroje (/resources) · Na schválenie · Používatelia ·
+            Číselník členov · Štatistiky · História zmien · QR kódy lodí
    Systém   Nastavenia stránky · Diagnostika e-mailov · Správa dát
 ```
 
@@ -181,7 +182,8 @@ group with optional sub-groups. Existing route paths are unchanged; new
 route `/admin/site` (`AdminSiteSettingsView`, `auth: 'admin'`).
 
 **NAV-001** — An admin MUST see every admin page inside *Administrácia*
-and MUST NOT see *História zmien* twice.
+(including *Zdroje*, *Na schválenie*, *História zmien*) and none of them
+twice.
 **NAV-002** — A member MUST NOT see the *Administrácia* group.
 
 ## 5. Themes
