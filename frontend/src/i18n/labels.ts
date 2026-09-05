@@ -46,7 +46,9 @@ export const DAMAGE_SEVERITY_LABEL: Record<DamageSeverity, string> = {
 
 export const RESERVATION_STATUS_LABEL: Record<ReservationStatus, string> = {
   CONFIRMED: 'Potvrdená',
+  PENDING_APPROVAL: 'Čaká na schválenie',
   CANCELLED: 'Zrušená',
+  REJECTED: 'Zamietnutá',
 };
 
 export const NAV_LABELS = {
@@ -59,6 +61,7 @@ export const NAV_LABELS = {
   damages: 'Poškodenia',
   spaces: 'Priestory',
   audit: 'História zmien',
+  approvals: 'Na schválenie',
 };
 
 export const AUDIT_ENTITY_TYPE_LABEL: Record<AuditEntityType, string> = {
@@ -75,6 +78,8 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   UPDATE: 'Úprava',
   DELETE: 'Zmazanie',
   CANCEL: 'Zrušenie',
+  APPROVE: 'Schválenie',
+  REJECT: 'Zamietnutie',
   ACTIVATE: 'Aktivácia',
   DEACTIVATE: 'Deaktivácia',
   ATTACH_RESOURCES: 'Pripojenie zdrojov',

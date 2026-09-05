@@ -21,6 +21,10 @@ export interface CreateResourceInput {
   note?: string;
   imageUrl?: string;
   isActive?: boolean;
+  /** Bookings wait for an approver (admin-only to set). */
+  requiresApproval?: boolean;
+  /** User ids of confirmed members who may approve. Omit to leave unchanged. */
+  approverIds?: string[];
 }
 
 export type UpdateResourceInput = Partial<CreateResourceInput>;

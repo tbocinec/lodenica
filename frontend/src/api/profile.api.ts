@@ -1,5 +1,5 @@
 import { http } from './http';
-import type { UserIdentity } from './types';
+import type { NotificationPreference, UserIdentity } from './types';
 
 /**
  * The signed-in user's own-account operations. Changing OTHER users'
@@ -20,5 +20,15 @@ export const profileApi = {
   async linkUrl(provider: string): Promise<string> {
     const { data } = await http.get<{ url: string }>(`/profile/oauth/${provider}/link-url`);
     return data.url;
+  },
+  /** The user's own e-mail switches (only the user-configurable notifications). */
+  async notifications(): Promise<NotificationPreference[]> {
+    const { data } = await http.get<{ notifications: NotificationPreference[] }>('/profile/notifications');
+    return data.notifications;
+  },
+  /** Partial update — only the keys sent change. Returns the full state. */
+  async setNotifications(changes: Record<string, boolean>): Promise<NotificationPreference[]> {
+    const { data } = await http.patch<{ notifications: NotificationPreference[] }>('/profile/notifications', changes);
+    return data.notifications;
   },
 };

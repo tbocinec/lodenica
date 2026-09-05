@@ -41,9 +41,25 @@ export type DamageStatus = (typeof DamageStatus)[keyof typeof DamageStatus];
 
 export const ReservationStatus = {
   CONFIRMED: 'CONFIRMED',
+  /** Booked on a resource that requires approval; waiting for an approver. Holds the slot. */
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
   CANCELLED: 'CANCELLED',
+  /** An approver turned the request down. Frees the slot like CANCELLED. */
+  REJECTED: 'REJECTED',
 } as const;
 export type ReservationStatus = (typeof ReservationStatus)[keyof typeof ReservationStatus];
+
+/** Statuses that occupy the slot — what schedule views ask the API for. Mirrors ReservationStatus::blocking() on the backend. */
+export const RESERVATION_BLOCKING_STATUSES: ReservationStatus[] = [
+  ReservationStatus.CONFIRMED,
+  ReservationStatus.PENDING_APPROVAL,
+];
+
+/** A member who may approve bookings of a resource. Member-only (null for others). */
+export interface ResourceApprover {
+  id: string;
+  name: string;
+}
 
 export interface Resource {
   id: string;
@@ -61,6 +77,10 @@ export interface Resource {
    *  imageUrl (a manually-entered external URL). */
   photoUrl: string | null;
   isActive: boolean;
+  /** Bookings of this resource wait for an approver (REZ-050). Public. */
+  requiresApproval: boolean;
+  /** Who may approve — confirmed members only see this; null otherwise. */
+  approvers: ResourceApprover[] | null;
   /** Worst damage still open on this boat (reported or in repair), or null. */
   openDamage: OpenDamage | null;
   openDamageCount: number;
@@ -96,6 +116,11 @@ export interface Reservation {
   endsAt: string;
   note: string | null;
   status: ReservationStatus;
+  /** Approval record — set once an approver decided. */
+  decidedById?: string | null;
+  decidedAt?: string | null;
+  /** Approver's note. Member-only (null for anonymous/PENDING viewers). */
+  decisionNote?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -232,6 +257,14 @@ export interface MemberRosterEntry {
   createdAt: string;
 }
 
+/** One of the user's own e-mail switches (profile screen). */
+export interface NotificationPreference {
+  key: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+}
+
 /** A social login linked to the current account (profile screen). */
 export interface UserIdentity {
   provider: string;
@@ -277,6 +310,8 @@ export type AuditAction =
   | 'UPDATE'
   | 'DELETE'
   | 'CANCEL'
+  | 'APPROVE'
+  | 'REJECT'
   | 'ACTIVATE'
   | 'DEACTIVATE'
   | 'ATTACH_RESOURCES'

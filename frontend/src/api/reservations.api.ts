@@ -67,7 +67,8 @@ export interface ListReservationsParams {
   pageSize?: number;
   resourceId?: string;
   eventId?: string;
-  status?: ReservationStatus;
+  /** One status, or several — the schedule views ask for RESERVATION_BLOCKING_STATUSES. */
+  status?: ReservationStatus | ReservationStatus[];
   /**
    * ISO datetime. When BOTH from + to are set, the backend treats the
    * pair as an overlap window (existing behaviour). When only one is
@@ -128,6 +129,19 @@ export const reservationsApi = {
   },
   async cancel(id: string): Promise<Reservation> {
     const { data } = await http.patch<Reservation>(`/reservations/${id}/cancel`);
+    return data;
+  },
+  /** Waiting requests the caller may decide (admins: all; members: their resources). */
+  async approvals(params: { page?: number; pageSize?: number } = {}): Promise<Paginated<Reservation>> {
+    const { data } = await http.get<Paginated<Reservation>>('/reservations/approvals', { params });
+    return data;
+  },
+  async approve(id: string, note?: string): Promise<Reservation> {
+    const { data } = await http.post<Reservation>(`/reservations/${id}/approve`, { note: note ?? null });
+    return data;
+  },
+  async reject(id: string, note?: string): Promise<Reservation> {
+    const { data } = await http.post<Reservation>(`/reservations/${id}/reject`, { note: note ?? null });
     return data;
   },
   async remove(id: string): Promise<void> {
