@@ -6,7 +6,7 @@ import LoadError from '@/components/ui/LoadError.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { authApi } from '@/api/auth.api';
 import { profileApi } from '@/api/profile.api';
-import type { OAuthProviderInfo, UserIdentity } from '@/api/types';
+import type { NotificationPreference, OAuthProviderInfo, UserIdentity } from '@/api/types';
 import { useAuthStore } from '@/stores/auth.store';
 
 const auth = useAuthStore();
@@ -99,7 +99,36 @@ const linkBanner = computed(() => {
   return null;
 });
 
-onMounted(loadLinks);
+// E-mail preferences (REZ-062) — only the user-configurable notifications.
+const prefs = ref<NotificationPreference[]>([]);
+const prefsLoading = ref(true);
+const prefsError = ref<string | null>(null);
+
+async function loadPrefs(): Promise<void> {
+  prefsLoading.value = true;
+  prefsError.value = null;
+  try {
+    prefs.value = await profileApi.notifications();
+  } catch (e) {
+    prefsError.value = (e as Error).message;
+  } finally {
+    prefsLoading.value = false;
+  }
+}
+
+async function togglePref(p: NotificationPreference): Promise<void> {
+  prefsError.value = null;
+  try {
+    prefs.value = await profileApi.setNotifications({ [p.key]: !p.enabled });
+  } catch (e) {
+    prefsError.value = (e as Error).message;
+  }
+}
+
+onMounted(() => {
+  void loadLinks();
+  void loadPrefs();
+});
 </script>
 
 <template>
@@ -156,6 +185,36 @@ onMounted(loadLinks);
           </button>
         </div>
       </form>
+    </section>
+
+    <!-- E-mail preferences -->
+    <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">E-mailové notifikácie</h2>
+      <p class="mt-1 text-xs text-slate-500">
+        Ktoré e-maily ti má systém posielať. Prevádzkové e-maily (obnova hesla, pozvánka) sa vypnúť nedajú.
+      </p>
+      <div v-if="prefsLoading" class="mt-3"><Spinner /></div>
+      <template v-else>
+        <LoadError :message="prefsError" />
+        <ul class="mt-3 divide-y divide-slate-100">
+          <li v-for="p in prefs" :key="p.key" class="flex items-start justify-between gap-3 py-3">
+            <div>
+              <p class="text-sm font-medium text-slate-800">{{ p.label }}</p>
+              <p class="text-xs text-slate-500">{{ p.description }}</p>
+            </div>
+            <label class="inline-flex shrink-0 items-center gap-2 text-sm">
+              <input
+                :id="`pref-${p.key}`"
+                type="checkbox"
+                class="h-4 w-4 rounded"
+                :checked="p.enabled"
+                @change="togglePref(p)"
+              />
+              <span class="text-slate-600">{{ p.enabled ? 'Zapnuté' : 'Vypnuté' }}</span>
+            </label>
+          </li>
+        </ul>
+      </template>
     </section>
 
     <!-- Linked social logins -->

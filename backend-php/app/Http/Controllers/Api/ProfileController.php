@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Enums\MailNotification;
 use App\Domain\Enums\OAuthProvider;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Resources\UserIdentityResource;
 use App\Models\User;
 use App\Services\OAuthService;
+use App\Services\UserNotificationPreferences;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -78,5 +80,53 @@ class ProfileController extends Controller
         $oauth->unlink($user, $resolved);
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * GET /api/v1/profile/notifications — the user's own e-mail switches
+     * (REZ-062). Only user-configurable notifications are listed; the label
+     * and description come from the enum so the profile never drifts from
+     * the admin diagnostics page.
+     */
+    public function notifications(Request $request, UserNotificationPreferences $prefs): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return new JsonResponse(['notifications' => $this->presentPreferences($prefs->all($user))]);
+    }
+
+    /** PATCH /api/v1/profile/notifications — partial update, `{ key: bool }`. */
+    public function updateNotifications(Request $request, UserNotificationPreferences $prefs): JsonResponse
+    {
+        $known = array_map(fn (MailNotification $t) => $t->value, UserNotificationPreferences::configurable());
+
+        $unknown = array_diff(array_keys($request->all()), $known);
+        if ($unknown !== []) {
+            throw ValidationException::withMessages([
+                'notifications' => 'Túto notifikáciu si nemôžeš nastaviť: '.implode(', ', $unknown),
+            ]);
+        }
+        $request->validate(array_fill_keys($known, ['sometimes', 'boolean']));
+
+        /** @var User $user */
+        $user = $request->user();
+        $state = $prefs->update($user, $request->all());
+
+        return new JsonResponse(['notifications' => $this->presentPreferences($state)]);
+    }
+
+    /**
+     * @param  array<string, bool>  $state
+     * @return list<array<string, mixed>>
+     */
+    private function presentPreferences(array $state): array
+    {
+        return array_map(fn (MailNotification $type) => [
+            'key' => $type->value,
+            'label' => $type->label(),
+            'description' => $type->description(),
+            'enabled' => $state[$type->value],
+        ], UserNotificationPreferences::configurable());
     }
 }

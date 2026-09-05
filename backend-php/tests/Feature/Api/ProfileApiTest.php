@@ -76,4 +76,46 @@ class ProfileApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(0);
     }
+
+    public function test_user_reads_and_changes_own_notification_preferences(): void
+    {
+        $user = User::create([
+            'name' => 'Self', 'email' => 'prefs@example.test',
+            'password' => 'currentpass1', 'role' => UserRole::PENDING, 'isActive' => true,
+        ]);
+        \Laravel\Sanctum\Sanctum::actingAs($user, ['*']);
+
+        $r = $this->getJson('/api/v1/profile/notifications')->assertOk();
+        $r->assertJsonStructure(['notifications' => [['key', 'label', 'description', 'enabled']]]);
+        $this->assertSame(
+            ['reservation_approval_requested', 'reservation_decided'],
+            collect($r->json('notifications'))->pluck('key')->all(),
+        );
+        $this->assertTrue(collect($r->json('notifications'))->every(fn ($n) => $n['enabled'] === true));
+
+        $this->patchJson('/api/v1/profile/notifications', ['reservation_decided' => false])
+            ->assertOk()
+            ->assertJsonPath('notifications.1.enabled', false)
+            ->assertJsonPath('notifications.0.enabled', true);
+        $this->assertSame(['reservation_approval_requested' => true, 'reservation_decided' => false], $user->refresh()->notificationPrefs);
+    }
+
+    public function test_notification_preferences_reject_unknown_or_non_configurable_keys(): void
+    {
+        $user = User::create([
+            'name' => 'Self', 'email' => 'prefs2@example.test',
+            'password' => 'currentpass1', 'role' => UserRole::MEMBER, 'isActive' => true,
+        ]);
+        \Laravel\Sanctum\Sanctum::actingAs($user, ['*']);
+
+        $this->patchJson('/api/v1/profile/notifications', ['vymyslene' => false])->assertStatus(400);
+        $this->patchJson('/api/v1/profile/notifications', ['password_reset' => false])->assertStatus(400);
+        $this->patchJson('/api/v1/profile/notifications', ['reservation_decided' => 'nie'])->assertStatus(400);
+    }
+
+    public function test_notification_preferences_require_login(): void
+    {
+        $this->getJson('/api/v1/profile/notifications')->assertStatus(401);
+        $this->patchJson('/api/v1/profile/notifications', ['reservation_decided' => false])->assertStatus(401);
+    }
 }

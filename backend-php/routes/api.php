@@ -122,6 +122,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('profile/identities/{provider}', [ProfileController::class, 'unlinkIdentity']);
     Route::get('profile/oauth/{provider}/link-url', [OAuthController::class, 'linkUrl']);
 
+    // Own e-mail switches for the user-configurable notifications (REZ-062).
+    Route::get('profile/notifications', [ProfileController::class, 'notifications']);
+    Route::patch('profile/notifications', [ProfileController::class, 'updateNotifications']);
+
     // Audit log is technical and shown to everyone with a verified
     // account (including pending — useful for "did I really submit
     // that?" self-verification).
