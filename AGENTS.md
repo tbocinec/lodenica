@@ -70,7 +70,7 @@ The deploy pipeline is **safe to repeat on a live deployment by default**:
 | Step | When it runs | Destructive? | Why it's safe |
 | --- | --- | --- | --- |
 | `php artisan migrate --force` | every deploy | additive only | Laravel tracks ran migrations in the `migrations` table; only new ones execute. **Never use `migrate:fresh` or `migrate:rollback` on prod.** |
-| `php artisan db:seed --force` | every deploy | idempotent | Seeders use `firstOrCreate` / `updateOrCreate` (or check counts before inserting demo data). They MUST stay idempotent. |
+| `php artisan db:seed --force` | every deploy | idempotent | `AdminSeeder` (one admin guaranteed; first install needs `ADMIN_EMAIL`/`ADMIN_PASSWORD`, otherwise it throws outside `local`), `ContentSeeder` (rules/FAQ/privacy templates, only when the row is missing), `DemoDataSeeder` (`local` or `SEED_DEMO_DATA=true` only). They MUST stay idempotent. |
 | `php artisan lodenica:import-sheet --force` | only when `--import-sheet` flag passed | **destructive** | Wipes damages, reservations, events, resources, then re-imports from the Google Sheet. Off by default. |
 | `php artisan {config,route,event}:cache` | every deploy | safe | Clears then rebuilds caches. |
 
@@ -95,6 +95,35 @@ The deploy pipeline is **safe to repeat on a live deployment by default**:
   it behind an explicit flag in the deploy pipeline (like `--import-sheet`).
 - The deploy runs `db:seed --force` on every deploy. If your new seeder
   is destructive, **do not register it in `DatabaseSeeder::run()`**.
+
+## One codebase, many clients
+
+Several clubs run this application, each on its own domain, database and
+`.deploy-secrets.<slug>` file. The code is shared — so **nothing about a
+club may be a literal in the code** (rule SITE-004 in
+`docs/spec/13-site-configuration.md`; guarded by
+`frontend/src/no-hardcoded-brand.spec.ts`, `MailBrandingTest`,
+`DeployScriptIsClientNeutralTest`).
+
+When you need a club-specific value (a name, an e-mail, a URL, a switch):
+
+1. Add a field to `backend-php/app/Services/SiteConfig.php` (`FIELDS` or
+   `FEATURES`) with its `config('site.*')` key and built-in default, and the
+   matching `env()` line in `backend-php/config/site.php`.
+2. Validate it in `UpdateSiteConfigRequest`; it is then editable in the SPA
+   once you add it to `frontend/src/api/site.api.ts` (types + defaults) and
+   the form in `AdminSiteSettingsView.vue`.
+3. Read it through `SiteConfig` on the backend and `useSiteStore()` in the
+   SPA. Never through `env()` in app code.
+4. Document the `SITE_*` variable in `.deploy-secrets.example` and pass it
+   through in `scripts/deploy-rezervacie.sh` (the `for v in SITE_…` loop) and
+   the GitHub workflow.
+
+Deploying: `scripts/deploy-rezervacie.sh --client <slug>` for one client,
+`scripts/deploy-all.sh` for all. Onboarding a club:
+`docs/CLIENT-ONBOARDING.md`. Migrations run per database on every deploy —
+additive only, as below; a migration that breaks one client stops the
+rollout for the rest.
 
 ## When two agents are editing the repo at once
 
@@ -172,7 +201,8 @@ Quick reference:
 2. Skim `README.md`, then the deploy doc for the target you'll touch.
 3. `git status` + `git log --oneline -10` to know where you are.
 4. If the task involves deployment: confirm the user has VPN handled
-   (run via GH Actions if VPN blocks port 22) and ask whether
+   (run via GH Actions if VPN blocks port 22), know WHICH client
+   (`--client <slug>`; see `docs/CLIENT-ONBOARDING.md`) and ask whether
    `--import-sheet` is wanted (it's destructive — never assume).
 5. After making changes, run the relevant test suite before suggesting
    a commit:

@@ -1,7 +1,7 @@
 # Multi-client parametrisation: site configuration, admin menu, themes, clean install
 
 **Date:** 2026-09-05
-**Status:** approved by the product owner in chat; implementation plan in
+**Status:** implemented on branch `feat/multi-client-site-config` (2026-09-05); implementation plan in
 `docs/superpowers/plans/2026-09-05-multi-client-site-config.md`
 **Scope:** `backend-php/`, `frontend/`, `scripts/`, `.github/workflows/`,
 `docs/`, `docker/`, `.deploy-secrets.example`

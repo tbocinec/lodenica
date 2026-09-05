@@ -101,10 +101,20 @@ components), `router/` (with role-based guards), `i18n/` (Slovak labels).
 - Login is required for the **audit log** (`/api/v1/audit-logs`).
 - The **ADMIN role** is required for resource CRUD (boat inventory) and
   user management.
-- First admin is seeded on first deploy:
-  `admin@lodenica.sk` / `Lodenica2026!` — **change it after first
-  login**. `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars override the
-  defaults.
+- The first admin is created by the seed from `ADMIN_EMAIL` /
+  `ADMIN_PASSWORD` (deploy secrets). Only local development falls back to
+  `admin@lodenica.sk` / `Lodenica2026!`; a production install without the
+  variables fails the seed step on purpose.
+
+### One codebase, many clubs
+
+Nothing club-specific lives in the code. Name, contacts, links, module
+switches, default theme and logo are **site settings**
+(`App\Services\SiteConfig`, edited under *Administrácia → Systém →
+Nastavenia stránky*, defaults from `SITE_*` in the per-client
+`.deploy-secrets.<slug>`). A new club is a new secrets file and one deploy
+run — see [docs/CLIENT-ONBOARDING.md](docs/CLIENT-ONBOARDING.md).
+Every signed-in user may pick their own colour theme in the profile.
 
 ### Audit log
 
@@ -130,6 +140,9 @@ All endpoints under `/api/v1`.
 | Availability | `GET /availability/dashboard`                     | public     |
 | Audit        | `GET /audit-logs`                                 | logged-in  |
 | Users        | `GET/POST/PATCH/DELETE /users`                    | admin      |
+| Site         | `GET /site`, `GET /site/logo`                     | public     |
+|              | `GET/PATCH /admin/site`, `POST/DELETE /admin/site/logo` | admin |
+| Profile      | `PATCH /profile/appearance`                       | logged-in  |
 
 ## Local development
 
