@@ -2,115 +2,106 @@
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 
+import { DEFAULT_LOGO } from '@/composables/useSiteChrome';
 import { NAV_LABELS } from '@/i18n/labels';
 import { useApprovalsStore } from '@/stores/approvals.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSiteStore } from '@/stores/site.store';
+
+import { externalItem, isActivePath, type NavGroup as NavGroupModel, type NavItem } from './nav';
+import NavGroup from './NavGroup.vue';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const approvals = useApprovalsStore();
+const site = useSiteStore();
 const navOpen = ref(false);
 
-interface NavItem {
-  to: string;
-  label: string;
-  icon: string;
-  /** Visibility gate. `undefined` = always visible. */
-  requires?: 'member' | 'confirmed' | 'admin';
-  /** External URL — rendered as a regular <a target="_blank"> instead of a RouterLink. */
-  external?: boolean;
-  /** Small count shown at the right edge (e.g. requests waiting for approval). */
-  badge?: number;
-  /** Hide the entry while `badge` is 0 — for pages only useful when there is work. */
-  hideWhenZero?: boolean;
-}
-
-function visible(item: NavItem): boolean {
-  if (item.hideWhenZero && !(item.badge && item.badge > 0)) return false;
-  if (!item.requires) return true;
-  if (item.requires === 'member') return auth.isAuthenticated;
-  if (item.requires === 'confirmed') return auth.isMember;
-  if (item.requires === 'admin') return auth.isAdmin;
-  return true;
-}
-
-// Operational entries — the everyday nav.
-const navItems = computed<NavItem[]>(() => {
+/**
+ * Everyday operational entries. /timeline and /calendar still exist as
+ * routes; they're surfaced from inside ReservationsView so members reach
+ * them when the task fits. Lode come last in this section — it's the
+ * equipment encyclopaedia, not an operational screen.
+ */
+const mainItems = computed<NavItem[]>(() => {
   const items: NavItem[] = [
     { to: '/', label: NAV_LABELS.dashboard, icon: '📊' },
-    // /timeline and /calendar still exist as routes; they're surfaced
-    // from inside ReservationsView so members reach them when the
-    // task fits ("I know the date but not which boat" → timeline,
-    // "browse a whole month" → calendar). The top nav stays focused
-    // on operational entries.
     { to: '/reservations', label: NAV_LABELS.reservations, icon: '📅' },
-    // Approvers see it while something waits; admins always (they can
-    // decide anything and it is where the approver e-mail links).
-    {
-      to: '/approvals',
-      label: NAV_LABELS.approvals,
-      icon: '✅',
-      requires: 'confirmed',
-      badge: approvals.pendingCount,
-      hideWhenZero: !auth.isAdmin,
-    },
+  ];
+  // Approvers see it while something waits; admins always (they can decide
+  // anything and it is where the approver e-mail links).
+  if (auth.isMember && (auth.isAdmin || approvals.pendingCount > 0)) {
+    items.push({ to: '/approvals', label: NAV_LABELS.approvals, icon: '✅', badge: approvals.pendingCount });
+  }
+  items.push(
     { to: '/events', label: NAV_LABELS.events, icon: '🎉' },
     { to: '/spaces', label: NAV_LABELS.spaces, icon: '🏠' },
     { to: '/damages', label: NAV_LABELS.damages, icon: '🛠️' },
-    // Lode posledné v "každodennej" sekcii — je to encyklopédia výbavy,
-    // nie operatívna obrazovka.
     { to: '/resources', label: NAV_LABELS.resources, icon: '🛶' },
-    { to: '/expeditions', label: 'Expedície', icon: '🗺️', requires: 'confirmed' },
-    { to: '/profil', label: 'Môj profil', icon: '👤', requires: 'member' },
-    { to: '/audit', label: NAV_LABELS.audit, icon: '📜', requires: 'member' },
-    { to: '/admin/users', label: 'Používatelia', icon: '👥', requires: 'admin' },
-    { to: '/admin/usage', label: 'Štatistiky', icon: '📈', requires: 'admin' },
-    { to: '/admin/qr-codes', label: 'QR kódy lodí', icon: '🔳', requires: 'admin' },
-    { to: '/admin/data', label: 'Správa dát', icon: '💾', requires: 'admin' },
-    { to: '/admin/diagnostics', label: 'Diagnostika e-mailov', icon: '✉️', requires: 'admin' },
-  ];
-  return items.filter(visible);
+  );
+  if (auth.isMember && site.config.features.expeditions) {
+    items.push({ to: '/expeditions', label: 'Expedície', icon: '🗺️' });
+  }
+  if (auth.isAuthenticated) {
+    items.push({ to: '/profil', label: 'Môj profil', icon: '👤' });
+  }
+  // Admins find the audit log under Administrácia → Správa (NAV-001).
+  if (auth.isAuthenticated && !auth.isAdmin) {
+    items.push({ to: '/audit', label: NAV_LABELS.audit, icon: '📜' });
+  }
+  return items;
 });
 
-// Informational pages grouped under a collapsible "Informácie" subsection
-// so the main nav stays uncluttered.
-const infoItems: NavItem[] = [
-  { to: '/vodacky-semafor', label: 'Vodácky semafor', icon: '🚦' },
-  { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
-  { to: '/q-a', label: 'Otázky a odpovede', icon: '❓' },
-  {
-    to: 'https://www.lodenicakvs.sk/?page_id=5024',
-    label: 'GDPR – Informačná povinnosť',
-    icon: '🔒',
-    external: true,
-  },
-  {
-    to: 'https://www.lodenicakvs.sk/?page_id=5036',
-    label: 'GDPR – Súhlas dotknutej osoby',
-    icon: '📝',
-    external: true,
-  },
-  {
-    to: 'https://www.lodenicakvs.sk/?page_id=4578',
-    label: 'Lodeničný poriadok',
-    icon: '📘',
-    external: true,
-  },
-];
+/** Informational pages + the club's external documents (empty URL = hidden). */
+const infoGroup = computed<NavGroupModel>(() => ({
+  key: 'info',
+  label: 'Informácie',
+  icon: 'ℹ️',
+  items: [
+    ...(site.config.features.paddlingTrafficLight
+      ? [{ to: '/vodacky-semafor', label: 'Vodácky semafor', icon: '🚦' }]
+      : []),
+    { to: '/rules', label: 'Pravidlá rezervácie', icon: '📋' },
+    { to: '/q-a', label: 'Otázky a odpovede', icon: '❓' },
+    ...externalItem(site.config.websiteUrl, 'Web klubu', '🌐'),
+    ...externalItem(site.config.gdprNoticeUrl, 'GDPR – Informačná povinnosť', '🔒'),
+    ...externalItem(site.config.gdprConsentUrl, 'GDPR – Súhlas dotknutej osoby', '📝'),
+    ...externalItem(site.config.rulesUrl, 'Prevádzkový poriadok', '📘'),
+  ],
+}));
 
-function isActive(path: string): boolean {
-  if (path === '/') return route.path === '/';
-  return route.path.startsWith(path);
-}
-
-// Expand the "Informácie" group automatically when the user is on one of
-// its pages, otherwise keep it collapsed to reduce clutter.
-const infoActive = computed(() =>
-  infoItems.some((i) => !i.external && isActive(i.to)),
+/** Admin-only: "Správa" (people and records) and "Systém" (this installation). */
+const adminGroup = computed<NavGroupModel | null>(() =>
+  auth.isAdmin
+    ? {
+        key: 'admin',
+        label: 'Administrácia',
+        icon: '🛡️',
+        items: [],
+        subgroups: [
+          {
+            label: 'Správa',
+            items: [
+              { to: '/admin/users', label: 'Používatelia', icon: '👥' },
+              { to: '/member-roster', label: 'Číselník členov', icon: '📇' },
+              { to: '/admin/usage', label: 'Štatistiky', icon: '📈' },
+              { to: '/audit', label: NAV_LABELS.audit, icon: '📜' },
+              { to: '/admin/qr-codes', label: 'QR kódy lodí', icon: '🔳' },
+            ],
+          },
+          {
+            label: 'Systém',
+            items: [
+              { to: '/admin/site', label: 'Nastavenia stránky', icon: '⚙️' },
+              { to: '/admin/diagnostics', label: 'Diagnostika e-mailov', icon: '✉️' },
+              { to: '/admin/data', label: 'Správa dát', icon: '💾' },
+            ],
+          },
+        ],
+      }
+    : null,
 );
-const infoOpen = ref(false);
-watch(infoActive, (active) => { if (active) infoOpen.value = true; }, { immediate: true });
 
 // Keep the approvals count in step with the session: load it when the user
 // becomes a confirmed member, drop it on logout.
@@ -151,12 +142,12 @@ async function logout(): Promise<void> {
           </button>
           <RouterLink to="/" class="flex items-center gap-2">
             <img
-              src="/favicon-192.png"
+              :src="site.config.logoUrl ?? DEFAULT_LOGO"
               alt=""
               aria-hidden="true"
               class="h-8 w-8 rounded-lg object-contain"
             />
-            <span class="text-lg font-semibold tracking-tight text-slate-900">Rezervácie KVŠ</span>
+            <span class="text-lg font-semibold tracking-tight text-slate-900">{{ site.config.shortName }}</span>
           </RouterLink>
         </div>
         <div class="hidden items-center gap-3 sm:flex">
@@ -191,82 +182,34 @@ async function logout(): Promise<void> {
         ]"
       >
         <nav class="space-y-1">
-          <template v-for="item in navItems" :key="item.to">
-            <a
-              v-if="item.external"
-              :href="item.to"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              @click="navOpen = false"
-            >
-              <span aria-hidden="true">{{ item.icon }}</span>
-              <span>{{ item.label }}</span>
-              <span aria-hidden="true" class="ml-auto text-xs text-slate-400">↗</span>
-            </a>
-            <RouterLink
-              v-else
-              :to="item.to"
-              class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              :class="
-                isActive(item.to) ? 'bg-brand-50 text-brand-800 ring-1 ring-brand-100' : ''
-              "
-              @click="navOpen = false"
-            >
-              <span aria-hidden="true">{{ item.icon }}</span>
-              <span>{{ item.label }}</span>
-              <span
-                v-if="item.badge"
-                class="ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
-              >{{ item.badge }}</span>
-            </RouterLink>
-          </template>
+          <RouterLink
+            v-for="item in mainItems"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            :class="isActivePath(route.path, item.to) ? 'bg-brand-50 text-brand-800 ring-1 ring-brand-100' : ''"
+            @click="navOpen = false"
+          >
+            <span aria-hidden="true">{{ item.icon }}</span>
+            <span>{{ item.label }}</span>
+            <span
+              v-if="item.badge"
+              class="ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
+            >{{ item.badge }}</span>
+          </RouterLink>
 
-          <!-- Informational pages, tucked into a collapsible subsection so
-               the everyday nav stays short. Auto-expands on its pages. -->
-          <div class="pt-1">
-            <button
-              type="button"
-              class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              :class="infoActive ? 'text-brand-800' : ''"
-              :aria-expanded="infoOpen"
-              @click="infoOpen = !infoOpen"
-            >
-              <span aria-hidden="true">ℹ️</span>
-              <span>Informácie</span>
-              <span
-                aria-hidden="true"
-                class="ml-auto text-xs text-slate-400 transition-transform"
-                :class="infoOpen ? 'rotate-90' : ''"
-              >▶</span>
-            </button>
-            <div v-show="infoOpen" class="mt-1 space-y-1 border-l border-slate-200 pl-3">
-              <template v-for="item in infoItems" :key="item.to">
-                <a
-                  v-if="item.external"
-                  :href="item.to"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
-                  @click="navOpen = false"
-                >
-                  <span aria-hidden="true">{{ item.icon }}</span>
-                  <span>{{ item.label }}</span>
-                  <span aria-hidden="true" class="ml-auto text-xs text-slate-400">↗</span>
-                </a>
-                <RouterLink
-                  v-else
-                  :to="item.to"
-                  class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
-                  :class="isActive(item.to) ? 'bg-brand-50 text-brand-800 ring-1 ring-brand-100' : ''"
-                  @click="navOpen = false"
-                >
-                  <span aria-hidden="true">{{ item.icon }}</span>
-                  <span>{{ item.label }}</span>
-                </RouterLink>
-              </template>
-            </div>
-          </div>
+          <!-- Informational pages + the club's documents, collapsed so the
+               everyday nav stays short. Auto-expands on its pages. -->
+          <NavGroup :group="infoGroup" :active-path="route.path" @navigate="navOpen = false" />
+
+          <!-- Admin-only. "Správa" = people and records, "Systém" = this
+               installation (site settings, mail, data). -->
+          <NavGroup
+            v-if="adminGroup"
+            :group="adminGroup"
+            :active-path="route.path"
+            @navigate="navOpen = false"
+          />
         </nav>
         <div class="mt-6 sm:hidden space-y-2">
           <RouterLink to="/reservations/new" class="btn-primary w-full">
