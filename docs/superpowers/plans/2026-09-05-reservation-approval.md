@@ -2332,7 +2332,7 @@ use Illuminate\Validation\Rule;
             ])],
 ```
 
-`app/Http/Requests/ListReservationsRequest.php` — replace the `status` rule and add `prepareForValidation`:
+`app/Http/Requests/ListReservationsRequest.php` — replace the `status` rule, and **extend the existing** `prepareForValidation()` (commit a025a01 already added it to normalise `?mine=true`; keep that block and append the status block):
 
 ```php
             // One value (`?status=CONFIRMED`) or several (`?status[]=…&status[]=…`),
@@ -2342,6 +2342,10 @@ use Illuminate\Validation\Rule;
 // …
     public function prepareForValidation(): void
     {
+        // … the existing `mine` normalisation stays as is …
+
+        // A scalar status becomes a one-element list so the rules above
+        // cover both `?status=X` and `?status[]=X&status[]=Y`.
         if ($this->has('status') && !is_array($this->input('status'))) {
             $raw = $this->input('status');
             $this->merge(['status' => ($raw === null || $raw === '') ? null : [$raw]]);
