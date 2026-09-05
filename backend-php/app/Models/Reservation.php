@@ -59,11 +59,6 @@ class Reservation extends Model
         return TimeRange::fromInstants($this->startsAt, $this->endsAt);
     }
 
-    public function isConfirmed(): bool
-    {
-        return $this->status === ReservationStatus::CONFIRMED;
-    }
-
     public function isPendingApproval(): bool
     {
         return $this->status === ReservationStatus::PENDING_APPROVAL;

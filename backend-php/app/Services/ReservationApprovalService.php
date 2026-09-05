@@ -62,11 +62,6 @@ class ReservationApprovalService
         return ['items' => $items, 'total' => $total];
     }
 
-    public function pendingCountFor(User $user): int
-    {
-        return $this->pendingQuery($user)->count();
-    }
-
     private function pendingQuery(User $user): Builder
     {
         $query = Reservation::query()->where('status', ReservationStatus::PENDING_APPROVAL->value);
