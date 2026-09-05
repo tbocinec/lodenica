@@ -191,13 +191,20 @@ class ReservationsService
         }
         // "My reservations": everything I created OR everything tagged with
         // my internal member ID (so history follows the member identity even
-        // if the ID is later bound to a different account).
-        if (!empty($options['mineUserId'])) {
-            $memberId = $options['mineMemberId'] ?? null;
-            $query->where(function ($q) use ($options, $memberId) {
-                $q->where('createdById', $options['mineUserId']);
-                if ($memberId !== null && $memberId !== '') {
-                    $q->orWhere('memberId', $memberId);
+        // if the ID is later bound to a different account). `mine` says the
+        // filter was asked for; the two IDs say who "I" am. An anonymous
+        // caller asking for `mine` has no identity, so the seed `1 = 0`
+        // makes that case match nothing rather than everything.
+        if (!empty($options['mine']) || !empty($options['mineUserId'])) {
+            $mineUserId = $options['mineUserId'] ?? null;
+            $mineMemberId = $options['mineMemberId'] ?? null;
+            $query->where(function ($q) use ($mineUserId, $mineMemberId) {
+                $q->whereRaw('1 = 0');
+                if ($mineUserId !== null && $mineUserId !== '') {
+                    $q->orWhere('createdById', $mineUserId);
+                }
+                if ($mineMemberId !== null && $mineMemberId !== '') {
+                    $q->orWhere('memberId', $mineMemberId);
                 }
             });
         }
@@ -216,10 +223,10 @@ class ReservationsService
         // Independent half-open bounds (used when caller only knows
         // one side, e.g. "future only" → startsAtFrom=now, no upper).
         if (!empty($options['startsAtFrom'])) {
-            $query->where('endsAt', '>=', $options['startsAtFrom']);
+            $query->where('endsAt', '>=', self::toInstant($options['startsAtFrom']));
         }
         if (!empty($options['endsAtTo'])) {
-            $query->where('startsAt', '<', $options['endsAtTo']);
+            $query->where('startsAt', '<', self::toInstant($options['endsAtTo']));
         }
         if (!empty($options['search'])) {
             $needle = '%'.strtolower($options['search']).'%';
@@ -256,6 +263,20 @@ class ReservationsService
             ->get();
 
         return ['items' => $items, 'total' => $total];
+    }
+
+    /**
+     * Bounds reach us as ISO-8601 strings from the API. Bind them as a
+     * DateTime so the driver renders them in the column's own storage
+     * format — a raw "2027-08-01T10:00:00Z" would be compared
+     * lexically against "2027-08-01 10:00:00" on SQLite and silently
+     * drop matching rows.
+     */
+    private static function toInstant(\DateTimeInterface|string $value): \DateTimeInterface
+    {
+        return $value instanceof \DateTimeInterface
+            ? $value
+            : new \DateTimeImmutable($value);
     }
 
     /**

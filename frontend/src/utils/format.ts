@@ -101,6 +101,16 @@ export function toIsoDate(date: Date): string {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
+/**
+ * Midnight of the current day, as an ISO instant — the lower bound for
+ * "today and onwards" reservation queries. Paired with the API's
+ * `from` filter (which matches on `endsAt`), a booking that started
+ * yesterday and is still running today stays in range.
+ */
+export function startOfTodayIso(): string {
+  return utcMidnight(toIsoDate(new Date())).toISOString();
+}
+
 /** Wall-clock UTC midnight for a yyyy-MM-dd string. */
 export function utcMidnight(dateIso: string): Date {
   return new Date(`${dateIso}T00:00:00.000Z`);

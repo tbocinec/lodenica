@@ -84,10 +84,19 @@ class ReservationsController extends Controller
             $range = TimeRange::fromInstants($from, $to);
         }
 
+        // `mine=1` narrows the list to the caller's own bookings. The route
+        // is public (no `auth:sanctum`), so the default guard never runs —
+        // ask sanctum explicitly, same as ReservationResource does.
+        $mine = $request->boolean('mine');
+        $mineUser = $mine ? ($request->user('sanctum') ?? $request->user()) : null;
+
         $result = $this->reservations->list([
             'resourceId' => $request->validated('resourceId'),
             'eventId' => $request->validated('eventId'),
             'status' => $request->validated('status'),
+            'mine' => $mine,
+            'mineUserId' => $mineUser?->id,
+            'mineMemberId' => $mineUser?->memberId,
             'range' => $range,
             'startsAtFrom' => $range ? null : $from,
             'endsAtTo' => $range ? null : $to,

@@ -9,16 +9,20 @@
  *   - from / to    (ISO date — half-open bounds, both optional)
  *   - page / pageSize (page is 1-based)
  *
- * The UI has two "everyday" toggles on top of the explicit fields:
- *   - "Zobraziť zrušené"  → drop the default status=CONFIRMED filter
- *   - "Zobraziť minulé"   → drop the default from=today filter
- * Either toggle leaves the underlying field empty (= no constraint).
+ * The UI has three "everyday" toggles on top of the explicit fields:
+ *   - "Zobraziť zrušené"       → drop the default status=CONFIRMED filter
+ *   - "Zobraziť minulé"        → drop the default from=today filter
+ *   - "Iba moje rezervácie"    → add mine=1 (logged-in visitors only)
+ * The first two leave the underlying field empty (= no constraint);
+ * they stay independent of the owner filter, so "my whole history" is
+ * "iba moje" + "minulé". `?mine=1&past=1` in the URL pre-applies both
+ * — that's the link the dashboard's "História" points at.
  *
  * On viewports < `sm:` the filter panel collapses behind a "Filtre"
  * button so the table gets all the room.
  */
 import { computed, onMounted, ref, watch } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
 
 import { reservationsApi } from '@/api/reservations.api';
 import { ReservationStatus, type Reservation } from '@/api/types';
@@ -31,7 +35,7 @@ import ReservationEditDialog from '@/components/ui/ReservationEditDialog.vue';
 import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import { useResourcesStore } from '@/stores/resources.store';
-import { formatReservationRange, toIsoDate } from '@/utils/format';
+import { formatReservationRange, isoFromDateTime, startOfTodayIso } from '@/utils/format';
 
 const reservations = ref<Reservation[]>([]);
 const total = ref(0);
@@ -43,8 +47,19 @@ const auth = useAuthStore();
 
 /* ─── filter state ─────────────────────────────────────────────── */
 
+// Two of the toggles can be pre-applied from the URL (the dashboard
+// links here for "my history"). The checkboxes own the state from then
+// on, but a fresh navigation re-applies it — otherwise coming back to
+// a plain /reservations from the nav would keep the old filters on.
+const route = useRoute();
+// Owner filter needs a token; without one the API would return an
+// empty page, so an anonymous visitor never gets it pre-applied.
+const mineFromUrl = () => auth.isAuthenticated && route.query.mine === '1';
+const pastFromUrl = () => route.query.past === '1';
+
 const showCancelled = ref(false);
-const showPast = ref(false);
+const showPast = ref(pastFromUrl());
+const showMine = ref(mineFromUrl());
 const search = ref('');
 const resourceIdFilter = ref('');
 const dateFromFilter = ref('');
@@ -64,6 +79,7 @@ const activeFilterCount = computed(() => {
   if (dateToFilter.value) n++;
   if (showCancelled.value) n++;
   if (showPast.value) n++;
+  if (showMine.value) n++;
   return n;
 });
 
@@ -79,12 +95,14 @@ async function load() {
       search: search.value.trim() || undefined,
       resourceId: resourceIdFilter.value || undefined,
       status: showCancelled.value ? undefined : ReservationStatus.CONFIRMED,
-      // Default to "from today" unless the user opts into past.
-      from: showPast.value
-        ? dateFromFilter.value
-          ? new Date(`${dateFromFilter.value}T00:00:00Z`).toISOString()
-          : undefined
-        : new Date(`${dateFromFilter.value || toIsoDate(new Date())}T00:00:00Z`).toISOString(),
+      mine: showMine.value || undefined,
+      // An explicit "Od" always wins; otherwise the list starts at today
+      // unless the user opted into the past.
+      from: dateFromFilter.value
+        ? isoFromDateTime(dateFromFilter.value, '00:00')
+        : showPast.value
+          ? undefined
+          : startOfTodayIso(),
       to: dateToFilter.value
         ? new Date(`${dateToFilter.value}T23:59:59Z`).toISOString()
         : undefined,
@@ -101,9 +119,18 @@ async function load() {
 
 /* ─── filter triggers ──────────────────────────────────────────── */
 
+watch(
+  () => route.query,
+  () => {
+    showPast.value = pastFromUrl();
+    showMine.value = mineFromUrl();
+    // The filter watcher below picks the change up and reloads.
+  },
+);
+
 // Any filter change snaps us back to page 1 and reloads.
 watch(
-  [showCancelled, showPast, search, resourceIdFilter, dateFromFilter, dateToFilter],
+  [showCancelled, showPast, showMine, search, resourceIdFilter, dateFromFilter, dateToFilter],
   () => {
     page.value = 1;
     load();
@@ -117,6 +144,7 @@ function resetFilters() {
   dateToFilter.value = '';
   showCancelled.value = false;
   showPast.value = false;
+  showMine.value = false;
   // The watcher above triggers load + page reset.
 }
 
@@ -264,12 +292,19 @@ onMounted(load);
 
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
       <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input v-model="showCancelled" type="checkbox" class="h-4 w-4 rounded" />
+        <input id="r-cancelled" v-model="showCancelled" type="checkbox" class="h-4 w-4 rounded" />
         Zobraziť zrušené
       </label>
       <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input v-model="showPast" type="checkbox" class="h-4 w-4 rounded" />
+        <input id="r-past" v-model="showPast" type="checkbox" class="h-4 w-4 rounded" />
         Zobraziť minulé
+      </label>
+      <label
+        v-if="auth.isAuthenticated"
+        class="inline-flex items-center gap-2 text-sm font-medium text-slate-700"
+      >
+        <input id="r-mine" v-model="showMine" type="checkbox" class="h-4 w-4 rounded" />
+        Iba moje rezervácie
       </label>
       <span class="hidden sm:inline-block text-xs text-slate-500">Spolu {{ total }}</span>
       <button

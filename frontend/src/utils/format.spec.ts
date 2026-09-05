@@ -1,14 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   formatDate,
   formatReservationRange,
   formatTime,
   isoFromDateTime,
+  startOfTodayIso,
   toIsoDate,
 } from './format';
 
 describe('format utils', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('formatDate handles iso strings as wall-clock UTC', () => {
     expect(formatDate('2026-05-09T00:00:00Z')).toBe('09.05.2026');
   });
@@ -51,5 +56,20 @@ describe('format utils', () => {
 
   it('isoFromDateTime composes a wall-clock UTC ISO', () => {
     expect(isoFromDateTime('2026-05-09', '09:00')).toBe('2026-05-09T09:00:00.000Z');
+  });
+
+  it('startOfTodayIso is midnight of the current wall-clock UTC day', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-05T14:30:00Z'));
+
+    expect(startOfTodayIso()).toBe('2026-09-05T00:00:00.000Z');
+  });
+
+  it('startOfTodayIso keeps a booking that is still running in range', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-05T00:00:00Z'));
+
+    // Yesterday evening into this morning — the bound must not cut it off.
+    expect(startOfTodayIso() <= '2026-09-05T08:00:00.000Z').toBe(true);
   });
 });

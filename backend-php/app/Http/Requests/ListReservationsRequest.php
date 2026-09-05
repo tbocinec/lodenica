@@ -24,6 +24,9 @@ class ListReservationsRequest extends FormRequest
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date'],
             'search' => ['nullable', 'string', 'max:120'],
+            // "only my bookings" — resolved against the caller's token in
+            // the controller (this route is public, so it may be absent).
+            'mine' => ['nullable', 'boolean'],
         ];
     }
 }

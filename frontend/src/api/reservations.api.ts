@@ -78,6 +78,12 @@ export interface ListReservationsParams {
   to?: string;
   /** Free-text match against customerName / customerContact / note. */
   search?: string;
+  /**
+   * Narrow the list to the caller's own bookings (created by them, or
+   * tagged with their internal member ID). Needs a bearer token —
+   * without one the backend returns an empty page, not everybody's.
+   */
+  mine?: boolean;
 }
 
 export interface CreateReservationInput {

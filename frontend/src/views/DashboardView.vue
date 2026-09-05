@@ -16,7 +16,7 @@ import ResourceTypeBadge from '@/components/ui/ResourceTypeBadge.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import StatCard from '@/components/ui/StatCard.vue';
 import { DAMAGE_STATUS_LABEL, RESOURCE_TYPE_LABEL } from '@/i18n/labels';
-import { formatReservationRange } from '@/utils/format';
+import { formatReservationRange, startOfTodayIso } from '@/utils/format';
 
 const snapshot = ref<DashboardSnapshot | null>(null);
 const loading = ref(false);
@@ -31,8 +31,10 @@ function scrollTo(el: HTMLElement | null): void {
   el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// My reservations (logged-in users only).
+// My reservations (logged-in users only) — upcoming ones here, the rest
+// on the Rezervácie page with the same two filters pre-applied.
 const myReservations = ref<Reservation[]>([]);
+const MY_HISTORY_ROUTE = { path: '/reservations', query: { mine: '1', past: '1' } };
 const editing = ref<Reservation | null>(null);
 
 async function onMyReservationChanged(): Promise<void> {
@@ -45,11 +47,18 @@ function resourceLabel(resourceId: string): string {
   return r ? `${r.identifier} · ${r.name}` : 'Zdroj';
 }
 
+/**
+ * Upcoming only — the dashboard is a "what's next" surface, so past
+ * bookings would just push the next trip off the screen. `from` is
+ * matched against `endsAt` server-side, so a booking that started
+ * yesterday and is still running stays listed. The full history lives
+ * behind the "História" link (Rezervácie with the same filter + past).
+ */
 async function loadMine() {
   if (!auth.isAuthenticated) return;
   try {
     const [mine] = await Promise.all([
-      reservationsApi.mine({ pageSize: 50 }),
+      reservationsApi.list({ mine: true, from: startOfTodayIso(), pageSize: 50 }),
       resources.items.length ? Promise.resolve() : resources.fetch(),
     ]);
     myReservations.value = mine.items;
@@ -120,12 +129,17 @@ onMounted(() => {
   >
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-lg font-semibold">Moje rezervácie</h2>
-      <RouterLink to="/reservations/new" class="btn-secondary text-xs">＋ Nová</RouterLink>
+      <div class="flex items-center gap-2">
+        <RouterLink :to="MY_HISTORY_ROUTE" class="text-xs font-medium text-brand-700 hover:underline">
+          História →
+        </RouterLink>
+        <RouterLink to="/reservations/new" class="btn-secondary text-xs">＋ Nová</RouterLink>
+      </div>
     </div>
     <EmptyState
       v-if="myReservations.length === 0"
-      title="Zatiaľ nemáš žiadne rezervácie"
-      description="Vytvor si rezerváciu a objaví sa tu."
+      title="Nemáš žiadne nadchádzajúce rezervácie"
+      description="Vytvor si rezerváciu a objaví sa tu. Staršie nájdeš cez „História“."
     />
     <ul v-else class="divide-y divide-slate-100">
       <li

@@ -71,6 +71,7 @@ auth.isPending         // strict PENDING
 | Event participants (`GET /events/{id}/participants`) | ❌ (401) | ❌ (403) | ✅ | ✅ |
 | Boats attached to an event (shown in SPA event detail) | ❌ | ❌ | ✅ | ✅ |
 | My own reservations (`GET /reservations/mine`) | ❌ (401) | ✅ (own) | ✅ (own) | ✅ (own) |
+| Own-bookings filter on the list (`GET /reservations?mine=1`) | ✅ (empty page) | ✅ (own) | ✅ (own) | ✅ (own) |
 | Audit log | ❌ (401) | ✅ | ✅ | ✅ |
 | Admin pages (users, usage, data, settings edit) | ❌ | ❌ | ❌ | ✅ |
 
@@ -287,7 +288,9 @@ gets to see what, the docs are stale — fix the file before merging.
 - `backend-php/tests/Feature/Api/ProfileApiTest.php` — own-password change
   (incl. PENDING), wrong-current rejection.
 - `backend-php/tests/Feature/Api/MyReservationsApiTest.php` —
-  default-to-self, book-for-others, `createdById`, `/reservations/mine`.
+  default-to-self, book-for-others, `createdById`, `/reservations/mine`,
+  and the `?mine=1` list filter (anonymous gets an empty page, never
+  everybody's bookings).
 - `backend-php/tests/Feature/Api/BulkUserImportApiTest.php` — CSV import,
   duplicate/invalid handling, invitation emails.
 - `backend-php/tests/Feature/Api/MembershipApprovalMailTest.php` —

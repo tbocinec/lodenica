@@ -135,4 +135,22 @@ class ReservationMemberLinkTest extends TestCase
 
         $this->assertSame('KVS-7', Reservation::find($r['id'])->memberId);
     }
+
+    public function test_index_mine_filter_also_matches_my_member_id(): void
+    {
+        Reservation::create([
+            'resourceId' => $this->kayak->id,
+            'createdById' => null,
+            'memberId' => 'KVS-9',
+            'customerName' => 'Pôvodný člen',
+            'startsAt' => '2030-06-01T09:00:00Z',
+            'endsAt' => '2030-06-01T12:00:00Z',
+        ]);
+
+        $this->actingAsMember(['email' => 'holder@example.test', 'memberId' => 'KVS-9']);
+        $this->getJson('/api/v1/reservations?mine=1')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('items.0.customerName', 'Pôvodný člen');
+    }
 }
