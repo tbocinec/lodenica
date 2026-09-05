@@ -67,7 +67,7 @@ class AdminDataController extends Controller
             ],
         ];
 
-        $filename = 'lodenica-backup-'.date('Y-m-d').'.json';
+        $filename = 'zaloha-'.date('Y-m-d').'.json';
 
         return new JsonResponse($payload, 200, [
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
@@ -80,7 +80,7 @@ class AdminDataController extends Controller
      */
     public function exportReservationsCsv(): StreamedResponse
     {
-        return $this->streamCsv('lodenica-rezervacie-'.date('Y-m-d').'.csv', function ($out) {
+        return $this->streamCsv('rezervacie-'.date('Y-m-d').'.csv', function ($out) {
             fputcsv($out, [
                 'id', 'resourceId', 'resourceIdentifier', 'resourceName',
                 'customerName', 'customerContact', 'startsAt', 'endsAt',
@@ -112,7 +112,7 @@ class AdminDataController extends Controller
      */
     public function exportResourcesCsv(): StreamedResponse
     {
-        return $this->streamCsv('lodenica-lode-'.date('Y-m-d').'.csv', function ($out) {
+        return $this->streamCsv('lode-'.date('Y-m-d').'.csv', function ($out) {
             fputcsv($out, [
                 'id', 'identifier', 'type', 'name', 'model', 'color',
                 'seats', 'lengthCm', 'weightKg', 'note', 'imageUrl',
@@ -150,7 +150,7 @@ class AdminDataController extends Controller
      */
     public function exportMembersCsv(): StreamedResponse
     {
-        return $this->streamCsv('lodenica-clenovia-'.date('Y-m-d').'.csv', function ($out) {
+        return $this->streamCsv('clenovia-'.date('Y-m-d').'.csv', function ($out) {
             fputcsv($out, [
                 'memberId', 'name', 'email', 'role',
                 'registeredAt', 'privacyAck', 'dataConsent',
