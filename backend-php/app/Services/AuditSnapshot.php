@@ -31,6 +31,10 @@ final class AuditSnapshot
             'note' => $r->note,
             'imageUrl' => $r->imageUrl,
             'isActive' => (bool) $r->isActive,
+            'requiresApproval' => (bool) $r->requiresApproval,
+            // Queried, not read from a loaded relation: the "before" snapshot
+            // is taken right before a sync and must see the current pivot rows.
+            'approverIds' => $r->approvers()->pluck('users.id')->sort()->values()->all(),
         ];
     }
 

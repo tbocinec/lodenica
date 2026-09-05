@@ -7,7 +7,9 @@ use App\Domain\Enums\AuditEntityType;
 use App\Domain\Enums\ResourceType;
 use App\Exceptions\NotFoundDomainException;
 use App\Models\Resource;
+use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Application service for resource lifecycle. Keeps the controller thin and
@@ -19,7 +21,12 @@ class ResourcesService
 
     public function create(array $input): Resource
     {
+        $approverIds = $this->takeApproverIds($input);
         $resource = Resource::create($input);
+        if ($approverIds !== null) {
+            $this->syncApprovers($resource, $approverIds);
+        }
+        $resource->load('approvers');
 
         $this->audit->logCreate(
             AuditEntityType::RESOURCE,
@@ -36,9 +43,13 @@ class ResourcesService
         $resource = $this->requireExisting($id);
         $before = AuditSnapshot::resource($resource);
 
+        $approverIds = $this->takeApproverIds($input);
         $resource->fill($input);
         $resource->save();
-        $resource->refresh();
+        if ($approverIds !== null) {
+            $this->syncApprovers($resource, $approverIds);
+        }
+        $resource->refresh()->load('approvers');
 
         $this->audit->logUpdate(
             AuditEntityType::RESOURCE,
@@ -53,7 +64,7 @@ class ResourcesService
 
     public function findById(string $id): Resource
     {
-        return $this->requireExisting($id);
+        return $this->requireExisting($id)->load('approvers');
     }
 
     /**
@@ -88,8 +99,10 @@ class ResourcesService
         $items = $query
             // Eager-loaded so ResourceResource can report the worst open
             // damage without one query per row — the picker pulls the
-            // whole inventory in a single page.
-            ->with('openDamages')
+            // whole inventory in a single page. Approvers too, so
+            // ResourceResource can name them for members without a query
+            // per row.
+            ->with(['openDamages', 'approvers'])
             ->orderBy('type')
             ->orderBy('identifier')
             ->skip($options['skip'] ?? 0)
@@ -134,6 +147,43 @@ class ResourcesService
         }
 
         return $resource;
+    }
+
+    /**
+     * Pull `approverIds` out of the input (it is not a column) — null when the
+     * caller did not send the key at all, so a PATCH without it leaves the
+     * list untouched.
+     *
+     * @return list<string>|null
+     */
+    private function takeApproverIds(array &$input): ?array
+    {
+        if (!array_key_exists('approverIds', $input)) {
+            return null;
+        }
+        $ids = array_values(array_unique(array_filter((array) $input['approverIds'], 'is_string')));
+        unset($input['approverIds']);
+
+        return $ids;
+    }
+
+    /**
+     * REZ-050: only confirmed members (or admins) may approve. `exists` in the
+     * request already proved the accounts exist; this proves their role.
+     *
+     * @param  list<string>  $ids
+     */
+    private function syncApprovers(Resource $resource, array $ids): void
+    {
+        if ($ids !== []) {
+            $eligible = User::query()->whereIn('id', $ids)->get()->filter(fn (User $u) => $u->isMember());
+            if ($eligible->count() !== count($ids)) {
+                throw ValidationException::withMessages([
+                    'approverIds' => 'Schvaľovateľ musí byť potvrdený člen.',
+                ]);
+            }
+        }
+        $resource->approvers()->sync($ids);
     }
 
     /**

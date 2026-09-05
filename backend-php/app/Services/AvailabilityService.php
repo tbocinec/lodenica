@@ -67,7 +67,7 @@ class AvailabilityService
     {
         return Reservation::query()
             ->with('resource')
-            ->where('status', ReservationStatus::CONFIRMED->value)
+            ->whereIn('status', ReservationStatus::blockingValues())
             ->where('startsAt', '<', $to)
             ->where('endsAt', '>', $from)
             ->orderBy('startsAt')
@@ -78,7 +78,7 @@ class AvailabilityService
     {
         return Reservation::query()
             ->with('resource')
-            ->where('status', ReservationStatus::CONFIRMED->value)
+            ->whereIn('status', ReservationStatus::blockingValues())
             ->where('startsAt', '<', $to)
             ->where('endsAt', '>', $from)
             ->whereHas('resource', fn ($q) => $q->where('type', ResourceType::BOATHOUSE_SPACE->value))
@@ -119,6 +119,9 @@ class AvailabilityService
             'endsAt' => $r->endsAt?->toIso8601String(),
             'note' => $r->note,
             'status' => $r->status->value,
+            'decidedById' => $r->decidedById,
+            'decidedAt' => $r->decidedAt?->toIso8601String(),
+            'decisionNote' => $isMember ? $r->decisionNote : null,
             'createdAt' => $r->createdAt?->toIso8601String(),
             'updatedAt' => $r->updatedAt?->toIso8601String(),
             'resource' => $r->resource ? $this->renderResource($r->resource) : null,
@@ -140,6 +143,7 @@ class AvailabilityService
             'note' => $r->note,
             'imageUrl' => $r->imageUrl,
             'isActive' => (bool) $r->isActive,
+            'requiresApproval' => (bool) $r->requiresApproval,
             'createdAt' => $r->createdAt?->toIso8601String(),
             'updatedAt' => $r->updatedAt?->toIso8601String(),
         ];

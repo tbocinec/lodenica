@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Resource as ResourceModel;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,6 +14,11 @@ class ResourceResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Approver names are member names → member-only (CORE-030). Public
+        // route, so ask the sanctum guard explicitly (CORE-031).
+        $viewer = $request->user('sanctum') ?? $request->user();
+        $isMember = $viewer instanceof User && $viewer->isMember();
+
         return [
             'id' => $this->id,
             'identifier' => $this->identifier,
@@ -32,6 +38,12 @@ class ResourceResource extends JsonResource
                 ? "/api/v1/resources/{$this->id}/photo?v=".(int) ($this->updatedAt?->getTimestamp() ?? 0)
                 : null,
             'isActive' => (bool) $this->isActive,
+            // Approval workflow (REZ-050). The flag is public so the booking
+            // form can explain what will happen; who approves is for members.
+            'requiresApproval' => (bool) $this->requiresApproval,
+            'approvers' => $isMember
+                ? $this->approvers->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->values()->all()
+                : null,
             // Worst open damage, inline. Every screen that already holds
             // the resources store (picker, timeline, reservation form) can
             // warn about a damaged boat without fetching damages itself.

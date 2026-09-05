@@ -37,6 +37,11 @@ class UpdateResourceRequest extends FormRequest
             'note' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'imageUrl' => ['sometimes', 'nullable', 'string', 'max:2000', 'url'],
             'isActive' => ['sometimes', 'boolean'],
+            // Approval workflow (REZ-050). Membership of the approvers is
+            // checked in ResourcesService — `exists` only proves the account.
+            'requiresApproval' => ['sometimes', 'boolean'],
+            'approverIds' => ['sometimes', 'array'],
+            'approverIds.*' => ['uuid', Rule::exists('users', 'id')],
         ];
     }
 

@@ -4,9 +4,12 @@ namespace Tests\Feature\Api;
 
 use App\Domain\Enums\DamageSeverity;
 use App\Domain\Enums\DamageStatus;
+use App\Domain\Enums\ReservationStatus;
 use App\Domain\Enums\ResourceType;
 use App\Models\Damage;
+use App\Models\Reservation;
 use App\Models\Resource;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -97,5 +100,23 @@ class HealthAndDashboardTest extends TestCase
         $this->getJson('/api/v1/availability/dashboard')
             ->assertOk()
             ->assertJsonPath('damaged.0.resource.identifier', 'K-042');
+    }
+
+    public function test_dashboard_counts_a_pending_request_as_occupied(): void
+    {
+        $space = Resource::create(['identifier' => 'S-1', 'type' => ResourceType::CANOE, 'name' => 'Gated canoe', 'requiresApproval' => true]);
+        $now = CarbonImmutable::now();
+        Reservation::create([
+            'resourceId' => $space->id, 'customerName' => 'P',
+            'startsAt' => $now->startOfDay()->addHours(9), 'endsAt' => $now->startOfDay()->addHours(12),
+            'status' => ReservationStatus::PENDING_APPROVAL,
+        ]);
+
+        $r = $this->getJson('/api/v1/availability/dashboard')->assertOk();
+
+        $this->assertContains($space->id, collect($r->json('occupiedToday'))->pluck('resourceId')->all());
+        $this->assertSame('PENDING_APPROVAL', collect($r->json('occupiedToday'))->firstWhere('resourceId', $space->id)['status']);
+        $this->assertNotContains($space->id, collect($r->json('available'))->pluck('id')->all());
+        $this->assertTrue(collect($r->json('occupiedToday'))->firstWhere('resourceId', $space->id)['resource']['requiresApproval']);
     }
 }
