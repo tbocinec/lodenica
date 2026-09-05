@@ -100,10 +100,12 @@ Vynútené: skupina `['auth:sanctum', 'member']` v `routes/api.php`
 Test: —
 
 **REZ-021** — Pri úprave sa dá meniť meno, kontakt, poznámka, väzba na
-akciu, stav a časový rozsah. Zdroj sa meniť **nedá** — presun na inú loď
-znamená zrušiť a založiť novú.
-Vynútené: `ReservationsService::update` (`array_intersect_key`)
-Test: —
+akciu a časový rozsah; stav iba v medziach REZ-058 (čakajúca ani
+zamietnutá rezervácia stav cez úpravu nemení). Zdroj sa meniť **nedá** —
+presun na inú loď znamená zrušiť a založiť novú.
+Vynútené: `ReservationsService::update` (`array_intersect_key`,
+`assertStatusChangeAllowed`)
+Test: `ReservationApprovalApiTest::test_patch_status_still_works_on_a_normal_resource`
 
 **REZ-022** — Pri zmene rozsahu sa kontrola prekryvu MUSÍ zopakovať,
 pričom upravovaná rezervácia sa zo seba samej vylučuje.
@@ -298,7 +300,7 @@ Test: `ReservationIcsApiTest::test_ics_marks_a_pending_reservation_tentative`
 
 ## Známe medzery
 
-- REZ-002, REZ-003, REZ-005, REZ-006, REZ-011, REZ-020 až REZ-024,
+- REZ-002, REZ-003, REZ-005, REZ-011, REZ-020 až REZ-023, REZ-025,
   REZ-030, REZ-034 a všetky REZ-04x **nemajú test**.
 - REZ-011 sa na SQLite overiť nedá; potrebuje Postgres.
 - Systém **nevynucuje žiadny strop na dĺžku rezervácie** ani na počet
