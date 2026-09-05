@@ -425,3 +425,5 @@ flags the relevant resources and picks approvers; nothing changes until they do.
 - Notifying the third person when a member books for someone else.
 - Anonymous booking of approval-required resources (decided against).
 - Hiding inactive spaces on the *Priestory* page (pre-existing gap).
+- Self-approval: a listed approver may book a gated resource and approve their own request; the spec never forbids it. Decide whether canDecide should exclude the creator.
+- PATCH status CANCELLED → CONFIRMED without a range change skips the app-level overlap check (pre-existing; the Postgres EXCLUDE constraint still catches it, as a 500 rather than a 409).

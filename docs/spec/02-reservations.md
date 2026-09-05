@@ -300,7 +300,7 @@ Test: `ReservationIcsApiTest::test_ics_marks_a_pending_reservation_tentative`
 
 ## Známe medzery
 
-- REZ-002, REZ-003, REZ-005, REZ-011, REZ-020 až REZ-023, REZ-025,
+- REZ-002, REZ-003, REZ-005, REZ-011, REZ-020, REZ-022, REZ-023, REZ-025,
   REZ-030, REZ-034 a všetky REZ-04x **nemajú test**.
 - REZ-011 sa na SQLite overiť nedá; potrebuje Postgres.
 - Systém **nevynucuje žiadny strop na dĺžku rezervácie** ani na počet
