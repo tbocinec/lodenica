@@ -7,6 +7,7 @@ import { DamageSeverity, DamageStatus, type Damage } from '@/api/types';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
+import ResourceOpenDamagesNotice from '@/components/ui/ResourceOpenDamagesNotice.vue';
 import ResourceSelect from '@/components/ui/ResourceSelect.vue';
 import Spinner from '@/components/ui/Spinner.vue';
 import {
@@ -176,6 +177,7 @@ onMounted(load);
         <p v-if="!form.resourceId" class="mt-1 text-xs text-slate-400">
           Vyhľadaj loď naprieč všetkými kategóriami.
         </p>
+        <ResourceOpenDamagesNotice :resource-id="form.resourceId" class="mt-2" />
       </div>
       <div>
         <label class="label" for="dsev">Závažnosť *</label>
