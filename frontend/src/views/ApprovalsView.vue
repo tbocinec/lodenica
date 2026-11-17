@@ -61,7 +61,7 @@ onMounted(async () => {
           >
             {{ resources.byId.get(r.resourceId)?.identifier ?? '—' }}
           </RouterLink>
-          <span class="text-slate-600">{{ resources.byId.get(r.resourceId)?.name ?? '' }}</span>
+          <span class="text-slate-600">{{ resources.byId.get(r.resourceId)?.displayName ?? '' }}</span>
         </div>
         <p class="mt-2 text-sm font-medium text-slate-900">
           {{ formatReservationRange(r.startsAt, r.endsAt) }}

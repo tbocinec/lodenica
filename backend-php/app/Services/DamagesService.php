@@ -35,7 +35,7 @@ class DamagesService
         $this->audit->logCreate(
             AuditEntityType::DAMAGE,
             $damage,
-            "Nahlásené poškodenie pre „{$resource->identifier} – {$resource->name}“",
+            "Nahlásené poškodenie pre „{$resource->identifier} – {$resource->displayName}“",
             AuditSnapshot::damage($damage),
         );
 
@@ -67,7 +67,7 @@ class DamagesService
         $damage->refresh();
 
         $resource = Resource::find($damage->resourceId);
-        $label = $resource ? "„{$resource->identifier} – {$resource->name}“" : 'neznámy zdroj';
+        $label = $resource ? "„{$resource->identifier} – {$resource->displayName}“" : 'neznámy zdroj';
 
         $this->audit->logUpdate(
             AuditEntityType::DAMAGE,
@@ -116,7 +116,7 @@ class DamagesService
         $damage = $this->requireExisting($id);
         $snapshot = AuditSnapshot::damage($damage);
         $resource = Resource::find($damage->resourceId);
-        $label = $resource ? "„{$resource->identifier} – {$resource->name}“" : 'neznámy zdroj';
+        $label = $resource ? "„{$resource->identifier} – {$resource->displayName}“" : 'neznámy zdroj';
         $damage->delete();
 
         $this->audit->logDelete(

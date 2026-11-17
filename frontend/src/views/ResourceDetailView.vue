@@ -28,6 +28,9 @@ import {
   RESOURCE_TYPE_LABEL,
 } from '@/i18n/labels';
 import { formatDateTime, formatReservationRange } from '@/utils/format';
+import { fieldsFor, isBoatType } from '@/utils/resource-fields';
+import { resourcePhoto } from '@/utils/resource-photo';
+import ImageLightbox from '@/components/ui/ImageLightbox.vue';
 import { qrWithCenterLabel, resourceBookingUrl } from '@/utils/qr';
 
 const route = useRoute();
@@ -35,6 +38,10 @@ const auth = useAuthStore();
 const id = computed(() => route.params.id as string);
 
 const resource = ref<Resource | null>(null);
+const fields = computed(() => (resource.value ? fieldsFor(resource.value.type) : new Set<string>()));
+const photo = computed(() => (resource.value ? resourcePhoto(resource.value) : null));
+const photoZoomed = ref(false);
+const photoFailed = ref(false);
 const reservations = ref<Reservation[]>([]);
 // Reservation open in the edit dialog (members only).
 const editing = ref<Reservation | null>(null);
@@ -66,7 +73,7 @@ async function load() {
 }
 
 const resourceLabel = computed(() =>
-  resource.value ? `${resource.value.identifier} · ${resource.value.name}` : undefined,
+  resource.value ? `${resource.value.identifier} · ${resource.value.displayName}` : undefined,
 );
 
 function onReservationChanged(): void {
@@ -137,7 +144,7 @@ onMounted(load);
 
   <template v-if="resource">
     <PageHeader
-      :title="resource.name"
+      :title="resource.displayName"
       :subtitle="`${RESOURCE_TYPE_LABEL[resource.type]} · ${resource.identifier}`"
     >
       <template #actions>
@@ -212,27 +219,32 @@ onMounted(load);
             </dd>
           </template>
 
-          <template v-if="resource.model">
+          <template v-if="isBoatType(resource.type)">
+            <dt class="text-slate-500">Výrobca</dt>
+            <dd class="col-span-2 text-slate-800">{{ resource.name }}</dd>
+          </template>
+
+          <template v-if="resource.model && fields.has('model')">
             <dt class="text-slate-500">Model</dt>
             <dd class="col-span-2 text-slate-800">{{ resource.model }}</dd>
           </template>
 
-          <template v-if="resource.color">
+          <template v-if="resource.color && fields.has('color')">
             <dt class="text-slate-500">Farba</dt>
             <dd class="col-span-2"><ColorDot :color="resource.color" show-label /></dd>
           </template>
 
-          <template v-if="resource.seats">
+          <template v-if="resource.seats && fields.has('seats')">
             <dt class="text-slate-500">Počet miest</dt>
             <dd class="col-span-2 text-slate-800">{{ resource.seats }}</dd>
           </template>
 
-          <template v-if="resource.lengthCm">
+          <template v-if="resource.lengthCm && fields.has('lengthCm')">
             <dt class="text-slate-500">Dĺžka</dt>
             <dd class="col-span-2 text-slate-800">{{ (resource.lengthCm / 100).toFixed(2) }} m</dd>
           </template>
 
-          <template v-if="resource.weightKg">
+          <template v-if="resource.weightKg && fields.has('weightKg')">
             <dt class="text-slate-500">Hmotnosť</dt>
             <dd class="col-span-2 text-slate-800">{{ resource.weightKg }} kg</dd>
           </template>
@@ -243,14 +255,23 @@ onMounted(load);
           </template>
         </dl>
 
-        <!-- Photo: uploaded photo takes priority over the external imageUrl.
-             Upload/replace is done from the resource edit form (admin). -->
-        <img
-          v-if="resource.photoUrl || resource.imageUrl"
-          :src="resource.photoUrl ?? resource.imageUrl ?? ''"
-          :alt="resource.name"
-          class="mt-4 max-h-60 w-full rounded-lg object-cover"
-        />
+        <!-- Photo: click to enlarge. Upload/replace is done from the
+             resource edit form (admin). -->
+        <button
+          v-if="photo && !photoFailed"
+          type="button"
+          class="mt-4 block w-full overflow-hidden rounded-lg"
+          title="Zväčšiť fotku"
+          data-testid="detail-photo"
+          @click="photoZoomed = true"
+        >
+          <img
+            :src="photo"
+            :alt="resource.displayName"
+            class="max-h-60 w-full object-cover"
+            @error="photoFailed = true"
+          />
+        </button>
       </section>
 
       <!-- Upcoming reservations -->
@@ -379,5 +400,12 @@ onMounted(load);
     @close="editing = null"
     @saved="onReservationChanged"
     @deleted="onReservationChanged"
+  />
+
+  <ImageLightbox
+    v-if="photoZoomed && photo && resource"
+    :src="photo"
+    :alt="resource.displayName"
+    @close="photoZoomed = false"
   />
 </template>

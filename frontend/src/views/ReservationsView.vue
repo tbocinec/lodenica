@@ -160,7 +160,7 @@ function changePage(delta: number) {
 /* ─── edit dialog wiring ──────────────────────────────────────── */
 
 function editingResourceName(): string | undefined {
-  return editing.value ? resourcesStore.byId.get(editing.value.resourceId)?.name : undefined;
+  return editing.value ? resourcesStore.byId.get(editing.value.resourceId)?.displayName : undefined;
 }
 
 async function onSaved() {
@@ -277,7 +277,7 @@ onMounted(load);
         <select id="r-resource" v-model="resourceIdFilter" class="input mt-1">
           <option value="">Všetky zdroje</option>
           <option v-for="r in resourcesStore.items" :key="r.id" :value="r.id">
-            {{ r.identifier }} · {{ r.name }}
+            {{ r.identifier }} · {{ r.displayName }}
           </option>
         </select>
       </div>
@@ -378,7 +378,7 @@ onMounted(load);
                     {{ resourcesStore.byId.get(r.resourceId)?.identifier ?? '—' }}
                   </span>
                   <span class="text-slate-600">
-                    {{ resourcesStore.byId.get(r.resourceId)?.name ?? '' }}
+                    {{ resourcesStore.byId.get(r.resourceId)?.displayName ?? '' }}
                   </span>
                 </div>
               </td>
@@ -429,7 +429,7 @@ onMounted(load);
                 {{ resourcesStore.byId.get(r.resourceId)?.identifier ?? '—' }}
               </span>
               <span class="truncate text-sm text-slate-600">
-                {{ resourcesStore.byId.get(r.resourceId)?.name ?? '' }}
+                {{ resourcesStore.byId.get(r.resourceId)?.displayName ?? '' }}
               </span>
             </div>
             <p class="mt-1 text-sm font-medium text-slate-800">

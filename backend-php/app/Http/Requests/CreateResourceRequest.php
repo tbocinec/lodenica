@@ -26,7 +26,6 @@ class CreateResourceRequest extends FormRequest
             'lengthCm' => ['nullable', 'integer', 'min:1', 'max:2000'],
             'weightKg' => ['nullable', 'integer', 'min:1', 'max:5000'],
             'note' => ['nullable', 'string', 'max:1000'],
-            'imageUrl' => ['nullable', 'string', 'max:2000', 'url'],
             'isActive' => ['nullable', 'boolean'],
             // Approval workflow (REZ-050). Membership of the approvers is
             // checked in ResourcesService — `exists` only proves the account.

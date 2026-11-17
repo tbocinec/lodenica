@@ -23,16 +23,16 @@ class ResourceResource extends JsonResource
             'id' => $this->id,
             'identifier' => $this->identifier,
             'type' => $this->type->value,
+            // `name` is the manufacturer for boats; `displayName` is what to show.
             'name' => $this->name,
+            'displayName' => $this->displayName,
             'model' => $this->model,
             'color' => $this->color,
             'seats' => $this->seats,
             'lengthCm' => $this->lengthCm,
             'weightKg' => $this->weightKg,
             'note' => $this->note,
-            'imageUrl' => $this->imageUrl,
-            // Uploaded photo served via the backend (distinct from the
-            // external imageUrl). Cache-buster from updatedAt forces a
+            // Uploaded photo served via the backend. Cache-buster from updatedAt forces a
             // reload after re-upload. See ResourcesController::showPhoto.
             'photoUrl' => $this->photoPath
                 ? "/api/v1/resources/{$this->id}/photo?v=".(int) ($this->updatedAt?->getTimestamp() ?? 0)

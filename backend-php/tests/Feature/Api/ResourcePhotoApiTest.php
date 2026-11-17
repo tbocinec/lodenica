@@ -76,4 +76,38 @@ class ResourcePhotoApiTest extends TestCase
     {
         $this->get("/api/v1/resources/{$this->boat->id}/photo")->assertStatus(404);
     }
+
+    public function test_thumbnail_request_never_loses_the_photo(): void
+    {
+        $this->actingAsAdmin();
+        // Not a decodable image: the thumbnail can't be built, the original
+        // must still be served (same path as a host without GD).
+        $file = UploadedFile::fake()->create('boat.jpg', 200, 'image/jpeg');
+        $this->post("/api/v1/resources/{$this->boat->id}/photo", ['photo' => $file])->assertOk();
+
+        $this->get("/api/v1/resources/{$this->boat->id}/photo?w=128")->assertOk();
+    }
+
+    public function test_thumbnail_is_smaller_cached_and_purged(): void
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            $this->markTestSkipped('GD extension not available.');
+        }
+        $this->actingAsAdmin();
+        $big = UploadedFile::fake()->image('boat.jpg', 2400, 1600)->size(100);
+        $this->post("/api/v1/resources/{$this->boat->id}/photo", ['photo' => $big])->assertOk();
+
+        $resp = $this->get("/api/v1/resources/{$this->boat->id}/photo?w=128")->assertOk();
+        $this->assertSame('image/jpeg', $resp->headers->get('Content-Type'));
+        [$w, $h] = getimagesizefromstring(file_get_contents($resp->baseResponse->getFile()->getPathname()));
+        $this->assertSame(128, max($w, $h));
+        $this->assertCount(1, Storage::disk('local')->files('resources/thumbs'));
+
+        // Asking again reuses the cached file.
+        $this->get("/api/v1/resources/{$this->boat->id}/photo?w=128")->assertOk();
+        $this->assertCount(1, Storage::disk('local')->files('resources/thumbs'));
+
+        $this->delete("/api/v1/resources/{$this->boat->id}/photo")->assertNoContent();
+        $this->assertCount(0, Storage::disk('local')->files('resources/thumbs'));
+    }
 }

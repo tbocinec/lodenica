@@ -21,6 +21,7 @@ import {
 } from '@/i18n/labels';
 import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
+import { backLabel, safeBackPath } from '@/utils/back-link';
 import { formatDateTime } from '@/utils/format';
 
 const route = useRoute();
@@ -28,6 +29,8 @@ const router = useRouter();
 const resources = useResourcesStore();
 
 const id = route.params.id as string;
+// Opened from somewhere other than the damages list (e.g. the reservation form)?
+const backPath = safeBackPath(route.query.back);
 const damage = ref<Damage | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -55,7 +58,7 @@ const resourceLabel = computed(() => {
   if (!d) return '';
   const r = resources.byId.get(d.resourceId);
   if (!r) return '—';
-  return `${RESOURCE_TYPE_LABEL[r.type]} · ${r.identifier} · ${r.name}`;
+  return `${RESOURCE_TYPE_LABEL[r.type]} · ${r.identifier} · ${r.displayName}`;
 });
 
 function fill(d: Damage): void {
@@ -154,7 +157,7 @@ async function remove(): Promise<void> {
   busy.value = true;
   try {
     await damagesApi.remove(id);
-    await router.replace('/damages');
+    await router.replace(backPath ?? '/damages');
   } catch (e) {
     error.value = (e as Error).message;
     busy.value = false;
@@ -167,7 +170,9 @@ onMounted(load);
 <template>
   <PageHeader title="Detail poškodenia" :subtitle="resourceLabel">
     <template #actions>
-      <RouterLink to="/damages" class="btn-secondary">← Späť na zoznam</RouterLink>
+      <RouterLink :to="backPath ?? '/damages'" class="btn-secondary">
+        {{ backPath ? backLabel(backPath) : '← Späť na zoznam' }}
+      </RouterLink>
     </template>
   </PageHeader>
 

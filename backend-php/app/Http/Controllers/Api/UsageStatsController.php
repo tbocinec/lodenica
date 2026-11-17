@@ -166,13 +166,14 @@ class UsageStatsController extends Controller
                 'r.resourceId',
                 'res.identifier',
                 'res.name',
+                'res.model',
                 'res.type',
                 DB::raw('COUNT(*) as cnt'),
                 DB::raw($this->durationSumExpression()),
             )
             ->where('r.status', ReservationStatus::CONFIRMED->value)
             ->where('r.startsAt', '>=', $cutoff)
-            ->groupBy('r.resourceId', 'res.identifier', 'res.name', 'res.type')
+            ->groupBy('r.resourceId', 'res.identifier', 'res.name', 'res.model', 'res.type')
             ->orderByDesc('cnt')
             ->limit(10)
             ->get();
@@ -181,6 +182,7 @@ class UsageStatsController extends Controller
             'resourceId' => $r->resourceId,
             'identifier' => $r->identifier,
             'name' => $r->name,
+            'displayName' => Resource::composeDisplayName(ResourceType::from((string) $r->type), (string) $r->name, $r->model),
             'type' => (string) $r->type,
             'count' => (int) $r->cnt,
             'totalHours' => round((float) ($r->total_hours ?? 0), 1),
@@ -205,12 +207,13 @@ class UsageStatsController extends Controller
                 'res.id as resourceId',
                 'res.identifier',
                 'res.name',
+                'res.model',
                 'res.type',
                 DB::raw('COUNT(r.id) as cnt'),
             )
             ->where('res.isActive', true)
             ->whereNotIn('res.type', ['BOATHOUSE_SPACE'])
-            ->groupBy('res.id', 'res.identifier', 'res.name', 'res.type')
+            ->groupBy('res.id', 'res.identifier', 'res.name', 'res.model', 'res.type')
             ->orderBy('cnt')
             ->orderBy('res.identifier')
             ->limit(10)
@@ -220,6 +223,7 @@ class UsageStatsController extends Controller
             'resourceId' => $r->resourceId,
             'identifier' => $r->identifier,
             'name' => $r->name,
+            'displayName' => Resource::composeDisplayName(ResourceType::from((string) $r->type), (string) $r->name, $r->model),
             'type' => (string) $r->type,
             'count' => (int) $r->cnt,
         ])->all();

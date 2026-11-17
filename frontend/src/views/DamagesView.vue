@@ -38,7 +38,7 @@ const photoPreview = ref<string | null>(null);
 
 function resourceLabel(d: Damage): string {
   const r = resources.byId.get(d.resourceId);
-  return r ? `${r.identifier} · ${r.name}` : '—';
+  return r ? `${r.identifier} · ${r.displayName}` : '—';
 }
 
 function onPhotoChange(event: Event): void {
@@ -117,7 +117,7 @@ const filtered = computed(() => {
         d.description,
         d.note ?? '',
         r?.identifier ?? '',
-        r?.name ?? '',
+        r?.displayName ?? '',
         r?.model ?? '',
         r ? RESOURCE_TYPE_LABEL[r.type] : '',
         DAMAGE_SEVERITY_LABEL[d.severity],

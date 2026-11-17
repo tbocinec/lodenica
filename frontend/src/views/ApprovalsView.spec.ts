@@ -24,7 +24,7 @@ vi.mock('@/api/resources.api', () => ({
   resourcesApi: { list: (...a: unknown[]) => listResources(...a) },
 }));
 
-const space = { id: 'res-1', identifier: 'S-1', type: 'BOATHOUSE_SPACE', name: 'Klubovňa', isActive: true, requiresApproval: true, approvers: [] as Resource['approvers'] } as Resource;
+const space = { id: 'res-1', identifier: 'S-1', type: 'BOATHOUSE_SPACE', name: 'Klubovňa', displayName: 'Klubovňa', isActive: true, requiresApproval: true, approvers: [] as Resource['approvers'] } as Resource;
 const request = {
   id: 'r-1', resourceId: 'res-1', status: 'PENDING_APPROVAL', customerName: 'Peter', customerContact: 'peter@example.test',
   note: 'Oslava', startsAt: '2027-06-01T09:00:00+00:00', endsAt: '2027-06-01T12:00:00+00:00', createdAt: '2027-05-01T10:00:00+00:00',

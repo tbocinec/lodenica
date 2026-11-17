@@ -26,7 +26,7 @@ const filtered = computed(() => {
     if (search.value) {
       const q = search.value.toLowerCase();
       return (
-        r.name.toLowerCase().includes(q) ||
+        r.displayName.toLowerCase().includes(q) ||
         r.identifier.toLowerCase().includes(q) ||
         (r.model ?? '').toLowerCase().includes(q)
       );
@@ -117,7 +117,6 @@ watch([search, typeFilter, onlyActive], () => {
             <th>Identifikátor</th>
             <th>Typ</th>
             <th>Názov</th>
-            <th>Model</th>
             <th class="hidden md:table-cell">Detaily</th>
             <th>Stav</th>
             <th class="text-right">Akcie</th>
@@ -129,10 +128,9 @@ watch([search, typeFilter, onlyActive], () => {
             <td><ResourceTypeBadge :type="r.type" /></td>
             <td class="font-medium">
               <RouterLink :to="`/resources/${r.id}`" class="hover:text-brand-700">
-                {{ r.name }}
+                {{ r.displayName }}
               </RouterLink>
             </td>
-            <td>{{ r.model ?? '—' }}</td>
             <td class="hidden md:table-cell text-xs text-slate-500">
               <span v-if="r.seats">{{ r.seats }} miest</span>
               <span v-if="r.lengthCm"> · {{ r.lengthCm / 100 }} m</span>

@@ -65,16 +65,17 @@ export interface Resource {
   id: string;
   identifier: string;
   type: ResourceType;
+  /** Manufacturer for boats, plain name for trailers and spaces. */
   name: string;
+  /** What to show: "Výrobca Model" for boats, the name otherwise (server-composed). */
+  displayName: string;
   model: string | null;
   color: string | null;
   seats: number | null;
   lengthCm: number | null;
   weightKg: number | null;
   note: string | null;
-  imageUrl: string | null;
-  /** Backend-served URL of the uploaded photo, or null. Distinct from
-   *  imageUrl (a manually-entered external URL). */
+  /** Backend-served URL of the uploaded photo, or null. */
   photoUrl: string | null;
   isActive: boolean;
   /** Bookings of this resource wait for an approver (REZ-050). Public. */

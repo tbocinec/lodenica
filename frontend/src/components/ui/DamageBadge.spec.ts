@@ -14,7 +14,7 @@ const damage = (over: Partial<OpenDamage> = {}): OpenDamage => ({
   ...over,
 });
 
-const mountBadge = (props: { damage: OpenDamage; detailed?: boolean; linkToDetail?: boolean }) =>
+const mountBadge = (props: { damage: OpenDamage; detailed?: boolean; linkToDetail?: boolean; backTo?: string }) =>
   mount(DamageBadge, {
     props,
     global: { stubs: { RouterLink: RouterLinkStub } },
@@ -36,6 +36,18 @@ describe('DamageBadge', () => {
   it('links to the damage detail when asked', () => {
     const wrapper = mountBadge({ damage: damage(), linkToDetail: true });
     expect(wrapper.findComponent(RouterLinkStub).props().to).toBe('/damages/dmg-1');
+  });
+
+  it('remembers where the damage was opened from', () => {
+    const wrapper = mountBadge({
+      damage: damage(),
+      linkToDetail: true,
+      backTo: '/reservations/new?resourceId=r1',
+    });
+    expect(wrapper.findComponent(RouterLinkStub).props().to).toEqual({
+      path: '/damages/dmg-1',
+      query: { back: '/reservations/new?resourceId=r1' },
+    });
   });
 
   it('stays inert when no link is wanted', () => {

@@ -30,7 +30,7 @@ function reservationsFor(spaceId: string) {
 function editingResourceLabel(): string | undefined {
   if (!editing.value) return undefined;
   const r = resources.byId.get(editing.value.resourceId);
-  return r ? `${r.identifier} · ${r.name}` : undefined;
+  return r ? `${r.identifier} · ${r.displayName}` : undefined;
 }
 
 function onReservationChanged(): void {

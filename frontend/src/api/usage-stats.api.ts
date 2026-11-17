@@ -33,6 +33,8 @@ export interface UsageStats {
     resourceId: string;
     identifier: string;
     name: string;
+    /** Manufacturer + model for boats — what to show. */
+    displayName: string;
     type: ResourceType;
     count: number;
     totalHours: number;
@@ -41,6 +43,8 @@ export interface UsageStats {
     resourceId: string;
     identifier: string;
     name: string;
+    /** Manufacturer + model for boats — what to show. */
+    displayName: string;
     type: ResourceType;
     count: number;
   }>;

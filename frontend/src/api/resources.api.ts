@@ -19,7 +19,6 @@ export interface CreateResourceInput {
   lengthCm?: number;
   weightKg?: number;
   note?: string;
-  imageUrl?: string;
   isActive?: boolean;
   /** Bookings wait for an approver (admin-only to set). */
   requiresApproval?: boolean;

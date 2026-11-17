@@ -46,6 +46,45 @@ class Resource extends Model
         'updatedAt' => 'datetime',
     ];
 
+    /**
+     * What members see as the boat's name. For boats the `name` column holds
+     * the MANUFACTURER ("Výrobca") and the model sits in `model`, so the
+     * label is "Výrobca Model". Trailers and spaces only have a name.
+     *
+     * The model is skipped when the name already contains it (older records
+     * carry "SeaBird HV" in both fields), so nothing reads "SeaBird HV HV".
+     */
+    public static function composeDisplayName(ResourceType $type, string $name, ?string $model): string
+    {
+        $name = trim($name);
+        $model = trim((string) $model);
+        if ($model === '' || !self::isBoatType($type)) {
+            return $name;
+        }
+        if ($name === '') {
+            return $model;
+        }
+        if (mb_stripos($name, $model) !== false) {
+            return $name;
+        }
+        if (mb_stripos($model, $name) === 0) {
+            return $model; // the model already starts with the manufacturer
+        }
+
+        return $name.' '.$model;
+    }
+
+    /** Boats carry manufacturer + model + colour/seats/size; trailers and spaces don't. */
+    public static function isBoatType(ResourceType $type): bool
+    {
+        return !in_array($type, [ResourceType::TRAILER, ResourceType::BOATHOUSE_SPACE], true);
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return self::composeDisplayName($this->type, (string) $this->name, $this->model);
+    }
+
     public function reservations(): HasMany
     {
         return $this->hasMany(Reservation::class, 'resourceId');

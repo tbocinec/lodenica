@@ -92,7 +92,7 @@ class AdminDataController extends Controller
                         $r->id,
                         $r->resourceId,
                         $r->resource?->identifier ?? '',
-                        $r->resource?->name ?? '',
+                        $r->resource?->displayName ?? '',
                         $r->customerName,
                         $r->customerContact ?? '',
                         $this->iso($r->startsAt),
@@ -115,7 +115,7 @@ class AdminDataController extends Controller
         return $this->streamCsv('lode-'.date('Y-m-d').'.csv', function ($out) {
             fputcsv($out, [
                 'id', 'identifier', 'type', 'name', 'model', 'color',
-                'seats', 'lengthCm', 'weightKg', 'note', 'imageUrl',
+                'seats', 'lengthCm', 'weightKg', 'note',
                 'isActive', 'createdAt',
             ]);
             Resource::query()->orderBy('type')->orderBy('identifier')->chunk(500, function ($rows) use ($out) {
@@ -131,7 +131,6 @@ class AdminDataController extends Controller
                         $r->lengthCm ?? '',
                         $r->weightKg ?? '',
                         $r->note ?? '',
-                        $r->imageUrl ?? '',
                         $r->isActive ? '1' : '0',
                         $this->iso($r->createdAt),
                     ]);

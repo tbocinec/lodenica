@@ -61,7 +61,7 @@ const results = computed(() => {
     : active.filter(
         (r) =>
           r.identifier.toLowerCase().includes(q) ||
-          r.name.toLowerCase().includes(q) ||
+          r.displayName.toLowerCase().includes(q) ||
           (r.model ?? '').toLowerCase().includes(q) ||
           (r.color ?? '').toLowerCase().includes(q) ||
           (RESOURCE_TYPE_LABEL[r.type] ?? '').toLowerCase().includes(q),
@@ -104,7 +104,7 @@ function onBlur(): void {
       <span class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
         <span aria-hidden="true">{{ TYPE_ICON[selected.type] ?? '📦' }}</span>
         <span class="font-medium text-slate-900">{{ selected.identifier }}</span>
-        <span class="truncate text-slate-500">{{ selected.name }}</span>
+        <span class="truncate text-slate-500">{{ selected.displayName }}</span>
         <ColorDot v-if="selected.color" :color="selected.color" :size="11" />
         <DamageBadge v-if="selected.openDamage" :damage="selected.openDamage" link-to-detail />
       </span>
@@ -147,7 +147,7 @@ function onBlur(): void {
           >
             <span aria-hidden="true">{{ TYPE_ICON[r.type] ?? '📦' }}</span>
             <span class="font-medium text-slate-900">{{ r.identifier }}</span>
-            <span class="truncate text-slate-500">{{ r.name }}</span>
+            <span class="truncate text-slate-500">{{ r.displayName }}</span>
             <span class="ml-auto flex items-center gap-1 text-xs text-slate-400">
               {{ RESOURCE_TYPE_LABEL[r.type] }}
               <ColorDot v-if="r.color" :color="r.color" :size="10" />

@@ -8,7 +8,8 @@ import { usersApi } from '@/api/users.api';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import { RESOURCE_TYPE_LABEL } from '@/i18n/labels';
-import { BOAT_COLORS, colorHex } from '@/utils/colors';
+import { BOAT_COLORS, colorHex, isHexColor } from '@/utils/colors';
+import { fieldsFor, nameLabel } from '@/utils/resource-fields';
 
 const route = useRoute();
 const router = useRouter();
@@ -24,11 +25,14 @@ const form = reactive({
   lengthCm: undefined as number | undefined,
   weightKg: undefined as number | undefined,
   note: '',
-  imageUrl: '',
   isActive: true,
   requiresApproval: false,
   approverIds: [] as string[],
 });
+
+// Only the parameters that make sense for the chosen type are offered.
+const fields = computed(() => fieldsFor(form.type));
+const nameText = computed(() => nameLabel(form.type));
 
 const error = ref<string | null>(null);
 const submitting = ref(false);
@@ -53,7 +57,6 @@ async function load() {
       lengthCm: r.lengthCm ?? undefined,
       weightKg: r.weightKg ?? undefined,
       note: r.note ?? '',
-      imageUrl: r.imageUrl ?? '',
       isActive: r.isActive,
       requiresApproval: r.requiresApproval,
       approverIds: r.approvers?.map((a) => a.id) ?? [],
@@ -126,12 +129,22 @@ async function submit() {
   error.value = null;
   submitting.value = true;
   try {
+    // Fields hidden for this type are left out of the payload: on update the
+    // server then keeps whatever is stored there instead of erasing it.
+    const f = fields.value;
     const payload = {
-      ...form,
-      model: form.model || undefined,
-      color: form.color || undefined,
+      identifier: form.identifier,
+      type: form.type,
+      name: form.name,
       note: form.note || undefined,
-      imageUrl: form.imageUrl || undefined,
+      isActive: form.isActive,
+      requiresApproval: form.requiresApproval,
+      approverIds: form.approverIds,
+      ...(f.has('model') ? { model: form.model || undefined } : {}),
+      ...(f.has('color') ? { color: form.color || undefined } : {}),
+      ...(f.has('seats') ? { seats: form.seats } : {}),
+      ...(f.has('lengthCm') ? { lengthCm: form.lengthCm } : {}),
+      ...(f.has('weightKg') ? { weightKg: form.weightKg } : {}),
     };
     if (id) {
       await resourcesApi.update(id, payload);
@@ -183,16 +196,19 @@ onMounted(() => {
     </div>
 
     <div class="sm:col-span-2">
-      <label class="label" for="name">Názov *</label>
+      <label class="label" for="name">{{ nameText }} *</label>
       <input id="name" v-model="form.name" class="input mt-1" required maxlength="200" />
+      <p v-if="nameText === 'Výrobca'" class="mt-1 text-xs text-slate-500">
+        Napr. Dagger, Prijon, Viva. V zoznamoch sa zobrazí „Výrobca Model“.
+      </p>
     </div>
 
-    <div>
+    <div v-if="fields.has('model')">
       <label class="label" for="model">Model</label>
       <input id="model" v-model="form.model" class="input mt-1" maxlength="200" />
     </div>
 
-    <div class="sm:col-span-2">
+    <div v-if="fields.has('color')" class="sm:col-span-2">
       <span class="label">Farba</span>
       <div class="mt-1 flex flex-wrap items-center gap-2">
         <button
@@ -211,6 +227,27 @@ onMounted(() => {
           />
           {{ c.label }}
         </button>
+        <label
+          class="flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm transition"
+          :class="isHexColor(form.color)
+            ? 'border-brand-500 bg-brand-50 text-brand-900 ring-1 ring-brand-300'
+            : 'border-slate-200 text-slate-600 hover:bg-slate-50'"
+        >
+          <span
+            class="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-slate-300"
+            :style="isHexColor(form.color)
+              ? { backgroundColor: form.color }
+              : { background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }"
+          />
+          Iná farba<template v-if="isHexColor(form.color)">: {{ form.color.toLowerCase() }}</template>
+          <input
+            type="color"
+            class="sr-only"
+            data-testid="custom-color"
+            :value="isHexColor(form.color) ? form.color : '#888888'"
+            @input="form.color = ($event.target as HTMLInputElement).value"
+          />
+        </label>
         <button
           type="button"
           class="rounded-full border px-2.5 py-1 text-sm transition"
@@ -230,7 +267,7 @@ onMounted(() => {
       </p>
     </div>
 
-    <div>
+    <div v-if="fields.has('seats')">
       <label class="label" for="seats">Počet miest</label>
       <input
         id="seats"
@@ -242,7 +279,7 @@ onMounted(() => {
       />
     </div>
 
-    <div>
+    <div v-if="fields.has('lengthCm')">
       <label class="label" for="lengthCm">Dĺžka (cm)</label>
       <input
         id="lengthCm"
@@ -254,7 +291,7 @@ onMounted(() => {
       />
     </div>
 
-    <div>
+    <div v-if="fields.has('weightKg')">
       <label class="label" for="weightKg">Hmotnosť (kg)</label>
       <input
         id="weightKg"
@@ -266,13 +303,7 @@ onMounted(() => {
       />
     </div>
 
-    <div class="sm:col-span-2">
-      <label class="label" for="imageUrl">URL obrázka (externý odkaz)</label>
-      <input id="imageUrl" v-model="form.imageUrl" class="input mt-1" type="url" />
-    </div>
-
-    <!-- Uploaded photo — only for an existing resource (needs its id).
-         Distinct from the external imageUrl above. -->
+    <!-- Uploaded photo — only for an existing resource (needs its id). -->
     <div v-if="id" class="sm:col-span-2">
       <span class="label">Fotka lode</span>
       <div class="mt-1 flex flex-wrap items-center gap-3">

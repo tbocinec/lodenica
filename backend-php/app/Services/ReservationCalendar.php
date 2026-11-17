@@ -93,7 +93,7 @@ final class ReservationCalendar
         $siteName = $this->site->siteName();
 
         return $resource
-            ? "{$siteName}: {$resource->identifier} – {$resource->name}"
+            ? "{$siteName}: {$resource->identifier} – {$resource->displayName}"
             : "{$siteName}: rezervácia";
     }
 
@@ -111,7 +111,7 @@ final class ReservationCalendar
             $this->site->get('mapsUrl'),
             'Rezervácia pre: '.$reservation->customerName,
             $reservation->customerContact ? 'Kontakt: '.$reservation->customerContact : null,
-            $resource ? 'Zdroj: '.$resource->identifier.' '.$resource->name : null,
+            $resource ? 'Zdroj: '.$resource->identifier.' '.$resource->displayName : null,
             $reservation->note ? 'Poznámka: '.$reservation->note : null,
         ]));
     }

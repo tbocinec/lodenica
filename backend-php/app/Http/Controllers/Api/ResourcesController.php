@@ -9,6 +9,7 @@ use App\Http\Requests\ListResourcesRequest;
 use App\Http\Requests\UpdateResourceRequest;
 use App\Http\Resources\ResourceResource;
 use App\Http\Support\Paginated;
+use App\Services\PhotoThumbnail;
 use App\Services\ResourcesService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -102,6 +103,7 @@ class ResourcesController extends Controller
         }
 
         Storage::disk('local')->putFileAs('resources', $file, "{$resource->id}.{$ext}");
+        PhotoThumbnail::purge($resource->id);
         $resource->photoPath = $path;
         $resource->save();
 
@@ -112,7 +114,7 @@ class ResourcesController extends Controller
      * GET /api/v1/resources/{id}/photo — stream the photo from the
      * protected storage dir. Public (so the boat detail shows it to anyone).
      */
-    public function showPhoto(string $id): BinaryFileResponse
+    public function showPhoto(Request $request, string $id): BinaryFileResponse
     {
         $resource = $this->resources->findById($id);
         if (!$resource->photoPath) {
@@ -121,6 +123,20 @@ class ResourcesController extends Controller
         $absolute = Storage::disk('local')->path($resource->photoPath);
         if (!is_file($absolute)) {
             throw new NotFoundDomainException('ResourcePhoto', $id);
+        }
+
+        // `?w=<px>` asks for a small JPEG (lists show many boats at once).
+        // Falls back to the original when GD is unavailable.
+        $width = (int) $request->query('w');
+        if ($width > 0) {
+            $thumb = PhotoThumbnail::for($resource->id, $resource->photoPath, $width);
+            if ($thumb !== null) {
+                return response()->file($thumb, [
+                    'Content-Type' => 'image/jpeg',
+                    'Cache-Control' => 'private, max-age=86400',
+                    'X-Robots-Tag' => 'noindex, nofollow',
+                ]);
+            }
         }
 
         return response()->file($absolute, [
@@ -135,6 +151,7 @@ class ResourcesController extends Controller
         $resource = $this->resources->findById($id);
         if ($resource->photoPath) {
             Storage::disk('local')->delete($resource->photoPath);
+            PhotoThumbnail::purge($resource->id);
             $resource->photoPath = null;
             $resource->save();
         }

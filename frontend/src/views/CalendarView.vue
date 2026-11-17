@@ -110,7 +110,7 @@ function today() {
 
 function resLabel(r: Reservation): string {
   const res = resources.byId.get(r.resourceId);
-  return res ? `${res.identifier} · ${res.name}` : '—';
+  return res ? `${res.identifier} · ${res.displayName}` : '—';
 }
 
 /** Rich hover tooltip (desktop). */
@@ -320,7 +320,7 @@ onMounted(async () => {
             <div class="flex items-center gap-2">
               <ResourceTypeBadge v-if="resources.byId.get(r.resourceId)" :type="resources.byId.get(r.resourceId)!.type" />
               <span class="font-mono text-sm font-semibold text-slate-900">{{ resources.byId.get(r.resourceId)?.identifier ?? '?' }}</span>
-              <span class="text-slate-600">{{ resources.byId.get(r.resourceId)?.name ?? '' }}</span>
+              <span class="text-slate-600">{{ resources.byId.get(r.resourceId)?.displayName ?? '' }}</span>
               <ReservationStatusPill :status="r.status" />
               <span v-if="auth.isMember" aria-hidden="true" class="ml-auto text-slate-300">✏️</span>
             </div>

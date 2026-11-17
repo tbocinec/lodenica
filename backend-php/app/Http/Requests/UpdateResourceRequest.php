@@ -35,7 +35,6 @@ class UpdateResourceRequest extends FormRequest
             'lengthCm' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:2000'],
             'weightKg' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:5000'],
             'note' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'imageUrl' => ['sometimes', 'nullable', 'string', 'max:2000', 'url'],
             'isActive' => ['sometimes', 'boolean'],
             // Approval workflow (REZ-050). Membership of the approvers is
             // checked in ResourcesService — `exists` only proves the account.

@@ -8,16 +8,19 @@ import {
   reservationIcsUrl,
   reservationsApi,
 } from '@/api/reservations.api';
-import { ReservationStatus, ResourceType, type Event, type Reservation } from '@/api/types';
+import { ReservationStatus, ResourceType, type Event, type Reservation, type Resource } from '@/api/types';
 import AvailabilityHints from '@/components/ui/AvailabilityHints.vue';
 import ColorDot from '@/components/ui/ColorDot.vue';
 import DamageBadge from '@/components/ui/DamageBadge.vue';
 import DateInput from '@/components/ui/DateInput.vue';
+import ImageLightbox from '@/components/ui/ImageLightbox.vue';
 import LoadError from '@/components/ui/LoadError.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
+import ResourceDetailDialog from '@/components/ui/ResourceDetailDialog.vue';
 import { RESOURCE_TYPE_LABEL, RESOURCE_TYPE_LABEL_PLURAL } from '@/i18n/labels';
 import { useAuthStore } from '@/stores/auth.store';
 import { useResourcesStore } from '@/stores/resources.store';
+import { resourcePhoto, resourceThumb } from '@/utils/resource-photo';
 import { formatReservationRange, isoFromDateTime, toIsoDate } from '@/utils/format';
 import { useSiteStore } from '@/stores/site.store';
 
@@ -124,13 +127,13 @@ const icsHref = computed(() =>
 const googleCalendarHref = computed(() => {
   if (!createdReservation.value || !selectedResource.value) return null;
   return reservationGoogleCalendarUrl({
-    title: `${site.config.siteName}: ${selectedResource.value.identifier} – ${selectedResource.value.name}`,
+    title: `${site.config.siteName}: ${selectedResource.value.identifier} – ${selectedResource.value.displayName}`,
     location: site.config.address,
     mapsUrl: site.config.mapsUrl,
     startsAt: createdReservation.value.startsAt,
     endsAt: createdReservation.value.endsAt,
     customerName: createdReservation.value.customerName ?? form.customerName,
-    resourceLabel: `${selectedResource.value.identifier} ${selectedResource.value.name}`,
+    resourceLabel: `${selectedResource.value.identifier} ${selectedResource.value.displayName}`,
     note: createdReservation.value.note,
   });
 });
@@ -216,7 +219,7 @@ const filteredResourcesInPickedType = computed(() => {
   return all.filter(
     (r) =>
       r.identifier.toLowerCase().includes(q) ||
-      r.name.toLowerCase().includes(q) ||
+      r.displayName.toLowerCase().includes(q) ||
       (r.model ?? '').toLowerCase().includes(q) ||
       (r.color ?? '').toLowerCase().includes(q),
   );
@@ -225,6 +228,39 @@ const filteredResourcesInPickedType = computed(() => {
 const selectedResource = computed(() =>
   resources.items.find((r) => r.id === form.resourceId),
 );
+
+/**
+ * Where "back" from a damage detail should return: this form with the
+ * chosen boat and dates restored through the query string it already reads.
+ */
+const backToForm = computed(() => {
+  const params = new URLSearchParams();
+  if (form.resourceId) params.set('resourceId', form.resourceId);
+  if (form.eventId) params.set('eventId', form.eventId);
+  params.set('startDate', form.startDate);
+  params.set('startTime', form.startTime);
+  params.set('endDate', form.endDate);
+  params.set('endTime', form.endTime);
+  return `/reservations/new?${params.toString()}`;
+});
+
+// A boat can reference a photo whose file is gone; hide it instead of
+// showing a broken-image icon.
+const brokenPhotos = reactive(new Set<string>());
+const listThumb = (r: Resource): string | null =>
+  brokenPhotos.has(r.id) ? null : resourceThumb(r, 160);
+
+// Photo thumbnail + detail modal for the picked boat.
+const selectedPhoto = computed(() =>
+  selectedResource.value && !brokenPhotos.has(selectedResource.value.id)
+    ? resourcePhoto(selectedResource.value)
+    : null,
+);
+const selectedThumb = computed(() =>
+  selectedResource.value ? resourceThumb(selectedResource.value, 240) : null,
+);
+const photoZoomed = ref(false);
+const detailOpen = ref(false);
 
 /**
  * Approval workflow (REZ-051/052). A flagged resource can only be REQUESTED,
@@ -251,7 +287,7 @@ const globalResults = computed(() => {
     .filter(
       (r) =>
         r.identifier.toLowerCase().includes(q) ||
-        r.name.toLowerCase().includes(q) ||
+        r.displayName.toLowerCase().includes(q) ||
         (r.model ?? '').toLowerCase().includes(q) ||
         (r.color ?? '').toLowerCase().includes(q) ||
         (RESOURCE_TYPE_LABEL[r.type] ?? '').toLowerCase().includes(q) ||
@@ -532,7 +568,7 @@ onMounted(async () => {
         <p class="mt-1 text-sm" :class="createdIsPending ? 'text-amber-800' : 'text-emerald-800'">
           {{ formatReservationRange(createdReservation.startsAt, createdReservation.endsAt) }}
           <template v-if="selectedResource">
-            · {{ selectedResource.identifier }} · {{ selectedResource.name }}
+            · {{ selectedResource.identifier }} · {{ selectedResource.displayName }}
           </template>
         </p>
         <p v-if="createdIsPending" class="mt-2 text-sm text-amber-800">
@@ -597,9 +633,25 @@ onMounted(async () => {
         "
       >
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl" aria-hidden="true">{{ TYPE_ICON[selectedResource.type] ?? '📦' }}</span>
-            <div>
+          <div class="flex min-w-0 items-center gap-3">
+            <!-- Thumbnail → enlarges in a lightbox. Falls back to the type icon. -->
+            <button
+              v-if="selectedPhoto"
+              type="button"
+              class="h-16 w-16 shrink-0 overflow-hidden rounded-lg ring-1 ring-slate-300 transition hover:ring-brand-400 sm:h-20 sm:w-20"
+              title="Zväčšiť fotku"
+              data-testid="resource-thumb"
+              @click="photoZoomed = true"
+            >
+              <img
+                :src="selectedThumb ?? selectedPhoto"
+                :alt="selectedResource.displayName"
+                class="h-full w-full object-cover"
+                @error="brokenPhotos.add(selectedResource.id)"
+              />
+            </button>
+            <span v-else class="text-2xl" aria-hidden="true">{{ TYPE_ICON[selectedResource.type] ?? '📦' }}</span>
+            <div class="min-w-0">
               <p
                 class="text-xs uppercase tracking-wide"
                 :class="selectedResource.openDamage ? 'text-amber-700' : 'text-emerald-700'"
@@ -610,11 +662,19 @@ onMounted(async () => {
                 class="font-semibold"
                 :class="selectedResource.openDamage ? 'text-amber-900' : 'text-emerald-900'"
               >
-                {{ selectedResource.identifier }} · {{ selectedResource.name }}
+                {{ selectedResource.identifier }} · {{ selectedResource.displayName }}
               </p>
             </div>
           </div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="btn-secondary text-xs"
+              data-testid="resource-detail-btn"
+              @click="detailOpen = true"
+            >
+              ⓘ Detail
+            </button>
             <button type="button" class="btn-secondary text-xs" @click="changeResource">
               Iný kus
             </button>
@@ -633,7 +693,7 @@ onMounted(async () => {
           <p class="mb-1 font-medium">Táto loď je aktuálne poškodená.</p>
           <p class="mb-2">{{ selectedResource.openDamage.description }}</p>
           <RouterLink
-            :to="`/damages/${selectedResource.openDamage.id}`"
+            :to="{ path: `/damages/${selectedResource.openDamage.id}`, query: { back: backToForm } }"
             class="inline-flex items-center gap-1 text-sm font-medium text-amber-800 hover:underline"
           >
             Detail poškodenia →
@@ -695,14 +755,24 @@ onMounted(async () => {
                   <span aria-hidden="true">{{ TYPE_ICON[r.type] ?? '📦' }}</span>
                   {{ r.identifier }}
                 </p>
-                <p class="truncate text-xs text-slate-500">{{ r.name }}</p>
+                <p class="truncate text-xs text-slate-500">{{ r.displayName }}</p>
                 <span v-if="r.requiresApproval" class="pill-amber mt-1 inline-flex">🔒 Schvaľuje sa</span>
                 <p class="flex items-center gap-1 truncate text-xs text-slate-400">
                   <span>{{ RESOURCE_TYPE_LABEL[r.type] }}</span>
                   <template v-if="r.color"><span>·</span><ColorDot :color="r.color" :size="11" /></template>
                 </p>
               </div>
-              <span aria-hidden="true" class="text-slate-300">›</span>
+              <img
+                v-if="listThumb(r)"
+                :src="listThumb(r) ?? ''"
+                alt=""
+                loading="lazy"
+                decoding="async"
+                class="h-14 w-14 shrink-0 rounded-md object-cover ring-1 ring-slate-200 sm:h-16 sm:w-16"
+                data-testid="list-thumb"
+              @error="brokenPhotos.add(r.id)"
+              />
+              <span v-else aria-hidden="true" class="text-slate-300">›</span>
             </button>
           </div>
         </template>
@@ -775,7 +845,7 @@ onMounted(async () => {
           >
             <div class="min-w-0">
               <p class="truncate text-sm font-medium text-slate-900">{{ r.identifier }}</p>
-              <p class="truncate text-xs text-slate-500">{{ r.name }}</p>
+              <p class="truncate text-xs text-slate-500">{{ r.displayName }}</p>
               <p v-if="r.seats || r.color" class="flex items-center gap-1 truncate text-xs text-slate-400">
                 <span v-if="r.seats">{{ r.seats }}-miestny</span>
                 <span v-if="r.seats && r.color">·</span>
@@ -784,7 +854,17 @@ onMounted(async () => {
               <DamageBadge v-if="r.openDamage" :damage="r.openDamage" class="mt-1" />
               <span v-if="r.requiresApproval" class="pill-amber mt-1 inline-flex">🔒 Schvaľuje sa</span>
             </div>
-            <span aria-hidden="true" class="text-slate-300">›</span>
+            <img
+              v-if="listThumb(r)"
+              :src="listThumb(r) ?? ''"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              class="h-14 w-14 shrink-0 rounded-md object-cover ring-1 ring-slate-200 sm:h-16 sm:w-16"
+              data-testid="list-thumb"
+              @error="brokenPhotos.add(r.id)"
+            />
+            <span v-else aria-hidden="true" class="text-slate-300">›</span>
           </button>
         </div>
       </div>
@@ -968,7 +1048,7 @@ onMounted(async () => {
     <div class="sm:col-span-2 flex flex-wrap items-center justify-end gap-2">
       <span v-if="selectedResource" class="mr-auto text-xs text-slate-500">
         Vybraný zdroj:
-        <strong>{{ selectedResource.identifier }} · {{ selectedResource.name }}</strong>
+        <strong>{{ selectedResource.identifier }} · {{ selectedResource.displayName }}</strong>
       </span>
       <button type="button" class="btn-secondary" @click="$router.back()">Zrušiť</button>
       <RouterLink
@@ -1017,4 +1097,17 @@ onMounted(async () => {
       </p>
     </div>
   </div>
+
+  <ResourceDetailDialog
+    v-if="detailOpen && selectedResource"
+    :resource="selectedResource"
+    :back-to="backToForm"
+    @close="detailOpen = false"
+  />
+  <ImageLightbox
+    v-if="photoZoomed && selectedPhoto"
+    :src="selectedPhoto"
+    :alt="selectedResource?.displayName"
+    @close="photoZoomed = false"
+  />
 </template>

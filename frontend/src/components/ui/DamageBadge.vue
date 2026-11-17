@@ -10,6 +10,8 @@
  *   <DamageBadge :damage="r.openDamage" />                     compact
  *   <DamageBadge :damage="d" detailed link-to-detail />        with text + link
  */
+import { computed } from 'vue';
+
 import type { OpenDamage } from '@/api/types';
 import { DAMAGE_SEVERITY_LABEL, DAMAGE_STATUS_LABEL } from '@/i18n/labels';
 
@@ -20,8 +22,10 @@ const props = withDefaults(
     detailed?: boolean;
     /** Wrap the badge in a link to the damage detail page. */
     linkToDetail?: boolean;
+    /** Page the detail's back button should return to (e.g. the reservation form). */
+    backTo?: string;
   }>(),
-  { detailed: false, linkToDetail: false },
+  { detailed: false, linkToDetail: false, backTo: undefined },
 );
 
 const SEVERITY_PILL: Record<OpenDamage['severity'], string> = {
@@ -31,12 +35,19 @@ const SEVERITY_PILL: Record<OpenDamage['severity'], string> = {
 };
 
 const pill = SEVERITY_PILL[props.damage.severity];
+
+// Plain path normally; with the origin attached when opened from another page.
+const detailTarget = computed(() =>
+  props.backTo
+    ? { path: `/damages/${props.damage.id}`, query: { back: props.backTo } }
+    : `/damages/${props.damage.id}`,
+);
 </script>
 
 <template>
   <component
     :is="linkToDetail ? 'RouterLink' : 'span'"
-    v-bind="linkToDetail ? { to: `/damages/${damage.id}` } : {}"
+    v-bind="linkToDetail ? { to: detailTarget } : {}"
     class="inline-flex flex-wrap items-center gap-1.5 text-xs"
     :class="linkToDetail ? 'hover:underline' : ''"
   >

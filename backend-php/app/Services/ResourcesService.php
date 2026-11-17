@@ -33,7 +33,7 @@ class ResourcesService
             $this->audit->logCreate(
                 AuditEntityType::RESOURCE,
                 $resource,
-                "Pridaná {$this->kind($resource)} „{$resource->identifier} – {$resource->name}“",
+                "Pridaná {$this->kind($resource)} „{$resource->identifier} – {$resource->displayName}“",
                 AuditSnapshot::resource($resource),
             );
 

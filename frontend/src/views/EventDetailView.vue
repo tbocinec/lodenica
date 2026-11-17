@@ -305,7 +305,7 @@ onMounted(load);
                 />
                 <ResourceTypeBadge :type="row.resource.type" />
                 <span class="font-mono text-[11px] text-slate-500">{{ row.resource.identifier }}</span>
-                <span class="truncate font-medium text-slate-800">{{ row.resource.name }}</span>
+                <span class="truncate font-medium text-slate-800">{{ row.resource.displayName }}</span>
                 <span v-if="row.conflicting" class="ml-auto text-[11px] text-red-700">
                   obsadená
                 </span>
@@ -354,7 +354,7 @@ onMounted(load);
               {{ resources.byId.get(r.resourceId)?.identifier }}
             </span>
             <span class="truncate font-medium text-slate-800">
-              {{ resources.byId.get(r.resourceId)?.name ?? '—' }}
+              {{ resources.byId.get(r.resourceId)?.displayName ?? '—' }}
             </span>
             <button
               type="button"

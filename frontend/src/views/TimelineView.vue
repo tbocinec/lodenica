@@ -99,7 +99,7 @@ const resourceRows = computed<Resource[]>(() => {
       if (!q) return true;
       return (
         r.identifier.toLowerCase().includes(q) ||
-        r.name.toLowerCase().includes(q) ||
+        r.displayName.toLowerCase().includes(q) ||
         (r.model ?? '').toLowerCase().includes(q) ||
         (r.color ?? '').toLowerCase().includes(q)
       );
@@ -373,7 +373,7 @@ function blockColor(r: Reservation): string {
 
 function selectedResourceName(): string | undefined {
   return selected.value
-    ? resources.byId.get(selected.value.resourceId)?.name
+    ? resources.byId.get(selected.value.resourceId)?.displayName
     : undefined;
 }
 
@@ -526,7 +526,7 @@ async function onReservationDeleted(): Promise<void> {
               <ResourceTypeBadge :type="r.type" />
               <span class="font-mono text-[11px] text-slate-500">{{ r.identifier }}</span>
             </div>
-            <span class="truncate text-sm font-medium text-slate-800" :title="r.name">{{ r.name }}</span>
+            <span class="truncate text-sm font-medium text-slate-800" :title="r.displayName">{{ r.displayName }}</span>
             <DamageBadge v-if="r.openDamage" :damage="r.openDamage" link-to-detail />
           </div>
 

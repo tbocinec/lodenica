@@ -95,7 +95,7 @@ function heatColor(value: number, max: number): string {
 const topChartData = computed(() => {
   if (!stats.value) return null;
   return {
-    labels: stats.value.topResources.map((r) => `${r.identifier} · ${r.name}`),
+    labels: stats.value.topResources.map((r) => `${r.identifier} · ${r.displayName}`),
     datasets: [
       {
         label: 'Počet rezervácií',
@@ -300,7 +300,7 @@ const activityChartOptions = {
         <li v-for="r in stats.coldResources" :key="r.resourceId" class="flex items-center justify-between py-2">
           <div>
             <span class="font-medium">{{ r.identifier }}</span>
-            <span class="ml-1 text-slate-500">· {{ r.name }} · {{ RESOURCE_TYPE_LABEL[r.type] }}</span>
+            <span class="ml-1 text-slate-500">· {{ r.displayName }} · {{ RESOURCE_TYPE_LABEL[r.type] }}</span>
           </div>
           <span
             class="rounded-full px-2 py-0.5 text-xs font-medium ring-1"
