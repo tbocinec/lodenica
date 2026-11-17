@@ -5,9 +5,11 @@
 # API domain. Fixes the "Network Error" caused by the deploy's parallel SFTP
 # mirror silently skipping the freshly-built SPA assets.
 #
-# RUN WITH VPN OFF (port 22 must be reachable). Safe to re-run.
+# Port 22 must be reachable — turn the VPN off, OR reach the SFTP host through
+# an SSH tunnel: `--tunnel USER@JUMPHOST` (or DEPLOY_SSH_TUNNEL). Safe to re-run.
 #
 #   scripts/redeploy-test.sh
+#   scripts/redeploy-test.sh --tunnel me@jump.example.com
 #
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -16,21 +18,38 @@ SECRETS=".deploy-secrets.test"
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 
+TUNNEL=""
+case "${1:-}" in
+  --tunnel)   TUNNEL="${2:?--tunnel needs USER@HOST}" ;;
+  --tunnel=*) TUNNEL="${1#--tunnel=}" ;;
+esac
+CLI_TUNNEL="$TUNNEL"
+set -a; . "./$SECRETS"; set +a
+TUNNEL="${CLI_TUNNEL:-${DEPLOY_SSH_TUNNEL:-}}"
+TUNNEL_ARGS=()
+[ -n "$TUNNEL" ] && TUNNEL_ARGS=(--tunnel "$TUNNEL")
+
 # ── Preflight: is port 22 reachable? (VPN usually blocks it) ────────────────
-bold "==> Kontrola portu 22 (SFTP)…"
-if ! timeout 8 bash -c "cat < /dev/null > /dev/tcp/lodenicakvs.sk/22" 2>/dev/null; then
-  echo "‼  Port 22 je nedostupný — je VPN naozaj vypnutá? Vypni VPN a spusti script znova."
-  exit 1
+if [ -n "$TUNNEL" ]; then
+  bold "==> Používam SSH tunel cez $TUNNEL (kontrola portu 22 sa preskakuje)."
+else
+  bold "==> Kontrola portu 22 (SFTP)…"
+  if ! timeout 8 bash -c "cat < /dev/null > /dev/tcp/${DEPLOY_SFTP_HOST:-lodenicakvs.sk}/${DEPLOY_SFTP_PORT:-22}" 2>/dev/null; then
+    echo "‼  Port 22 je nedostupný — vypni VPN, alebo použi --tunnel USER@JUMPHOST."
+    exit 1
+  fi
+  echo "   OK, port 22 je priechodný."
 fi
-echo "   OK, port 22 je priechodný."
 
 # ── Full deploy: rebuild SPA (new domain baked in), rewrite .env, upload, ───
 # ── migrate (noop), cache. Don't abort on its exit code — we verify below. ──
 bold "==> Spúšťam plný deploy na test…"
-scripts/deploy-rezervacie.sh --secrets "$SECRETS" || echo "‼  Deploy skript skončil s chybou — pokračujem overením + opravou."
+scripts/deploy-rezervacie.sh --secrets "$SECRETS" "${TUNNEL_ARGS[@]+"${TUNNEL_ARGS[@]}"}" || echo "‼  Deploy skript skončil s chybou — pokračujem overením + opravou."
 
-# Load secrets for verification + the serial fallback upload.
-set -a; . "./$SECRETS"; set +a
+# Secrets are already loaded above; open the tunnel for the serial fallback upload.
+# shellcheck source=lib/sftp-tunnel.sh
+. scripts/lib/sftp-tunnel.sh
+[ -n "$TUNNEL" ] && { sftp_tunnel_open "$TUNNEL" || echo "‼  Tunel sa nepodarilo otvoriť — fallback upload nebude fungovať."; }
 STAGE="${LODENICA_DEPLOY_STAGE:-/tmp/lodenica-deploy-$PROD_DOMAIN}"
 
 # Fetch into a variable and test afterwards. Never pipe curl straight into
@@ -65,6 +84,7 @@ for attempt in 1 2 3 4; do
   fi
   echo "   ⚠  Zlá/stará doména — sériový re-upload docrootu (pokus $attempt)…"
   lftp -u "$DEPLOY_SFTP_USER,$DEPLOY_SFTP_PASSWORD" -p "${DEPLOY_SFTP_PORT:-22}" "sftp://$DEPLOY_SFTP_HOST" <<LFTP
+set sftp:connect-program "$LFTP_CONNECT"
 set sftp:auto-confirm yes
 set net:max-retries 3
 set net:timeout 30

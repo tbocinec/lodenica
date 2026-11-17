@@ -39,6 +39,7 @@ DO_UPLOAD=1
 DO_INSTALL=1
 DO_IMPORT=0        # default OFF — destructive; only opt-in for first install / refresh
 DO_SMOKE=1
+TUNNEL="${DEPLOY_SSH_TUNNEL:-}"   # USER@JUMPHOST; also settable in the secrets file
 
 usage() {
     cat <<'USAGE'
@@ -65,6 +66,10 @@ Safe for both first install AND repeated code updates by default:
   --no-upload           Skip the SFTP upload (build only).
   --no-install          Skip the HTTPS install.php trigger (no migrate / no cache).
   --no-smoke            Skip the post-deploy curl smoke tests.
+  --tunnel USER@HOST    Reach the SFTP host through an SSH tunnel via HOST
+                        (for networks/VPNs that block outbound port 22 but
+                        let you ssh to a jump host that can reach it).
+                        Also settable via DEPLOY_SSH_TUNNEL.
   -h, --help
 
 Required env in the secrets file:
@@ -98,6 +103,8 @@ while [[ $# -gt 0 ]]; do
         --no-upload)       DO_UPLOAD=0 ;;
         --no-install)      DO_INSTALL=0 ;;
         --no-smoke)        DO_SMOKE=0 ;;
+        --tunnel)          shift; [[ -n "${1:-}" ]] || { echo "--tunnel needs USER@HOST" >&2; exit 2; }; TUNNEL="$1" ;;
+        --tunnel=*)        TUNNEL="${1#--tunnel=}" ;;
         -h|--help)         usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage; exit 2 ;;
     esac
@@ -115,7 +122,9 @@ die() { printf '\033[1;31m[fail]\033[0m %s\n' "$*" >&2; exit 1; }
 
 log "Using secrets: $SECRETS"
 # Source the secrets file. shellcheck source=/dev/null
+_CLI_TUNNEL="$TUNNEL"
 set -a; . "$SECRETS"; set +a
+TUNNEL="${_CLI_TUNNEL:-${DEPLOY_SSH_TUNNEL:-}}"   # CLI flag > env/secrets
 
 require_var() {
     for v in "$@"; do
@@ -162,13 +171,21 @@ if (( DO_INSTALL || DO_SMOKE )); then
     require_cmd curl
 fi
 
+# Optional SSH tunnel to the SFTP host (rewrites DEPLOY_SFTP_HOST/PORT).
+# shellcheck source=lib/sftp-tunnel.sh
+. "$REPO_ROOT/scripts/lib/sftp-tunnel.sh"
+if [[ -n "$TUNNEL" ]] && (( DO_EXPLORE )); then
+    sftp_tunnel_open "$TUNNEL" || die "SSH tunnel via $TUNNEL failed"
+fi
+
 #────────────────────────────────────────────────────────────────────────────
 # Explore mode — just print the remote layout and exit
 #────────────────────────────────────────────────────────────────────────────
 if (( DO_EXPLORE )); then
     log "Listing remote SFTP root for $DEPLOY_SFTP_USER@$DEPLOY_SFTP_HOST:$DEPLOY_SFTP_PORT…"
     lftp -u "$DEPLOY_SFTP_USER,$DEPLOY_SFTP_PASSWORD" -p "$DEPLOY_SFTP_PORT" \
-        "sftp://$DEPLOY_SFTP_HOST" <<'LFTP'
+        "sftp://$DEPLOY_SFTP_HOST" <<LFTP
+set sftp:connect-program "$LFTP_CONNECT"
 set sftp:auto-confirm yes
 pwd
 cls -la
@@ -394,6 +411,11 @@ INSTALL_TOKEN="$(cat "$STAGE/.install-token" 2>/dev/null || true)"
 # Stage 2 — upload via SFTP (lftp mirror)
 #────────────────────────────────────────────────────────────────────────────
 if (( DO_UPLOAD )); then
+    # Opened HERE, not at start-up: the build above can take minutes, and a
+    # tunnel idling that long was dropped by the jump host mid-upload.
+    if [[ -n "$TUNNEL" ]]; then
+        sftp_tunnel_open "$TUNNEL" || die "SSH tunnel via $TUNNEL failed"
+    fi
     log "Uploading Laravel app  → sftp://$DEPLOY_SFTP_HOST:$DEPLOY_SFTP_PORT$DEPLOY_LARAVEL_APP_REMOTE"
     log "Uploading docroot      → sftp://$DEPLOY_SFTP_HOST:$DEPLOY_SFTP_PORT$DEPLOY_DOCROOT_REMOTE"
 
@@ -413,6 +435,7 @@ if (( DO_UPLOAD )); then
     # these paths to the disk config so they can't drift again.
     lftp -u "$DEPLOY_SFTP_USER,$DEPLOY_SFTP_PASSWORD" -p "$DEPLOY_SFTP_PORT" \
         "sftp://$DEPLOY_SFTP_HOST" <<LFTP
+set sftp:connect-program "$LFTP_CONNECT"
 set sftp:auto-confirm yes
 set net:max-retries 3
 set net:timeout 30
@@ -469,6 +492,7 @@ LFTP
         log "Uploading site logo ($LOGO_PATH) → storage/app/private/site/logo.$LOGO_EXT"
         lftp -u "$DEPLOY_SFTP_USER,$DEPLOY_SFTP_PASSWORD" -p "$DEPLOY_SFTP_PORT" \
             "sftp://$DEPLOY_SFTP_HOST" <<LFTP
+set sftp:connect-program "$LFTP_CONNECT"
 set sftp:auto-confirm yes
 set xfer:clobber yes
 mkdir -fp $DEPLOY_LARAVEL_APP_REMOTE/storage/app/private/site
